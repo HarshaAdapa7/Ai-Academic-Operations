@@ -3,10 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { timetableService } from '../services/timetableService';
 import type { TimetableEntry, ExamTimetableEntry } from '../services/timetableService';
 import { facultyService } from '../services/facultyService';
-import type { Subject, Department, FacultyProfile } from '../services/facultyService';
+import type { Subject, Department, FacultyProfile, SectionConfig } from '../services/facultyService';
 import { classroomService } from '../services/classroomService';
 import type { Classroom } from '../services/classroomService';
-import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles } from 'lucide-react';
+import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check } from 'lucide-react';
 
 interface TimetableManagerViewProps {
   onBack: () => void;
@@ -19,15 +19,22 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [facultyProfiles, setFacultyProfiles] = useState<FacultyProfile[]>([]);
+  const [sectionConfigs, setSectionConfigs] = useState<SectionConfig[]>([]);
   
   const [selectedDeptId, setSelectedDeptId] = useState('');
   const [selectedSection, setSelectedSection] = useState('CSE 3-A');
+  const [isCustomSection, setIsCustomSection] = useState(false);
+  const [customSectionInput, setCustomSectionInput] = useState('');
   const [activeTab, setActiveTab] = useState<'class' | 'exam' | 'settings'>('class');
   const [isLoading, setIsLoading] = useState(true);
 
   // Scheduling Rule states
+  const [ruleSlotsPerDay, setRuleSlotsPerDay] = useState<number>(7);
+  const [ruleLunchSlot, setRuleLunchSlot] = useState<number | null>(null);
   const [ruleDays, setRuleDays] = useState<string[]>(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
   const [ruleActivityBlocks, setRuleActivityBlocks] = useState('Saturday-5,Saturday-6,Saturday-7');
+  const [isSavingRule, setIsSavingRule] = useState(false);
+  const [ruleSaveMessage, setRuleSaveMessage] = useState('');
 
   // Timetable Entries states
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
@@ -49,25 +56,27 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [solverError, setSolverError] = useState('');
   const [isSolving, setIsSolving] = useState(false);
 
-  // Rule 0: Year-based lunch calculation
+  // Dynamic Rule 0 & Lunch calculation
   const sectionYear = parseInt(selectedSection.replace(/\D/g, '')) || 1;
-  const currentLunchSlot = sectionYear === 1 ? 4 : 5;
+  const currentLunchSlot = ruleLunchSlot !== null ? ruleLunchSlot : (sectionYear === 1 ? 4 : 5);
 
   const loadBaseData = async () => {
     try {
       setIsLoading(true);
-      const [deptsData, subjsData, roomsData, facultyData, examsData] = await Promise.all([
+      const [deptsData, subjsData, roomsData, facultyData, examsData, sectionsData] = await Promise.all([
         facultyService.getDepartments(),
         facultyService.getSubjects(),
         classroomService.getClassrooms(),
         facultyService.getFacultyProfiles(),
-        timetableService.getExamSchedule()
+        timetableService.getExamSchedule(),
+        facultyService.getSectionConfigs()
       ]);
       setDepartments(deptsData);
       setSubjects(subjsData);
       setClassrooms(roomsData);
       setFacultyProfiles(facultyData);
       setExams(examsData);
+      setSectionConfigs(sectionsData);
       
       if (deptsData.length > 0 && !selectedDeptId) {
         setSelectedDeptId(deptsData[0].id);
@@ -88,6 +97,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       setIsLoading(true);
       if (selectedDeptId) {
         const rule = await timetableService.getSchedulingRule(selectedDeptId);
+        if (rule.slots_per_day) setRuleSlotsPerDay(rule.slots_per_day);
+        if (rule.lunch_slot !== undefined && rule.lunch_slot !== null) setRuleLunchSlot(rule.lunch_slot);
         if (rule.days_active) setRuleDays(rule.days_active.split(','));
         if (rule.activity_blocks) setRuleActivityBlocks(rule.activity_blocks);
       }
@@ -104,6 +115,31 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   useEffect(() => {
     loadTimetableAndRules();
   }, [selectedDeptId, selectedSection]);
+
+  // Compute dynamic section dropdown list
+  const getAvailableSections = () => {
+    const list = new Set<string>();
+
+    sectionConfigs.forEach(s => {
+      if (s.name) list.add(s.name.trim().toUpperCase());
+    });
+
+    timetableEntries.forEach(e => {
+      if (e.section) list.add(e.section.trim().toUpperCase());
+    });
+
+    departments.forEach(d => {
+      const code = d.code.toUpperCase();
+      [1, 2, 3, 4].forEach(yr => {
+        list.add(`${code} ${yr}-A`);
+        list.add(`${code} ${yr}-B`);
+      });
+    });
+
+    ['CSE 1-A', 'CSE 2-A', 'CSE 3-A', 'CSE 4-A', 'CSE 3-B', 'CSD 3-A', 'ECE 2-A', 'EEE 3-A', 'MECH 2-A', 'CIVIL 3-A'].forEach(s => list.add(s));
+
+    return Array.from(list).sort();
+  };
 
   const handleOpenSlotModal = (day: string, slotNum: number, existing?: TimetableEntry) => {
     setTargetDay(day);
@@ -198,6 +234,30 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     }
   };
 
+  const handleSaveRules = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setIsSavingRule(true);
+      setRuleSaveMessage('');
+      await timetableService.saveSchedulingRule({
+        department_id: selectedDeptId || null,
+        slots_per_day: ruleSlotsPerDay,
+        days_active: ruleDays.join(','),
+        allow_classroom_overlap: false,
+        allow_faculty_overlap: false,
+        lunch_slot: ruleLunchSlot,
+        activity_blocks: ruleActivityBlocks
+      });
+      setRuleSaveMessage('Scheduling rules & daily slots saved successfully!');
+      setTimeout(() => setRuleSaveMessage(''), 4000);
+      loadTimetableAndRules();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to save scheduling rules.');
+    } finally {
+      setIsSavingRule(false);
+    }
+  };
+
   const activityBlocksList = ruleActivityBlocks.split(',').map(b => b.trim());
 
   return (
@@ -277,20 +337,47 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         /* Dynamic Timetable Grid Tab */
         <div className="space-y-6">
           <div className="flex justify-between items-center gap-4 bg-dark-900/30 p-4 border border-dark-800 rounded-xl">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <label className="text-xs font-semibold text-dark-400">Cohort Section:</label>
-                <input
-                  type="text"
-                  value={selectedSection}
-                  onChange={e => setSelectedSection(e.target.value.toUpperCase())}
-                  placeholder="e.g. CSE 3-A"
-                  className="w-32 px-3 py-1.5 bg-dark-950 border border-dark-800 rounded-lg text-white text-xs outline-none focus:border-primary-500/50"
-                />
+                <select
+                  value={isCustomSection ? '__CUSTOM__' : selectedSection}
+                  onChange={e => {
+                    if (e.target.value === '__CUSTOM__') {
+                      setIsCustomSection(true);
+                    } else {
+                      setIsCustomSection(false);
+                      setSelectedSection(e.target.value);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-dark-950 border border-dark-800 rounded-lg text-white text-xs outline-none focus:border-primary-500/50"
+                >
+                  {getAvailableSections().map(sec => (
+                    <option key={sec} value={sec}>{sec}</option>
+                  ))}
+                  <option value="__CUSTOM__">+ Type Custom Section...</option>
+                </select>
+
+                {isCustomSection && (
+                  <input
+                    type="text"
+                    value={customSectionInput}
+                    onChange={e => {
+                      const val = e.target.value.toUpperCase();
+                      setCustomSectionInput(val);
+                      setSelectedSection(val);
+                    }}
+                    placeholder="e.g. IT 3-A"
+                    className="w-28 px-3 py-1.5 bg-dark-950 border border-primary-500/50 rounded-lg text-white text-xs outline-none"
+                  />
+                )}
               </div>
 
               <span className="text-xs px-2.5 py-1 rounded bg-primary-500/10 text-primary-400 border border-primary-500/20 font-bold">
-                Rule 0: {sectionYear === 1 ? '1st Year (Lunch Slot 4)' : `Year ${sectionYear} (Lunch Slot 5)`}
+                Rule 0: {sectionYear === 1 ? `1st Year (Lunch Slot ${currentLunchSlot})` : `Year ${sectionYear} (Lunch Slot ${currentLunchSlot})`}
+              </span>
+              <span className="text-xs px-2.5 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+                Daily Capacity: {ruleSlotsPerDay} Slots
               </span>
             </div>
 
@@ -314,7 +401,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               <thead>
                 <tr>
                   <th className="p-3 text-left text-xs font-bold text-dark-500 border-b border-dark-850 w-24 uppercase">Day / Slot</th>
-                  {Array.from({ length: 7 }).map((_, idx) => {
+                  {Array.from({ length: ruleSlotsPerDay }).map((_, idx) => {
                     const slotNum = idx + 1;
                     const isLunch = slotNum === currentLunchSlot;
                     return (
@@ -334,7 +421,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                   return (
                     <tr key={day} className="border-b border-dark-850/40 hover:bg-dark-900/5">
                       <td className="p-3 text-xs font-extrabold text-white align-middle">{day}</td>
-                      {Array.from({ length: 7 }).map((_, slotIdx) => {
+                      {Array.from({ length: ruleSlotsPerDay }).map((_, slotIdx) => {
                         const slotNum = slotIdx + 1;
                         const entry = dayEntries.find(e => e.time_slot === slotNum);
                         
@@ -351,7 +438,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                                 handleOpenSlotModal(day, slotNum, entry);
                               }
                             }}
-                            className="p-2 w-1/7"
+                            className="p-2"
                           >
                             {isLunch ? (
                               <div className="py-4 border border-amber-500/20 bg-amber-500/5 text-center rounded-xl text-amber-400/80 text-[10px] uppercase font-bold tracking-widest">
@@ -450,8 +537,68 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       ) : (
         /* Settings Tab */
         <div className="space-y-8 max-w-3xl mx-auto">
+          <form onSubmit={handleSaveRules} className="glass-panel p-6 space-y-6">
+            <h3 className="text-base font-bold text-white mb-2">Configure Department Scheduling Rules & Daily Slots</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Slots Per Day (Daily Periods)</label>
+                <input
+                  type="number"
+                  min={4}
+                  max={12}
+                  value={ruleSlotsPerDay}
+                  onChange={e => setRuleSlotsPerDay(parseInt(e.target.value) || 7)}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-sm outline-none focus:border-primary-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Default Lunch Break Period Slot</label>
+                <select
+                  value={ruleLunchSlot !== null ? ruleLunchSlot : ''}
+                  onChange={e => setRuleLunchSlot(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-sm outline-none focus:border-primary-500/50"
+                >
+                  <option value="">Auto (Year 1 = Period 4, Upper Years = Period 5)</option>
+                  <option value={3}>Period Slot 3</option>
+                  <option value={4}>Period Slot 4</option>
+                  <option value={5}>Period Slot 5</option>
+                  <option value={6}>Period Slot 6</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-dark-300 block mb-1.5">Saturday Activity Blocks (Day-Slot Pairs)</label>
+              <input
+                type="text"
+                value={ruleActivityBlocks}
+                onChange={e => setRuleActivityBlocks(e.target.value)}
+                placeholder="e.g. Saturday-5,Saturday-6,Saturday-7"
+                className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-sm outline-none focus:border-primary-500/50"
+              />
+              <p className="text-[11px] text-dark-500 mt-1">Comma separated list of slots locked for sports/counseling/activities.</p>
+            </div>
+
+            {ruleSaveMessage && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                <span>{ruleSaveMessage}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSavingRule}
+              className="py-3 px-6 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold shadow-lg shadow-primary-500/20 transition-all"
+            >
+              {isSavingRule ? 'Saving Rules...' : 'Save Department Scheduling Rules'}
+            </button>
+          </form>
+
           <div className="glass-panel p-6">
-            <h3 className="text-base font-bold text-white mb-6">17 B.Tech College Rules Overview</h3>
+            <h3 className="text-base font-bold text-white mb-6">17 B.Tech College Rules Summary</h3>
             <div className="space-y-3 text-xs text-dark-300">
               <p>• <strong>Rule 0</strong>: Year 1 Lunch at Period 4; Upper Years Lunch at Period 5.</p>
               <p>• <strong>Rule 1 & 2</strong>: HOD excluded from Period 1/7 and Wednesday afternoon slots.</p>

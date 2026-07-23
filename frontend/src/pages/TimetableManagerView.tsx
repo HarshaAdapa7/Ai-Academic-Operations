@@ -36,6 +36,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [ruleActivityBlocks, setRuleActivityBlocks] = useState('Saturday-5,Saturday-6,Saturday-7');
   const [isSavingRule, setIsSavingRule] = useState(false);
   const [ruleSaveMessage, setRuleSaveMessage] = useState('');
+  const [ruleSaveError, setRuleSaveError] = useState('');
 
   // Timetable Entries states
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
@@ -263,6 +264,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     try {
       setIsSavingRule(true);
       setRuleSaveMessage('');
+      setRuleSaveError('');
       await timetableService.saveSchedulingRule({
         department_id: selectedDeptId || null,
         slots_per_day: ruleSlotsPerDay,
@@ -276,7 +278,15 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       setTimeout(() => setRuleSaveMessage(''), 4000);
       loadTimetableAndRules();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to save scheduling rules.');
+      const msg = typeof err.response?.data?.detail === 'string'
+        ? err.response.data.detail
+        : (err.message || 'Failed to save scheduling rules.');
+      
+      if (msg.includes('getaddrinfo') || msg.includes('Network Error') || msg.includes('11001')) {
+        setRuleSaveError('Database connection issue (network DNS timeout). Please check internet connectivity or retry.');
+      } else {
+        setRuleSaveError(msg);
+      }
     } finally {
       setIsSavingRule(false);
     }
@@ -619,6 +629,13 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">
                 <Check className="w-4 h-4" />
                 <span>{ruleSaveMessage}</span>
+              </div>
+            )}
+
+            {ruleSaveError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                <span>{ruleSaveError}</span>
               </div>
             )}
 

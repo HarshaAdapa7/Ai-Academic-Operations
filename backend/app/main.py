@@ -100,9 +100,16 @@ async def global_exception_handler(request, exc):
     tb = traceback.format_exc()
     print(f"--- Global Unhandled Exception ---\n{tb}\n---------------------------------")
     origin = request.headers.get("origin") or "http://localhost:5173"
+    
+    err_str = str(exc)
+    if "getaddrinfo failed" in err_str or "gaierror" in err_str or "11001" in err_str:
+        user_detail = "Database connection error (getaddrinfo failed). Remote database host is unreachable. Please check network connection."
+    else:
+        user_detail = err_str
+
     return JSONResponse(
         status_code=500,
-        content={"detail": f"{str(exc)}\n{tb}"},
+        content={"detail": user_detail},
         headers={
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",

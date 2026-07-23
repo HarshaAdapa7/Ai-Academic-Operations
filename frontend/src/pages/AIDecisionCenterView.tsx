@@ -16,7 +16,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [activeTab, setActiveTab] = useState<'assistant' | 'analytics' | 'policies'>('assistant');
+  const [activeTab, setActiveTab] = useState<'assistant' | 'policies'>('assistant');
   const [isLoading, setIsLoading] = useState(false);
 
   // Chat states
@@ -218,7 +218,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
       </div>
 
       {/* Main Tabs */}
-      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-lg mb-8">
+      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-sm mb-8">
         <button
           onClick={() => setActiveTab('assistant')}
           className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -229,23 +229,6 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         >
           <Sparkles className="w-3.5 h-3.5" />
           AI Assistant Chat
-        </button>
-        <button
-          onClick={() => {
-            if (onNavigate) {
-              onNavigate('academic_analytics');
-            } else {
-              setActiveTab('analytics');
-            }
-          }}
-          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'analytics' 
-              ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
-              : 'text-dark-400 hover:text-white'
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5" />
-          Analytics Hub ↗
         </button>
         <button
           onClick={() => setActiveTab('policies')}

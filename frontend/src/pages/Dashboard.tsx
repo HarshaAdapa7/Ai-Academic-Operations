@@ -124,18 +124,20 @@ export const Dashboard: React.FC = () => {
       onClick: () => setActiveView('ai_decision_center')
     },
     { 
+      id: 'academic_analytics',
       name: 'Academic Analytics Hub', 
       desc: 'View real-time workload heatmaps, room occupancy utilization rates and rule optimization metrics.', 
       icon: BarChart3, 
       color: 'from-cyan-500 to-blue-600', 
       active: true,
+      roles: ['HOD', 'ADMIN', 'DEAN'],
       onClick: () => setActiveView('academic_analytics')
     },
   ];
 
   const visibleModules = allModules.filter(mod => {
     const userRole = user?.role || 'FACULTY';
-    return mod.roles.includes(userRole);
+    return mod.roles ? mod.roles.includes(userRole) : true;
   });
 
   const handleOpenFacultyAvailability = (id: string, name: string) => {

@@ -81,7 +81,9 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       setExams(examsData);
       setSectionConfigs(sectionsData);
       
-      if (deptsData.length > 0 && !selectedDeptId) {
+      if (user?.role === 'HOD' && user?.department_id) {
+        setSelectedDeptId(user.department_id);
+      } else if (deptsData.length > 0 && !selectedDeptId) {
         setSelectedDeptId(deptsData[0].id);
       }
     } catch (err) {
@@ -118,6 +120,11 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   useEffect(() => {
     loadTimetableAndRules();
   }, [selectedDeptId, selectedSection]);
+
+  // Filter departments based on user role (HOD locked to their department, Admin sees all)
+  const availableDepartments = (user?.role === 'HOD' && user?.department_id)
+    ? departments.filter(d => d.id === user.department_id)
+    : departments;
 
   // Compute dynamic section dropdown list filtered by selected department
   const getAvailableSections = () => {
@@ -316,9 +323,10 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
             <select
               value={selectedDeptId}
               onChange={e => setSelectedDeptId(e.target.value)}
-              className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-primary-500/50"
+              disabled={user?.role === 'HOD' && Boolean(user?.department_id)}
+              className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-primary-500/50 disabled:opacity-80 disabled:cursor-not-allowed"
             >
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+              {availableDepartments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
             </select>
           </div>
           <button

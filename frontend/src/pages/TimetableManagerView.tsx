@@ -118,30 +118,52 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     loadTimetableAndRules();
   }, [selectedDeptId, selectedSection]);
 
-  // Compute dynamic section dropdown list
+  // Compute dynamic section dropdown list filtered by selected department
   const getAvailableSections = () => {
     const list = new Set<string>();
+    const currentDept = departments.find(d => d.id === selectedDeptId);
+    const deptCode = currentDept ? currentDept.code.toUpperCase() : '';
 
     sectionConfigs.forEach(s => {
-      if (s.name) list.add(s.name.trim().toUpperCase());
+      if (s.name && (!selectedDeptId || s.department_id === selectedDeptId)) {
+        list.add(s.name.trim().toUpperCase());
+      }
     });
 
     timetableEntries.forEach(e => {
-      if (e.section) list.add(e.section.trim().toUpperCase());
+      if (e.section && (!selectedDeptId || e.department_id === selectedDeptId)) {
+        list.add(e.section.trim().toUpperCase());
+      }
     });
 
-    departments.forEach(d => {
-      const code = d.code.toUpperCase();
+    if (deptCode) {
       [1, 2, 3, 4].forEach(yr => {
-        list.add(`${code} ${yr}-A`);
-        list.add(`${code} ${yr}-B`);
+        list.add(`${deptCode} ${yr}-A`);
+        list.add(`${deptCode} ${yr}-B`);
       });
-    });
+    } else {
+      departments.forEach(d => {
+        const code = d.code.toUpperCase();
+        [1, 2, 3, 4].forEach(yr => {
+          list.add(`${code} ${yr}-A`);
+          list.add(`${code} ${yr}-B`);
+        });
+      });
+    }
 
-    ['CSE 1-A', 'CSE 2-A', 'CSE 3-A', 'CSE 4-A', 'CSE 3-B', 'CSD 3-A', 'ECE 2-A', 'EEE 3-A', 'MECH 2-A', 'CIVIL 3-A'].forEach(s => list.add(s));
-
-    return Array.from(list).sort();
+    const sorted = Array.from(list).sort();
+    return sorted.length > 0 ? sorted : [`${deptCode || 'CSE'} 3-A`];
   };
+
+  // Auto-switch section to match newly selected department
+  useEffect(() => {
+    if (!selectedDeptId || departments.length === 0) return;
+    const available = getAvailableSections();
+    if (available.length > 0 && !available.includes(selectedSection)) {
+      const prefer3rdYear = available.find(s => s.includes('3-A')) || available[0];
+      setSelectedSection(prefer3rdYear);
+    }
+  }, [selectedDeptId, departments]);
 
   const handleOpenSlotModal = (day: string, slotNum: number, existing?: TimetableEntry) => {
     setTargetDay(day);

@@ -713,6 +713,9 @@ async def create_exam_entry(
     if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized to edit exam schedules.")
 
+    if exam_in.exam_date.tzinfo:
+        exam_in.exam_date = exam_in.exam_date.replace(tzinfo=None)
+
     room_stmt = (
         select(ExamTimetableEntry)
         .where(

@@ -152,7 +152,7 @@ async def generate_seating_plan(
 
     # 4. Create Seating Plan header record
     new_plan = SeatingPlan(
-        exam_date=plan_in.exam_date,
+        exam_date=plan_in.exam_date.replace(tzinfo=None) if plan_in.exam_date.tzinfo else plan_in.exam_date,
         time_slot=plan_in.time_slot
     )
     db.add(new_plan)
@@ -161,9 +161,14 @@ async def generate_seating_plan(
 
     # 5. Distribute students using checkerboard parity (r + c) % len(courses)
     assigned_count = 0
+    use_alternate_cols = (total_students_count <= total_seats / 2)
+    
     for room in classrooms:
         for r in range(room.rows):
             for c in range(room.cols):
+                if use_alternate_cols and c % 2 != 0:
+                    continue
+
                 if assigned_count >= total_students_count:
                     break
 

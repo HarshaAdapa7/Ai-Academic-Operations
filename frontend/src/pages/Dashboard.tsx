@@ -70,7 +70,7 @@ export const Dashboard: React.FC = () => {
       icon: Calendar, 
       color: 'from-blue-500 to-indigo-500', 
       active: true,
-      roles: ['FACULTY', 'HOD', 'ADMIN', 'DEAN'],
+      roles: ['FACULTY'],
       onClick: () => setActiveView('faculty_weekly_timetable')
     },
     { 
@@ -80,7 +80,7 @@ export const Dashboard: React.FC = () => {
       icon: BarChart3, 
       color: 'from-emerald-500 to-teal-500', 
       active: true,
-      roles: ['FACULTY', 'HOD', 'ADMIN', 'DEAN'],
+      roles: ['FACULTY'],
       onClick: () => setActiveView('faculty_analytics_records')
     },
     { 

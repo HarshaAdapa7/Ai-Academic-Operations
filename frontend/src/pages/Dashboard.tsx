@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, LayoutGrid, Users, CalendarDays, MonitorPlay, MapPin, Brain, Bell } from 'lucide-react';
+import { LogOut, LayoutGrid, Users, CalendarDays, MonitorPlay, MapPin, Brain, Bell, BarChart3 } from 'lucide-react';
 import { FacultyManagerView } from './FacultyManagerView';
 import { DeptSubjectManager } from './DeptSubjectManager';
 import { FacultyAvailabilityView } from './FacultyAvailabilityView';
@@ -8,10 +8,11 @@ import { LeaveManagerView } from './LeaveManagerView';
 import { ClassroomManagerView } from './ClassroomManagerView';
 import { TimetableManagerView } from './TimetableManagerView';
 import { AIDecisionCenterView } from './AIDecisionCenterView';
+import { AcademicAnalyticsView } from './AcademicAnalyticsView';
 import { leaveService } from '../services/leaveService';
 import type { DailyBulletin } from '../services/leaveService';
 
-type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'ai_decision_center';
+type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'ai_decision_center' | 'academic_analytics';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -100,6 +101,14 @@ export const Dashboard: React.FC = () => {
       active: true,
       onClick: () => setActiveView('ai_decision_center')
     },
+    { 
+      name: 'Academic Analytics Hub', 
+      desc: 'View real-time workload heatmaps, room occupancy utilization rates and rule optimization metrics.', 
+      icon: BarChart3, 
+      color: 'from-cyan-500 to-blue-600', 
+      active: true,
+      onClick: () => setActiveView('academic_analytics')
+    },
   ];
 
   const handleOpenFacultyAvailability = (id: string, name: string) => {
@@ -149,6 +158,16 @@ export const Dashboard: React.FC = () => {
                   }`}
                 >
                   Dept & Subjects
+                </button>
+                <button
+                  onClick={() => setActiveView('academic_analytics')}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeView === 'academic_analytics' 
+                      ? 'bg-primary-500 text-white shadow-md' 
+                      : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Academic Analytics
                 </button>
               </div>
             )}
@@ -280,6 +299,12 @@ export const Dashboard: React.FC = () => {
         <AIDecisionCenterView 
           onBack={() => setActiveView('dashboard')}
           onNavigate={(targetView) => setActiveView(targetView)}
+        />
+      )}
+
+      {activeView === 'academic_analytics' && (
+        <AcademicAnalyticsView 
+          onBack={() => setActiveView('dashboard')}
         />
       )}
 

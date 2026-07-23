@@ -231,7 +231,13 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
           AI Assistant Chat
         </button>
         <button
-          onClick={() => setActiveTab('analytics')}
+          onClick={() => {
+            if (onNavigate) {
+              onNavigate('academic_analytics');
+            } else {
+              setActiveTab('analytics');
+            }
+          }}
           className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'analytics' 
               ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
@@ -239,7 +245,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
           }`}
         >
           <BarChart3 className="w-3.5 h-3.5" />
-          Analytics Insights
+          Analytics Hub ↗
         </button>
         <button
           onClick={() => setActiveTab('policies')}

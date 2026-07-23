@@ -1,0 +1,16 @@
+Department,DepartmentName,AcademicYear,SectionName,SubjectCode,SubjectName,SubjectType,FacultyEmail,FacultyName,Designation,IsHOD,IsDean,IsClassTeacher,MentorEmails,RoomNumber,Capacity,RoomType
+CSD,Data Science,3,CSD 3-A,23ES6111A,DATA WAREHOUSING,THEORY,i.tejaswini@anits.edu.in,I Tejaswini,Assistant Professor,FALSE,FALSE,FALSE,,I-506,60,CLASSROOM
+CSD,Data Science,3,CSD 3-A,23CD5111D,ARTIFICIAL INTELLIGENCE,THEORY,g.naveen@anits.edu.in,Mr. G Naveen,Assistant Professor,FALSE,FALSE,FALSE,,I-506,60,CLASSROOM
+CSD,Data Science,3,CSD 3-A,23CD4120,DATA ENGINEERING,THEORY,svs.santhi@anits.edu.in,Dr. S.V.S. Santhi,Professor,FALSE,FALSE,FALSE,"svs.santhi@anits.edu.in, bheemshankar@anits.edu.in, arunajyothi@anits.edu.in",I-506,60,CLASSROOM
+CSD,Data Science,3,CSD 3-A,23CD4121,DATA ANALYTICS & VISUALIZATION,THEORY,bheemshankar@anits.edu.in,Dr. Y Bheem Shankar,Associate Professor,FALSE,FALSE,TRUE,"svs.santhi@anits.edu.in, bheemshankar@anits.edu.in, arunajyothi@anits.edu.in",I-506,60,CLASSROOM
+CSD,Data Science,3,CSD 3-A,23CD9203,SOFTWARE ENGINEERING,THEORY,renukasai@anits.edu.in,Ms. B. Renuka Sai,Assistant Professor,FALSE,FALSE,FALSE,,I-506,60,CLASSROOM
+CSD,Data Science,3,CSD 3-A,23CD9204,R PROGRAMMING,THEORY,arunajyothi@anits.edu.in,Mrs. S Aruna Jyothi,Assistant Professor,FALSE,FALSE,FALSE,"svs.santhi@anits.edu.in, bheemshankar@anits.edu.in, arunajyothi@anits.edu.in",I-506,60,CLASSROOM
+CSD,Data Science,3,CSD 3-A,23CD4215,DATA ENGINEERING LAB,LAB,svs.santhi@anits.edu.in,Dr. S.V.S. Santhi,Professor,FALSE,FALSE,FALSE,,I-507,30,LAB
+CSD,Data Science,3,CSD 3-A,23CD9216,DATA ANALYTICS LAB,LAB,bheemshankar@anits.edu.in,Dr. Y Bheem Shankar,Associate Professor,FALSE,FALSE,FALSE,,I-507,30,LAB
+CSD,Data Science,3,CSD 3-A,23CR9103,QUANTITATIVE APTITUDE-II,THEORY,jithinkumar@anits.edu.in,Mr. R Jithin Kumar,Assistant Professor,FALSE,FALSE,FALSE,,I-506,60,CLASSROOM
+CSD,Data Science,3,CSD 3-A,23BS3101,PROBABILITY & STATISTICS,THEORY,math.professor@anits.edu.in,Dr. M. Mathematics,Professor,FALSE,FALSE,FALSE,,I-506,60,CLASSROOM
+CSE,Computer Science,2,CSE 2-A,23BS2101,DISCRETE MATHEMATICS,THEORY,math.professor@anits.edu.in,Dr. M. Mathematics,Professor,FALSE,FALSE,FALSE,,C-301,60,CLASSROOM
+CSE,Computer Science,3,CSE 3-A,23CS3101,COMPILER DESIGN,THEORY,prof.cse.hod@anits.edu.in,Dr. K. Srinivasa Rao,Professor & HOD,TRUE,FALSE,TRUE,prof.cse.hod@anits.edu.in,C-301,60,CLASSROOM
+CSE,Computer Science,3,CSE 3-A,23CS3102,COMPUTER NETWORKS,THEORY,prof.dean.academic@anits.edu.in,Dr. V. Murali Krishna,Dean Academics,FALSE,TRUE,FALSE,prof.dean.academic@anits.edu.in,C-301,60,CLASSROOM
+CSE,Computer Science,1,CSE 1-A,23BS1101,ENGINEERING PHYSICS,THEORY,physics.prof@anits.edu.in,Dr. P. Physics,Assistant Professor,FALSE,FALSE,TRUE,physics.prof@anits.edu.in,C-101,60,CLASSROOM
+CSE,Computer Science,1,CSE 1-A,23CS1101,C PROGRAMMING LAB,LAB,c.prof@anits.edu.in,Prof. C Language,Assistant Professor,FALSE,FALSE,FALSE,,C-102,30,LAB

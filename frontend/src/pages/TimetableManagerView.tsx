@@ -6,7 +6,8 @@ import { facultyService } from '../services/facultyService';
 import type { Subject, Department, FacultyProfile, SectionConfig } from '../services/facultyService';
 import { classroomService } from '../services/classroomService';
 import type { Classroom } from '../services/classroomService';
-import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check } from 'lucide-react';
+import { PrintableTimetableTemplate } from '../components/PrintableTimetableTemplate';
+import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer } from 'lucide-react';
 
 interface TimetableManagerViewProps {
   onBack: () => void;
@@ -50,6 +51,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [exams, setExams] = useState<ExamTimetableEntry[]>([]);
 
   // Auto-generation wizard states
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isSolverModalOpen, setIsSolverModalOpen] = useState(false);
   const [solverDeptIds, setSolverDeptIds] = useState<string[]>([]);
   const [solverSectionsText, setSolverSectionsText] = useState('CSE 1-A, CSE 3-A, ECE 2-A');
@@ -381,18 +383,28 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               </span>
             </div>
 
-            {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  setSolverError('');
-                  setIsSolverModalOpen(true);
-                }}
-                className="flex items-center gap-2 py-2 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-primary-600 hover:from-indigo-500 hover:to-primary-500 text-white text-xs font-bold shadow-lg shadow-indigo-500/10 transition-all duration-300"
+                onClick={() => setIsPrintModalOpen(true)}
+                className="flex items-center gap-2 py-2 px-4 rounded-xl bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-emerald-300 text-xs font-bold shadow-lg shadow-emerald-500/10 transition-all duration-300"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                Run Master 17-Rule Solver
+                <Printer className="w-3.5 h-3.5" />
+                Print / Save PDF
               </button>
-            )}
+
+              {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
+                <button
+                  onClick={() => {
+                    setSolverError('');
+                    setIsSolverModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 py-2 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-primary-600 hover:from-indigo-500 hover:to-primary-500 text-white text-xs font-bold shadow-lg shadow-indigo-500/10 transition-all duration-300"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Run Master 17-Rule Solver
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Timetable Grid */}
@@ -750,6 +762,22 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
             </form>
           </div>
         </div>
+      )}
+
+      {/* Official Printable Timetable Modal */}
+      {isPrintModalOpen && (
+        <PrintableTimetableTemplate
+          selectedSection={selectedSection}
+          department={departments.find(d => d.id === selectedDeptId) || null}
+          timetableEntries={timetableEntries}
+          subjects={subjects}
+          facultyProfiles={facultyProfiles}
+          classrooms={classrooms}
+          sectionConfig={sectionConfigs.find(s => s.name?.toUpperCase() === selectedSection.toUpperCase()) || null}
+          ruleSlotsPerDay={ruleSlotsPerDay}
+          ruleLunchSlot={ruleLunchSlot}
+          onClose={() => setIsPrintModalOpen(false)}
+        />
       )}
     </div>
   );

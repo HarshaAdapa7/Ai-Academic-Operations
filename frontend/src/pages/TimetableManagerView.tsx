@@ -7,7 +7,7 @@ import type { Subject, Department, FacultyProfile, SectionConfig } from '../serv
 import { classroomService } from '../services/classroomService';
 import type { Classroom } from '../services/classroomService';
 import { PrintableTimetableTemplate } from '../components/PrintableTimetableTemplate';
-import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer } from 'lucide-react';
+import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer, Building2, ChevronDown } from 'lucide-react';
 
 interface TimetableManagerViewProps {
   onBack: () => void;
@@ -54,6 +54,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   // Auto-generation wizard states
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isSolverModalOpen, setIsSolverModalOpen] = useState(false);
+  const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [solverDeptIds, setSolverDeptIds] = useState<string[]>([]);
   const [solverSectionsText, setSolverSectionsText] = useState('CSE 1-A, CSE 3-A, ECE 2-A');
   const [solverError, setSolverError] = useState('');
@@ -319,15 +320,63 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-48">
-            <select
-              value={selectedDeptId}
-              onChange={e => setSelectedDeptId(e.target.value)}
-              disabled={user?.role === 'HOD' && Boolean(user?.department_id)}
-              className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-primary-500/50 disabled:opacity-80 disabled:cursor-not-allowed"
-            >
-              {availableDepartments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
-            </select>
+          <div className="relative">
+            {user?.role === 'ADMIN' ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
+                  className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-primary-500/15 via-indigo-500/15 to-purple-500/15 border border-primary-500/30 hover:border-primary-500/60 text-white text-xs font-bold shadow-lg shadow-primary-500/5 transition-all duration-300 group"
+                >
+                  <Building2 className="w-4 h-4 text-primary-400 group-hover:scale-110 transition-transform" />
+                  <div className="text-left">
+                    <span className="text-[9px] uppercase tracking-wider text-dark-400 block font-semibold">Active Branch</span>
+                    <span className="text-xs font-extrabold text-white">
+                      {departments.find(d => d.id === selectedDeptId)?.name || availableDepartments[0]?.name || 'Computer Science & Data Science'} ({departments.find(d => d.id === selectedDeptId)?.code || availableDepartments[0]?.code || 'CSD'})
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-3.5 h-3.5 text-dark-400 transition-transform duration-300 ml-1 ${isDeptDropdownOpen ? 'rotate-180 text-primary-400' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu for Admin Branch Switcher */}
+                {isDeptDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-72 bg-dark-900/95 backdrop-blur-xl border border-dark-800 rounded-2xl shadow-2xl z-50 p-2 space-y-1">
+                    <div className="px-3 py-1.5 border-b border-dark-850 text-[10px] uppercase tracking-wider font-extrabold text-dark-400">
+                      Switch Department Branch
+                    </div>
+                    {availableDepartments.map(d => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDeptId(d.id);
+                          setIsDeptDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                          d.id === selectedDeptId
+                            ? 'bg-primary-500/20 border border-primary-500/30 text-primary-300 font-bold'
+                            : 'text-dark-300 hover:bg-dark-800/60 hover:text-white'
+                        }`}
+                      >
+                        <span>{d.name} ({d.code})</span>
+                        {d.id === selectedDeptId && <Check className="w-3.5 h-3.5 text-primary-400" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Glowing Jurisdiction Banner for HOD */
+              <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-dark-900 border border-emerald-500/30 text-white text-xs font-bold shadow-lg shadow-emerald-500/5">
+                <ShieldCheck className="w-4.5 h-4.5 text-emerald-400" />
+                <div className="text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-emerald-400/80 block font-bold">HOD Department</span>
+                  <span className="text-xs font-extrabold text-white">
+                    {departments.find(d => d.id === selectedDeptId)?.name || availableDepartments[0]?.name || 'Computer Science & Data Science'} ({departments.find(d => d.id === selectedDeptId)?.code || availableDepartments[0]?.code || 'CSD'})
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <button
             onClick={loadBaseData}

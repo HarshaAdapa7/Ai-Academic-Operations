@@ -4,6 +4,7 @@ import { aiService } from '../services/aiService';
 import type { AISuggestedAction, AcademicPolicy } from '../services/aiService';
 import { facultyService } from '../services/facultyService';
 import type { Department } from '../services/facultyService';
+import { ChevronLeft, Send, Sparkles, Brain, BarChart3, BookOpen, Cpu, RefreshCw, Plus, Search, ArrowRight, FileDown } from 'lucide-react';
 import { ChevronLeft, Send, Sparkles, Brain, BookOpen, RefreshCw, Plus, Search, ArrowRight } from 'lucide-react';
 
 interface AIDecisionCenterViewProps {
@@ -51,6 +52,52 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
     "Find substitute candidates for active leave requests"
   ];
 
+<<<<<<< HEAD
+  const loadBaseMeta = async () => {
+    try {
+      const depts = await facultyService.getDepartments();
+      setDepartments(depts);
+      
+      if (user?.role === 'HOD') {
+        const profiles = await facultyService.getFacultyProfiles();
+        const myProfile = profiles.find(p => p.user?.email === user?.email || p.user_id === user?.id);
+        if (myProfile && myProfile.department_id) {
+          setSelectedDeptId(myProfile.department_id);
+          return;
+        }
+      }
+      
+      if (depts.length > 0 && !selectedDeptId) {
+        setSelectedDeptId(depts[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load departments list:', err);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    try {
+      setIsLoading(true);
+      const data = await aiService.getAnalyticsDashboard(selectedDeptId || undefined);
+      setAnalyticsData(data);
+    } catch (err) {
+      console.error('Failed to load analytics dashboard:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadPolicies = async () => {
+    try {
+      const pols = await aiService.getAcademicPolicies();
+      setPolicies(pols);
+    } catch (err) {
+      console.error('Failed to fetch RAG policies:', err);
+    }
+  };
+
+=======
+>>>>>>> main
   useEffect(() => {
     loadDepartmentsAndPolicies();
   }, []);
@@ -161,7 +208,11 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
+<<<<<<< HEAD
+            className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300 print-hide"
+=======
             className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all shadow-md"
+>>>>>>> main
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -178,21 +229,51 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
 
         {/* Department Filter */}
         <div className="flex items-center gap-3">
+<<<<<<< HEAD
+          {(activeTab === 'analytics' && (user?.role === 'HOD' || user?.role === 'ADMIN')) && (
+            <button
+              onClick={() => window.print()}
+              className="py-2.5 px-4 rounded-xl bg-dark-900 border border-dark-800 text-white hover:bg-dark-800 text-xs font-bold flex items-center gap-2 transition-all duration-300 print-hide shadow-lg shadow-black/10"
+=======
           <div className="w-56">
             <select
               value={selectedDeptId}
               onChange={e => setSelectedDeptId(e.target.value)}
               className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50"
+>>>>>>> main
             >
-              <option value="">All Departments</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
-            </select>
-          </div>
+              <FileDown className="w-4 h-4 text-rose-500" />
+              Download PDF
+            </button>
+          )}
+          {user?.role === 'ADMIN' ? (
+            <div className="w-48 print-hide">
+              <select
+                value={selectedDeptId}
+                onChange={e => setSelectedDeptId(e.target.value)}
+                className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50"
+              >
+                <option value="">All Departments</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+              </select>
+            </div>
+          ) : (
+            // For HOD, show static badge of their department if available
+            departments.length > 0 && selectedDeptId && (
+              <div className="px-3.5 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs font-extrabold print-hide">
+                Department: {departments.find(d => d.id === selectedDeptId)?.name || 'My Department'}
+              </div>
+            )
+          )}
         </div>
       </div>
 
       {/* Main Tabs */}
+<<<<<<< HEAD
+      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-lg mb-8 print-hide">
+=======
       <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-sm mb-8">
+>>>>>>> main
         <button
           onClick={() => setActiveTab('assistant')}
           className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -318,6 +399,173 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
             </div>
           </div>
         </div>
+<<<<<<< HEAD
+      ) : activeTab === 'analytics' ? (
+        /* Analytics Insights Tab */
+        <div className="space-y-8">
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              /* Hide navigation, buttons, selects, and back arrows */
+              nav, 
+              button, 
+              select, 
+              .flex-shrink-0,
+              .print-hide,
+              header,
+              footer {
+                display: none !important;
+              }
+              
+              /* Make background white and text black */
+              body, html, #root, main, .min-h-screen, #root > div {
+                background: white !important;
+                background-image: none !important;
+                color: black !important;
+              }
+              
+              /* Reset panels to be transparent with clean borders */
+              .glass-panel, 
+              .bg-dark-950\\/40, 
+              .bg-dark-950\\/20, 
+              .bg-dark-900,
+              .bg-dark-950,
+              .bg-dark-950\\/50 {
+                background: transparent !important;
+                border-color: #cbd5e1 !important;
+                box-shadow: none !important;
+                color: black !important;
+              }
+              
+              /* Override text colors for print */
+              span, strong, h1, h2, h3, h4, p, div, label {
+                color: black !important;
+              }
+              
+              /* Ensure progress bars and utilization colors display correctly */
+              .bg-gradient-to-r, 
+              .bg-emerald-500, 
+              .bg-primary-500, 
+              .bg-rose-500, 
+              .bg-red-500, 
+              .bg-amber-500,
+              .bg-teal-500,
+              .bg-indigo-500,
+              .bg-pink-500 {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+          `}} />
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="glass-panel p-6 border border-dark-800">
+              <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider block">Average Faculty Utilization</span>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-3xl font-extrabold text-white">{analyticsData?.average_faculty_utilization || 0}%</span>
+                <span className="text-xs font-bold text-emerald-400">Optimal Target</span>
+              </div>
+              <div className="w-full bg-dark-950 h-2 rounded-full mt-4 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(analyticsData?.average_faculty_utilization || 0, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="glass-panel p-6 border border-dark-800">
+              <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider block">Campus Room Occupancy</span>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-3xl font-extrabold text-white">{analyticsData?.average_room_occupancy || 0}%</span>
+                <span className="text-xs font-bold text-primary-400">{analyticsData?.total_classrooms || 0} Rooms Tracked</span>
+              </div>
+              <div className="w-full bg-dark-950 h-2 rounded-full mt-4 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-primary-500 to-indigo-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(analyticsData?.average_room_occupancy || 0, 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="glass-panel p-6 border border-dark-800">
+              <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider block">Total Scheduled Sessions</span>
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-3xl font-extrabold text-white">{analyticsData?.total_timetable_slots || 0}</span>
+                <span className="text-xs font-bold text-rose-400">Conflict-Free</span>
+              </div>
+              <div className="w-full bg-dark-950 h-2 rounded-full mt-4 overflow-hidden">
+                <div className="bg-gradient-to-r from-rose-500 to-pink-500 h-full rounded-full w-full" />
+              </div>
+            </div>
+          </div>
+
+          {/* Workload Progress Breakdown */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="glass-panel p-6">
+              <h3 className="text-base font-bold text-white mb-6 flex items-center justify-between">
+                <span>Faculty Workload Heatmap</span>
+                <span className="text-xs text-dark-400 font-normal">{analyticsData?.workload_metrics.length || 0} Faculty Profiles</span>
+              </h3>
+
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {analyticsData?.workload_metrics.map(fac => {
+                  const isOver = fac.status === 'OVERUTILIZED';
+                  const isUnder = fac.status === 'UNDERUTILIZED';
+                  return (
+                    <div key={fac.faculty_id} className="p-3.5 rounded-xl bg-dark-950/40 border border-dark-850 space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <strong className="text-white font-extrabold">{fac.faculty_name} ({fac.department_code})</strong>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isOver ? 'bg-red-500/15 text-red-400 border border-red-500/25' :
+                          isUnder ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25' :
+                          'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                        }`}>
+                          {fac.assigned_slots} / {fac.max_weekly_workload} Slots ({fac.utilization_percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-dark-900 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isOver ? 'bg-red-500' : isUnder ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${Math.min(fac.utilization_percentage, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Room Utilization Breakdown */}
+            <div className="glass-panel p-6">
+              <h3 className="text-base font-bold text-white mb-6 flex items-center justify-between">
+                <span>Classroom & Lab Occupancy Breakdown</span>
+                <span className="text-xs text-dark-400 font-normal">{analyticsData?.classroom_metrics.length || 0} Classrooms</span>
+              </h3>
+
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {analyticsData?.classroom_metrics.map(rm => (
+                  <div key={rm.classroom_id} className="p-3.5 rounded-xl bg-dark-950/40 border border-dark-850 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <strong className="text-white font-extrabold">Room {rm.room_number} ({rm.room_type})</strong>
+                      <span className="text-primary-400 font-bold text-[10px]">
+                        {rm.booked_slots} / {rm.total_available_slots} Slots ({rm.occupancy_percentage}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-dark-900 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-primary-500 h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(rm.occupancy_percentage, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+=======
+>>>>>>> main
       ) : (
         /* RAG Academic Policy Knowledge Base Tab */
         <div className="space-y-6">

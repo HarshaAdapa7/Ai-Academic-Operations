@@ -4,7 +4,7 @@ import { aiService } from '../services/aiService';
 import type { AISuggestedAction, AnalyticsDashboardOutput, AcademicPolicy } from '../services/aiService';
 import { facultyService } from '../services/facultyService';
 import type { Department } from '../services/facultyService';
-import { ChevronLeft, Send, Sparkles, Brain, BarChart3, BookOpen, Cpu, RefreshCw, Plus, Search, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Send, Sparkles, Brain, BarChart3, BookOpen, Cpu, RefreshCw, Plus, Search, ArrowRight, FileDown } from 'lucide-react';
 
 interface AIDecisionCenterViewProps {
   onBack: () => void;
@@ -58,6 +58,16 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
     try {
       const depts = await facultyService.getDepartments();
       setDepartments(depts);
+      
+      if (user?.role === 'HOD') {
+        const profiles = await facultyService.getFacultyProfiles();
+        const myProfile = profiles.find(p => p.user?.email === user?.email || p.user_id === user?.id);
+        if (myProfile && myProfile.department_id) {
+          setSelectedDeptId(myProfile.department_id);
+          return;
+        }
+      }
+      
       if (depts.length > 0 && !selectedDeptId) {
         setSelectedDeptId(depts[0].id);
       }
@@ -190,7 +200,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300"
+            className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300 print-hide"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -204,21 +214,39 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="w-48">
-            <select
-              value={selectedDeptId}
-              onChange={e => setSelectedDeptId(e.target.value)}
-              className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50"
+          {(activeTab === 'analytics' && (user?.role === 'HOD' || user?.role === 'ADMIN')) && (
+            <button
+              onClick={() => window.print()}
+              className="py-2.5 px-4 rounded-xl bg-dark-900 border border-dark-800 text-white hover:bg-dark-800 text-xs font-bold flex items-center gap-2 transition-all duration-300 print-hide shadow-lg shadow-black/10"
             >
-              <option value="">All Departments</option>
-              {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
-            </select>
-          </div>
+              <FileDown className="w-4 h-4 text-rose-500" />
+              Download PDF
+            </button>
+          )}
+          {user?.role === 'ADMIN' ? (
+            <div className="w-48 print-hide">
+              <select
+                value={selectedDeptId}
+                onChange={e => setSelectedDeptId(e.target.value)}
+                className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50"
+              >
+                <option value="">All Departments</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+              </select>
+            </div>
+          ) : (
+            // For HOD, show static badge of their department if available
+            departments.length > 0 && selectedDeptId && (
+              <div className="px-3.5 py-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs font-extrabold print-hide">
+                Department: {departments.find(d => d.id === selectedDeptId)?.name || 'My Department'}
+              </div>
+            )
+          )}
         </div>
       </div>
 
       {/* Main Tabs */}
-      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-lg mb-8">
+      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-lg mb-8 print-hide">
         <button
           onClick={() => setActiveTab('assistant')}
           className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -356,6 +384,59 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
       ) : activeTab === 'analytics' ? (
         /* Analytics Insights Tab */
         <div className="space-y-8">
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              /* Hide navigation, buttons, selects, and back arrows */
+              nav, 
+              button, 
+              select, 
+              .flex-shrink-0,
+              .print-hide,
+              header,
+              footer {
+                display: none !important;
+              }
+              
+              /* Make background white and text black */
+              body, html, #root, main, .min-h-screen, #root > div {
+                background: white !important;
+                background-image: none !important;
+                color: black !important;
+              }
+              
+              /* Reset panels to be transparent with clean borders */
+              .glass-panel, 
+              .bg-dark-950\\/40, 
+              .bg-dark-950\\/20, 
+              .bg-dark-900,
+              .bg-dark-950,
+              .bg-dark-950\\/50 {
+                background: transparent !important;
+                border-color: #cbd5e1 !important;
+                box-shadow: none !important;
+                color: black !important;
+              }
+              
+              /* Override text colors for print */
+              span, strong, h1, h2, h3, h4, p, div, label {
+                color: black !important;
+              }
+              
+              /* Ensure progress bars and utilization colors display correctly */
+              .bg-gradient-to-r, 
+              .bg-emerald-500, 
+              .bg-primary-500, 
+              .bg-rose-500, 
+              .bg-red-500, 
+              .bg-amber-500,
+              .bg-teal-500,
+              .bg-indigo-500,
+              .bg-pink-500 {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+            }
+          `}} />
           {/* KPI Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div className="glass-panel p-6 border border-dark-800">

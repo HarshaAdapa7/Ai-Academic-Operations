@@ -106,22 +106,59 @@ async def get_analytics_dashboard(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # Fetch Faculty Workloads
+    # Enforce role-based department restrictions for HOD
+    if current_user.role == UserRole.HOD:
+        hod_prof_stmt = select(FacultyProfile).where(FacultyProfile.user_id == current_user.id)
+        hod_prof_res = await db.execute(hod_prof_stmt)
+        hod_prof = hod_prof_res.scalars().first()
+        if hod_prof and hod_prof.department_id:
+            department_id = hod_prof.department_id
+        else:
+            # If HOD has no department assigned, return empty dashboard
+            return AnalyticsDashboardOutput(
+                total_faculty=0,
+                total_classrooms=0,
+                total_timetable_slots=0,
+                average_faculty_utilization=0.0,
+                average_room_occupancy=0.0,
+                workload_metrics=[],
+                classroom_metrics=[]
+            )
+
+    # 1. Fetch Faculty Workloads
     fac_stmt = select(FacultyProfile).options(selectinload(FacultyProfile.user), selectinload(FacultyProfile.department))
     if department_id:
         fac_stmt = fac_stmt.where(FacultyProfile.department_id == department_id)
     fac_res = await db.execute(fac_stmt)
     faculty_profiles = fac_res.scalars().all()
 
+    # 2. Fetch Classroom Occupancy
+    rooms_stmt = select(Classroom)
+    if department_id:
+        rooms_stmt = rooms_stmt.where(Classroom.department_id == department_id)
+    rooms_res = await db.execute(rooms_stmt)
+    classrooms = rooms_res.scalars().all()
+
+    # 3. Fetch Timetable Entries (optimizing N+1 query problem by doing single query & in-memory counts)
+    entries_stmt = select(TimetableEntry)
+    if department_id:
+        entries_stmt = entries_stmt.where(TimetableEntry.department_id == department_id)
+    entries_res = await db.execute(entries_stmt)
+    all_entries = entries_res.scalars().all()
+
+    # Map slot counts
+    faculty_counts = {}
+    room_counts = {}
+    for entry in all_entries:
+        faculty_counts[entry.faculty_id] = faculty_counts.get(entry.faculty_id, 0) + 1
+        room_counts[entry.classroom_id] = room_counts.get(entry.classroom_id, 0) + 1
+
+    # Build Faculty Workload metrics
     workload_metrics = []
     total_fac_util = 0.0
 
     for prof in faculty_profiles:
-        # Count allocated timetable entries
-        slots_stmt = select(TimetableEntry).where(TimetableEntry.faculty_id == prof.id)
-        slots_res = await db.execute(slots_stmt)
-        allocated_count = len(slots_res.scalars().all())
-
+        allocated_count = faculty_counts.get(prof.id, 0)
         max_cap = prof.max_weekly_workload if prof.max_weekly_workload > 0 else 16
         util_pct = round((allocated_count / max_cap) * 100, 1)
         total_fac_util += util_pct
@@ -144,11 +181,7 @@ async def get_analytics_dashboard(
 
     avg_fac_util = round(total_fac_util / len(faculty_profiles), 1) if faculty_profiles else 0.0
 
-    # Fetch Classroom Occupancy
-    rooms_stmt = select(Classroom)
-    rooms_res = await db.execute(rooms_stmt)
-    classrooms = rooms_res.scalars().all()
-
+    # Build Classroom Utilization metrics
     classroom_metrics = []
     total_room_occ = 0.0
 
@@ -156,10 +189,7 @@ async def get_analytics_dashboard(
     MAX_WEEKLY_SLOTS = 36
 
     for room in classrooms:
-        room_slots_stmt = select(TimetableEntry).where(TimetableEntry.classroom_id == room.id)
-        room_slots_res = await db.execute(room_slots_stmt)
-        booked_count = len(room_slots_res.scalars().all())
-
+        booked_count = room_counts.get(room.id, 0)
         occ_pct = round((booked_count / MAX_WEEKLY_SLOTS) * 100, 1)
         total_room_occ += occ_pct
 
@@ -175,15 +205,10 @@ async def get_analytics_dashboard(
 
     avg_room_occ = round(total_room_occ / len(classrooms), 1) if classrooms else 0.0
 
-    # Total entries count
-    entries_stmt = select(TimetableEntry)
-    entries_res = await db.execute(entries_stmt)
-    total_slots = len(entries_res.scalars().all())
-
     return AnalyticsDashboardOutput(
         total_faculty=len(faculty_profiles),
         total_classrooms=len(classrooms),
-        total_timetable_slots=total_slots,
+        total_timetable_slots=len(all_entries),
         average_faculty_utilization=avg_fac_util,
         average_room_occupancy=avg_room_occ,
         workload_metrics=workload_metrics,
@@ -245,10 +270,193 @@ async def ai_chat_consultation(
     reply_text = ""
     suggested_actions = []
 
+    # Fetch base entities for name matching from database
+    fac_stmt = select(FacultyProfile).options(
+        selectinload(FacultyProfile.user),
+        selectinload(FacultyProfile.department)
+    )
+    fac_res = await db.execute(fac_stmt)
+    all_faculties = fac_res.scalars().all()
+
+    rooms_stmt = select(Classroom)
+    rooms_res = await db.execute(rooms_stmt)
+    all_classrooms = rooms_res.scalars().all()
+
+    depts_stmt = select(Department)
+    depts_res = await db.execute(depts_stmt)
+    all_departments = depts_res.scalars().all()
+
+    mentioned_faculty = None
+    for fac in all_faculties:
+        if fac.user and fac.user.full_name.lower() in prompt_lower:
+            mentioned_faculty = fac
+            break
+        if fac.user:
+            parts = fac.user.full_name.lower().replace("dr.", "").replace("mr.", "").replace("mrs.", "").replace("ms.", "").replace("prof.", "").strip().split()
+            for part in parts:
+                if len(part) > 3 and part in prompt_lower:
+                    mentioned_faculty = fac
+                    break
+            if mentioned_faculty:
+                break
+
+    mentioned_room = None
+    for rm in all_classrooms:
+        rm_num_clean = rm.room_number.lower().replace(" ", "").replace("-", "").replace("_", "")
+        prompt_clean = prompt_lower.replace(" ", "").replace("-", "").replace("_", "")
+        if rm.room_number.lower() in prompt_lower or rm_num_clean in prompt_clean:
+            mentioned_room = rm
+            break
+
+    mentioned_dept = None
+    for dept in all_departments:
+        dept_code_clean = f" {dept.code.lower()} "
+        if dept_code_clean in f" {prompt_lower} " or dept.name.lower() in prompt_lower:
+            mentioned_dept = dept
+            break
+
     # --- AGENT TOOL REASONING DISPATCHER ---
 
-    # Tool 1: Workload Query
-    if any(k in prompt_lower for k in ["workload", "overutilized", "underutilized", "busy", "capacity"]):
+    # Case 1: Specific Faculty Member Query
+    if mentioned_faculty:
+        slots_stmt = (
+            select(TimetableEntry)
+            .options(
+                selectinload(TimetableEntry.subject),
+                selectinload(TimetableEntry.classroom)
+            )
+            .where(TimetableEntry.faculty_id == mentioned_faculty.id)
+        )
+        slots_res = await db.execute(slots_stmt)
+        slots = slots_res.scalars().all()
+
+        max_cap = mentioned_faculty.max_weekly_workload if mentioned_faculty.max_weekly_workload > 0 else 16
+        util_pct = round((len(slots) / max_cap) * 100, 1)
+
+        status_str = "OPTIMAL"
+        if util_pct >= 90.0:
+            status_str = "OVERUTILIZED ⚠️"
+        elif util_pct < 40.0:
+            status_str = "UNDERUTILIZED 💤"
+
+        reply_lines = [
+            f"### 🧑‍🏫 AI Profile Insight: {mentioned_faculty.user.full_name}",
+            f"- **Branch/Department**: {mentioned_faculty.department.name if mentioned_faculty.department else 'General'}",
+            f"- **Role**: {'Head of Department (HOD) 🎓' if mentioned_faculty.is_hod else 'Faculty Member 📝'}",
+            f"- **Designation**: {mentioned_faculty.designation}",
+            f"- **Workload utilization**: **{len(slots)} / {max_cap}** weekly hours booked ({util_pct}%) — **{status_str}**",
+            f"- **Office Hours**: {mentioned_faculty.office_hours or 'Not configured'}",
+            "",
+            "**Scheduled Weekly Sessions:**"
+        ]
+        if not slots:
+            reply_lines.append("- No active teaching hours scheduled in this timetable layout.")
+        else:
+            for s in slots:
+                reply_lines.append(f"- **{s.day_of_week} (Slot {s.time_slot})**: {s.subject.name} ({s.subject.code}) in room **{s.classroom.room_number}** [{s.section}]")
+        
+        reply_text = "\n".join(reply_lines)
+        suggested_actions = [
+            AISuggestedAction(action_type="VIEW_FACULTY_AVAILABILITY", label="Review Availability Grids", payload_json=json.dumps({"faculty_id": mentioned_faculty.id}))
+        ]
+
+    # Case 2: Specific Room Occupancy Query
+    elif mentioned_room:
+        slots_stmt = (
+            select(TimetableEntry)
+            .options(
+                selectinload(TimetableEntry.subject),
+                selectinload(TimetableEntry.faculty).selectinload(FacultyProfile.user)
+            )
+            .where(TimetableEntry.classroom_id == mentioned_room.id)
+        )
+        slots_res = await db.execute(slots_stmt)
+        slots = slots_res.scalars().all()
+
+        MAX_WEEKLY_SLOTS = 36
+        occ_pct = round((len(slots) / MAX_WEEKLY_SLOTS) * 100, 1)
+
+        reply_lines = [
+            f"### 🏫 AI Classroom Details: Room {mentioned_room.room_number}",
+            f"- **Room Class Type**: {mentioned_room.room_type}",
+            f"- **Student Seating Capacity**: {mentioned_room.capacity} seats",
+            f"- **Grid Dimension**: {mentioned_room.rows} rows x {mentioned_room.cols} columns",
+            f"- **Current Occupancy Rate**: **{occ_pct}%** ({len(slots)} / {MAX_WEEKLY_SLOTS} slots booked)",
+            "",
+            "**Allocated Class Sessions:**"
+        ]
+        if not slots:
+            reply_lines.append("- This classroom is completely vacant throughout the current timetable layout.")
+        else:
+            for s in slots:
+                teacher_name = s.faculty.user.full_name if s.faculty and s.faculty.user else "Faculty"
+                reply_lines.append(f"- **{s.day_of_week} Slot {s.time_slot}**: {s.subject.name} ({s.section}) taught by {teacher_name}")
+
+        reply_text = "\n".join(reply_lines)
+        suggested_actions = [
+            AISuggestedAction(action_type="VIEW_ROOM_GRID", label="Manage Classrooms Inventory", payload_json="{}")
+        ]
+
+    # Case 3: Specific Department Branch Query
+    elif mentioned_dept:
+        analytics = await get_analytics_dashboard(mentioned_dept.id, current_user, db)
+        
+        reply_lines = [
+            f"### 🏢 AI Branch Overview: {mentioned_dept.name} ({mentioned_dept.code})",
+            f"- **Total Registry Staff**: {analytics.total_faculty} faculty members",
+            f"- **Branch Classrooms**: {analytics.total_classrooms} classrooms tracked",
+            f"- **Timetable Sessions**: {analytics.total_timetable_slots} slots scheduled",
+            f"- **Average Faculty Workload**: **{analytics.average_faculty_utilization}%**",
+            f"- **Average Classroom Occupancy**: **{analytics.average_room_occupancy}%**",
+            "",
+            "**Faculty Workload Balances:**"
+        ]
+        for f in analytics.workload_metrics[:5]:
+            reply_lines.append(f"- **{f.faculty_name}**: {f.assigned_slots}/{f.max_weekly_workload} slots ({f.utilization_percentage}%) — *{f.status}*")
+        
+        if len(analytics.workload_metrics) > 5:
+            reply_lines.append(f"- *and {len(analytics.workload_metrics) - 5} more faculty profiles...*")
+
+        reply_text = "\n".join(reply_lines)
+        suggested_actions = [
+            AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Re-Optimize Timetable Solver", payload_json="{}")
+        ]
+
+    # Case 4: Directory Query of Registered Users
+    elif any(k in prompt_lower for k in ["users", "registered", "admins", "hods", "faculty members", "teacher list", "staff list"]):
+        reply_lines = [
+            "### 👥 AI System User & Role Directory",
+            "Here is a summary of active accounts fetched from the database:",
+            ""
+        ]
+        admins = [f for f in all_faculties if f.is_dean or (f.user and f.user.role == "ADMIN")]
+        hods = [f for f in all_faculties if f.is_hod]
+        faculties = [f for f in all_faculties if not f.is_hod and (f.user and f.user.role == "FACULTY")]
+        
+        reply_lines.append("**System Administrators:**")
+        for a in admins:
+            reply_lines.append(f"- **{a.user.full_name}** ({a.user.email}) — *Dean: {a.is_dean}*")
+        reply_lines.append("")
+        
+        reply_lines.append("**Heads of Departments (HODs):**")
+        for h in hods:
+            reply_lines.append(f"- **{h.user.full_name}** ({h.user.email}) — *Branch: {h.department.code if h.department else 'GEN'}*")
+        reply_lines.append("")
+        
+        reply_lines.append("**Active Faculty Members:**")
+        for f in faculties[:6]:
+            reply_lines.append(f"- **{f.user.full_name}** ({f.user.email}) — *Branch: {f.department.code if f.department else 'GEN'}*")
+        
+        if len(faculties) > 6:
+            reply_lines.append(f"- *and {len(faculties) - 6} more faculty profiles...*")
+
+        reply_text = "\n".join(reply_lines)
+        suggested_actions = [
+            AISuggestedAction(action_type="VIEW_FACULTY_AVAILABILITY", label="Registry Desk", payload_json="{}")
+        ]
+
+    # Tool 1: Workload Query (Fallback Keyword match)
+    elif any(k in prompt_lower for k in ["workload", "overutilized", "underutilized", "busy", "capacity"]):
         analytics = await get_analytics_dashboard(chat_in.department_id, current_user, db)
         top_busy = sorted(analytics.workload_metrics, key=lambda m: m.utilization_percentage, reverse=True)[:3]
         
@@ -270,9 +478,8 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Re-optimize Timetable", payload_json="{}")
         ]
 
-    # Tool 2: Substitute / Leave Coverage Query
+    # Tool 2: Substitute / Leave Coverage Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["substitute", "coverage", "leave", "absent", "replace"]):
-        # Query active leaves
         leaves_stmt = select(LeaveRequest).options(selectinload(LeaveRequest.faculty).selectinload(FacultyProfile.user)).order_by(LeaveRequest.created_at.desc())
         leaves_res = await db.execute(leaves_stmt)
         leaves = leaves_res.scalars().all()
@@ -300,7 +507,7 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="APPLY_SUBSTITUTION", label="Open Substitution Desk", payload_json="{}")
         ]
 
-    # Tool 3: Classroom / Lab Occupancy Query
+    # Tool 3: Classroom / Lab Occupancy Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["room", "classroom", "occupancy", "lab", "free room"]):
         analytics = await get_analytics_dashboard(chat_in.department_id, current_user, db)
         reply_lines = [
@@ -317,7 +524,7 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="VIEW_ROOM_GRID", label="Manage Classrooms Inventory", payload_json="{}")
         ]
 
-    # Tool 4: Timetable Solver / Clash Query
+    # Tool 4: Timetable Solver / Clash Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["generate", "solver", "clash", "schedule", "timetable"]):
         reply_text = (
             "### ⚡ AI Master Timetable Solver Guidance\n"
@@ -331,7 +538,7 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Open Auto-Scheduler Solver", payload_json="{}")
         ]
 
-    # Tool 5: RAG Policy Query
+    # Tool 5: RAG Policy Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["policy", "rule", "regulation", "duty", "limit"]):
         policies_stmt = select(AcademicPolicy)
         policies_res = await db.execute(policies_stmt)

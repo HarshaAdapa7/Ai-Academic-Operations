@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, LayoutGrid, Users, CalendarDays, MonitorPlay, MapPin, Brain, Bell } from 'lucide-react';
+import { LogOut, LayoutGrid, Users, CalendarDays, MonitorPlay, MapPin, Brain, Bell, Calendar, BarChart3 } from 'lucide-react';
 import { FacultyManagerView } from './FacultyManagerView';
 import { DeptSubjectManager } from './DeptSubjectManager';
 import { FacultyAvailabilityView } from './FacultyAvailabilityView';
@@ -8,10 +8,13 @@ import { LeaveManagerView } from './LeaveManagerView';
 import { ClassroomManagerView } from './ClassroomManagerView';
 import { TimetableManagerView } from './TimetableManagerView';
 import { AIDecisionCenterView } from './AIDecisionCenterView';
+import { AcademicAnalyticsView } from './AcademicAnalyticsView';
+import { FacultyWeeklyTimetable } from './FacultyWeeklyTimetable';
+import { FacultyAnalyticsRecordsView } from './FacultyAnalyticsRecordsView';
 import { leaveService } from '../services/leaveService';
 import type { DailyBulletin } from '../services/leaveService';
 
-type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'ai_decision_center';
+type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'ai_decision_center' | 'academic_analytics' | 'faculty_weekly_timetable' | 'faculty_analytics_records';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -49,58 +52,93 @@ export const Dashboard: React.FC = () => {
     }
   }, [user]);
 
-  const modules = [
+  const allModules = [
     { 
+      id: 'faculty_profiles',
       name: 'Faculty Profiles', 
       desc: 'Manage availability matrices, workload limits and teaching roles.', 
       icon: Users, 
       color: 'from-blue-500 to-indigo-500', 
       active: true,
-      onClick: () => {
-        if (user?.role === 'FACULTY') {
-          // Faculty opens their own availability editor directly
-          setEditFacultyId(undefined);
-          setEditFacultyName(undefined);
-          setActiveView('faculty_avail');
-        } else {
-          // HOD/Admin opens the profiles list registry
-          setActiveView('faculty_profiles');
-        }
-      }
+      roles: ['HOD', 'ADMIN', 'DEAN'],
+      onClick: () => setActiveView('faculty_profiles')
     },
     { 
+      id: 'faculty_weekly_timetable',
+      name: 'My Weekly Timetable', 
+      desc: 'View your 6-day class schedule, daily class breakdown, room allocations, and workload stats.', 
+      icon: Calendar, 
+      color: 'from-blue-500 to-indigo-500', 
+      active: true,
+      roles: ['FACULTY'],
+      onClick: () => setActiveView('faculty_weekly_timetable')
+    },
+    { 
+      id: 'faculty_analytics_records',
+      name: 'My Analytics & Records', 
+      desc: 'Track performance metrics, weekly workload distribution, course rosters, and leave stats.', 
+      icon: BarChart3, 
+      color: 'from-emerald-500 to-teal-500', 
+      active: true,
+      roles: ['FACULTY'],
+      onClick: () => setActiveView('faculty_analytics_records')
+    },
+    { 
+      id: 'leave_operations',
       name: 'Leave Operations', 
       desc: 'Request leaves, configure substitute approvals and analyze schedule impacts.', 
       icon: CalendarDays, 
       color: 'from-purple-500 to-pink-500', 
       active: true,
+      roles: ['FACULTY', 'HOD', 'ADMIN', 'DEAN'],
       onClick: () => setActiveView('leave_operations')
     },
     { 
+      id: 'classrooms_seating',
       name: 'Classrooms & Seating', 
       desc: 'Allocate regular and exam seating plans with jumbled spacing.', 
       icon: MapPin, 
       color: 'from-emerald-500 to-teal-500', 
       active: true,
+      roles: ['HOD', 'ADMIN', 'DEAN'],
       onClick: () => setActiveView('classrooms_seating')
     },
     { 
-      name: 'Dynamic Timetable', 
-      desc: 'Generate optimized schedules and edit sessions dynamically.', 
+      id: 'timetable_ops',
+      name: 'Dynamic Timetable Solver', 
+      desc: 'Master multi-department schedule generation and session editing.', 
       icon: MonitorPlay, 
       color: 'from-amber-500 to-orange-500', 
       active: true,
+      roles: ['HOD', 'ADMIN', 'DEAN'],
       onClick: () => setActiveView('timetable_ops')
     },
     { 
-      name: 'AI Decision Center', 
-      desc: 'Interact with collaborative LangGraph scheduling agents and RAG.', 
+      id: 'ai_decision_center',
+      name: 'AI Assistant', 
+      desc: 'Ask questions about workload, leave substitutions, room allocations, and schedules.', 
       icon: Brain, 
       color: 'from-rose-500 to-red-500', 
       active: true,
+      roles: ['FACULTY', 'HOD', 'ADMIN', 'DEAN'],
       onClick: () => setActiveView('ai_decision_center')
     },
+    { 
+      id: 'academic_analytics',
+      name: 'Academic Analytics Hub', 
+      desc: 'View real-time workload heatmaps, room occupancy utilization rates and rule optimization metrics.', 
+      icon: BarChart3, 
+      color: 'from-cyan-500 to-blue-600', 
+      active: true,
+      roles: ['HOD', 'ADMIN', 'DEAN'],
+      onClick: () => setActiveView('academic_analytics')
+    },
   ];
+
+  const visibleModules = allModules.filter(mod => {
+    const userRole = user?.role || 'FACULTY';
+    return mod.roles ? mod.roles.includes(userRole) : true;
+  });
 
   const handleOpenFacultyAvailability = (id: string, name: string) => {
     setEditFacultyId(id);
@@ -150,6 +188,16 @@ export const Dashboard: React.FC = () => {
                 >
                   Dept & Subjects
                 </button>
+                <button
+                  onClick={() => setActiveView('academic_analytics')}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeView === 'academic_analytics' 
+                      ? 'bg-primary-500 text-white shadow-md' 
+                      : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Academic Analytics
+                </button>
               </div>
             )}
 
@@ -193,7 +241,7 @@ export const Dashboard: React.FC = () => {
           {/* Modules Grid */}
           <h3 className="text-xs font-bold text-dark-400 uppercase tracking-widest mb-6">Platform Modules</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {modules.map((mod, index) => {
+            {visibleModules.map((mod, index) => {
               const Icon = mod.icon;
               return (
                 <div 
@@ -230,7 +278,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Render Sub-Views based on active state */}
-      {activeView === 'faculty_profiles' && (
+      {activeView === 'faculty_profiles' && user?.role !== 'FACULTY' && (
         <FacultyManagerView 
           onBack={() => setActiveView('dashboard')}
           onOpenAvailability={handleOpenFacultyAvailability}
@@ -248,7 +296,6 @@ export const Dashboard: React.FC = () => {
           facultyId={editFacultyId}
           facultyName={editFacultyName}
           onBack={() => {
-            // HOD goes back to profiles list; Faculty goes back to dashboard
             if (user?.role === 'FACULTY') {
               setActiveView('dashboard');
             } else {
@@ -264,13 +311,13 @@ export const Dashboard: React.FC = () => {
         />
       )}
 
-      {activeView === 'classrooms_seating' && (
+      {activeView === 'classrooms_seating' && user?.role !== 'FACULTY' && (
         <ClassroomManagerView 
           onBack={() => setActiveView('dashboard')}
         />
       )}
 
-      {activeView === 'timetable_ops' && (
+      {activeView === 'timetable_ops' && user?.role !== 'FACULTY' && (
         <TimetableManagerView 
           onBack={() => setActiveView('dashboard')}
         />
@@ -280,6 +327,24 @@ export const Dashboard: React.FC = () => {
         <AIDecisionCenterView 
           onBack={() => setActiveView('dashboard')}
           onNavigate={(targetView) => setActiveView(targetView)}
+        />
+      )}
+
+      {activeView === 'academic_analytics' && (
+        <AcademicAnalyticsView 
+          onBack={() => setActiveView('dashboard')}
+        />
+      )}
+
+      {activeView === 'faculty_weekly_timetable' && (
+        <FacultyWeeklyTimetable 
+          onBack={() => setActiveView('dashboard')}
+        />
+      )}
+
+      {activeView === 'faculty_analytics_records' && (
+        <FacultyAnalyticsRecordsView 
+          onBack={() => setActiveView('dashboard')}
         />
       )}
 

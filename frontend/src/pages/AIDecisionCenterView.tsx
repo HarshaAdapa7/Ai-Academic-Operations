@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { aiService } from '../services/aiService';
-import type { AISuggestedAction, AnalyticsDashboardOutput, AcademicPolicy } from '../services/aiService';
+import type { AISuggestedAction, AcademicPolicy } from '../services/aiService';
 import { facultyService } from '../services/facultyService';
 import type { Department } from '../services/facultyService';
 import { ChevronLeft, Send, Sparkles, Brain, BarChart3, BookOpen, Cpu, RefreshCw, Plus, Search, ArrowRight, FileDown } from 'lucide-react';
+import { ChevronLeft, Send, Sparkles, Brain, BookOpen, RefreshCw, Plus, Search, ArrowRight } from 'lucide-react';
 
 interface AIDecisionCenterViewProps {
   onBack: () => void;
-  onNavigate: (viewName: 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops') => void;
+  onNavigate?: (viewName: any) => void;
 }
 
 export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBack, onNavigate }) => {
@@ -16,7 +17,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [activeTab, setActiveTab] = useState<'assistant' | 'analytics' | 'policies'>('assistant');
+  const [activeTab, setActiveTab] = useState<'assistant' | 'policies'>('assistant');
   const [isLoading, setIsLoading] = useState(false);
 
   // Chat states
@@ -24,10 +25,10 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
     {
       id: 'welcome-1',
       role: 'assistant',
-      content: `Hello ${user?.full_name || 'HOD'}! I am your AI Operations & Assistant Engine.\n\nI can analyze teacher workload metrics, evaluate pending leave substitution options, inspect campus room occupancy, and answer institutional policy questions.`,
+      content: `Hello ${user?.full_name || 'Academic Administrator'}! I am your AI Operations & Decision Assistant Engine.\n\nI can analyze teacher workload metrics, evaluate pending leave substitution options, inspect campus room occupancy, auto-schedule class timetables, and search institutional policy RAG documents.`,
       actions: [
         { action_type: 'AUTO_SOLVE_TIMETABLE', label: 'Auto-Schedule Timetable', payload_json: '{}' },
-        { action_type: 'APPLY_SUBSTITUTION', label: 'Substitution Desk', payload_json: '{}' },
+        { action_type: 'APPLY_SUBSTITUTION', label: 'Leave & Substitution Desk', payload_json: '{}' },
         { action_type: 'VIEW_ROOM_GRID', label: 'Classrooms Inventory', payload_json: '{}' }
       ]
     }
@@ -35,9 +36,6 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
   const [inputPrompt, setInputPrompt] = useState('');
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Analytics states
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsDashboardOutput | null>(null);
 
   // Policy RAG states
   const [policies, setPolicies] = useState<AcademicPolicy[]>([]);
@@ -54,6 +52,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
     "Find substitute candidates for active leave requests"
   ];
 
+<<<<<<< HEAD
   const loadBaseMeta = async () => {
     try {
       const depts = await facultyService.getDepartments();
@@ -97,59 +96,70 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
     }
   };
 
+=======
+>>>>>>> main
   useEffect(() => {
-    loadBaseMeta();
-    loadPolicies();
+    loadDepartmentsAndPolicies();
   }, []);
-
-  useEffect(() => {
-    if (activeTab === 'analytics') {
-      loadAnalytics();
-    }
-  }, [activeTab, selectedDeptId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = async (customText?: string) => {
-    const textToSend = customText || inputPrompt;
-    if (!textToSend.trim() || isLoading) return;
+  const loadDepartmentsAndPolicies = async () => {
+    try {
+      const depts = await facultyService.getDepartments();
+      setDepartments(depts);
 
-    const userMessageId = `user-${Date.now()}`;
-    setMessages(prev => [...prev, { id: userMessageId, role: 'user', content: textToSend }]);
-    if (!customText) setInputPrompt('');
+      const pols = await aiService.getAcademicPolicies();
+      setPolicies(pols);
+    } catch (err) {
+      console.error('Failed to load decision center context:', err);
+    }
+  };
+
+  const handleSendMessage = async (customPrompt?: string) => {
+    const promptToSend = customPrompt || inputPrompt;
+    if (!promptToSend.trim()) return;
+
+    const userMsgId = `user-${Date.now()}`;
+    const userMessage = { id: userMsgId, role: 'user' as const, content: promptToSend };
+    
+    setMessages(prev => [...prev, userMessage]);
+    if (!customPrompt) setInputPrompt('');
     setIsLoading(true);
 
     try {
-      const result = await aiService.sendChatMessage(textToSend, activeConversationId, selectedDeptId || undefined);
-      setActiveConversationId(result.conversation_id);
+      const res = await aiService.sendChatMessage(
+        promptToSend,
+        activeConversationId,
+        selectedDeptId || undefined
+      );
+
+      setActiveConversationId(res.conversation_id);
       
-      const assistantMessageId = `asst-${Date.now()}`;
-      setMessages(prev => [
-        ...prev,
-        {
-          id: assistantMessageId,
-          role: 'assistant',
-          content: result.reply,
-          actions: result.suggested_actions
-        }
-      ]);
+      const assistantMsg = {
+        id: `asst-${Date.now()}`,
+        role: 'assistant' as const,
+        content: res.reply,
+        actions: res.suggested_actions
+      };
+      
+      setMessages(prev => [...prev, assistantMsg]);
     } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          role: 'assistant',
-          content: 'Sorry, I encountered an error communicating with the reasoning engine. Please try again.'
-        }
-      ]);
+      console.error('Failed to communicate with AI Assistant:', err);
+      setMessages(prev => [...prev, {
+        id: `err-${Date.now()}`,
+        role: 'assistant',
+        content: 'Apologies, the decision assistant engine encountered a temporary network error. Please verify backend service connectivity.'
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleExecuteAction = (actionType: string) => {
+    if (!onNavigate) return;
     switch (actionType) {
       case 'AUTO_SOLVE_TIMETABLE':
         onNavigate('timetable_ops');
@@ -159,9 +169,6 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         break;
       case 'VIEW_ROOM_GRID':
         onNavigate('classrooms_seating');
-        break;
-      case 'VIEW_FACULTY_AVAILABILITY':
-        onNavigate('faculty_avail');
         break;
       default:
         break;
@@ -173,51 +180,67 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
     if (!newPolicyTitle || !newPolicyContent) return;
 
     try {
-      await aiService.createAcademicPolicy({
+      const created = await aiService.createAcademicPolicy({
         title: newPolicyTitle,
         category: newPolicyCategory,
-        content: newPolicyContent
+        content: newPolicyContent,
+        tags: `${newPolicyCategory.toLowerCase()}, academic, regulation`
       });
+      setPolicies(prev => [created, ...prev]);
       setIsPolicyModalOpen(false);
       setNewPolicyTitle('');
       setNewPolicyContent('');
-      loadPolicies();
     } catch (err) {
-      alert('Failed to save policy document.');
+      console.error('Failed to save academic policy:', err);
     }
   };
 
-  const filteredPolicies = policies.filter(
-    p => p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         p.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-         p.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPolicies = policies.filter(p => 
+    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <button 
+          <button
             onClick={onBack}
+<<<<<<< HEAD
             className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300 print-hide"
+=======
+            className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all shadow-md"
+>>>>>>> main
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
-              <Brain className="w-6 h-6 text-rose-500 animate-pulse" />
-              AI Decision Center & Assistant
-            </h2>
-            <p className="text-dark-400 text-sm">Consult assistant engines, review workload heatmaps, and search RAG academic policies</p>
+            <div className="flex items-center gap-2">
+              <Brain className="w-6 h-6 text-rose-500" />
+              <h2 className="text-2xl font-extrabold text-white">
+                AI Decision Center & Assistant
+              </h2>
+            </div>
+            <p className="text-dark-400 text-sm">Consult scheduling assistant engines and search RAG academic policies</p>
           </div>
         </div>
 
+        {/* Department Filter */}
         <div className="flex items-center gap-3">
+<<<<<<< HEAD
           {(activeTab === 'analytics' && (user?.role === 'HOD' || user?.role === 'ADMIN')) && (
             <button
               onClick={() => window.print()}
               className="py-2.5 px-4 rounded-xl bg-dark-900 border border-dark-800 text-white hover:bg-dark-800 text-xs font-bold flex items-center gap-2 transition-all duration-300 print-hide shadow-lg shadow-black/10"
+=======
+          <div className="w-56">
+            <select
+              value={selectedDeptId}
+              onChange={e => setSelectedDeptId(e.target.value)}
+              className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50"
+>>>>>>> main
             >
               <FileDown className="w-4 h-4 text-rose-500" />
               Download PDF
@@ -246,7 +269,11 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
       </div>
 
       {/* Main Tabs */}
+<<<<<<< HEAD
       <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-lg mb-8 print-hide">
+=======
+      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-sm mb-8">
+>>>>>>> main
         <button
           onClick={() => setActiveTab('assistant')}
           className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -257,17 +284,6 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         >
           <Sparkles className="w-3.5 h-3.5" />
           AI Assistant Chat
-        </button>
-        <button
-          onClick={() => setActiveTab('analytics')}
-          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'analytics' 
-              ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
-              : 'text-dark-400 hover:text-white'
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5" />
-          Analytics Insights
         </button>
         <button
           onClick={() => setActiveTab('policies')}
@@ -286,7 +302,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
       {activeTab === 'assistant' ? (
         /* AI Assistant Conversational View */
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Chat Interface */}
+          {/* Messages & Conversation Area */}
           <div className="lg:col-span-3 glass-panel p-6 flex flex-col h-[650px] relative overflow-hidden">
             {/* Messages Container */}
             <div className="flex-1 overflow-y-auto space-y-6 pr-2 mb-4">
@@ -303,19 +319,19 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
 
                   <div className={`max-w-xl rounded-2xl p-4 text-xs leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-primary-600 text-white rounded-tr-none'
+                      ? 'bg-primary-600 text-white rounded-tr-none shadow-md'
                       : 'bg-dark-900 border border-dark-800 text-dark-100 rounded-tl-none space-y-3'
                   }`}>
                     <div className="whitespace-pre-wrap font-medium">{msg.content}</div>
 
-                    {/* Suggested Actions Buttons */}
+                    {/* Suggested Action Buttons */}
                     {msg.actions && msg.actions.length > 0 && (
                       <div className="pt-3 border-t border-dark-800/80 flex flex-wrap gap-2 mt-2">
                         {msg.actions.map((act, idx) => (
                           <button
                             key={idx}
                             onClick={() => handleExecuteAction(act.action_type)}
-                            className="py-1.5 px-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-extrabold flex items-center gap-1.5"
+                            className="py-1.5 px-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-extrabold flex items-center gap-1.5 shadow-sm"
                           >
                             <span>{act.label}</span>
                             <ArrowRight className="w-3 h-3" />
@@ -328,12 +344,13 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
               ))}
 
               {isLoading && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 to-pink-600 flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-rose-500/20 animate-spin">
-                    <RefreshCw className="w-4 h-4" />
+                <div className="flex gap-3 justify-start items-center">
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center animate-pulse">
+                    <Sparkles className="w-4 h-4" />
                   </div>
-                  <div className="bg-dark-900 border border-dark-800 rounded-2xl rounded-tl-none p-4 text-xs text-dark-400 italic">
-                    Reasoning across workload limits, availability matrices, and RAG policies...
+                  <div className="bg-dark-900 border border-dark-800 rounded-2xl p-4 text-xs text-dark-400 flex items-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                    <span>AI assistant is evaluating schedule constraints & policy RAG...</span>
                   </div>
                 </div>
               )}
@@ -341,46 +358,48 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
             </div>
 
             {/* Input Bar */}
-            <form onSubmit={e => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
+            <div className="pt-4 border-t border-dark-800/80 flex gap-3">
               <input
                 type="text"
                 value={inputPrompt}
                 onChange={e => setInputPrompt(e.target.value)}
-                placeholder="Ask any operational or scheduling question..."
-                className="flex-1 px-4 py-3 bg-dark-950/60 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50"
+                onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Ask AI assistant about teacher availability, leaves, room allocations..."
+                className="flex-1 px-4 py-3 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50 shadow-inner"
               />
               <button
-                type="submit"
+                onClick={() => handleSendMessage()}
                 disabled={isLoading || !inputPrompt.trim()}
                 className="px-5 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 disabled:opacity-50"
               >
                 <span>Send</span>
                 <Send className="w-3.5 h-3.5" />
               </button>
-            </form>
+            </div>
           </div>
 
-          {/* Quick Prompt Chips Sidebar */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="glass-panel p-5">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-rose-400" />
-                Quick Prompts
+          {/* Right Sidebar: Quick Prompts & Context */}
+          <div className="space-y-6">
+            <div className="glass-panel p-6 border border-dark-800">
+              <h3 className="text-xs font-bold text-dark-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                Quick Operations Questions
               </h3>
               <div className="space-y-2.5">
-                {QUICK_PROMPTS.map((promptText, idx) => (
+                {QUICK_PROMPTS.map((prompt, idx) => (
                   <button
                     key={idx}
-                    onClick={() => handleSendMessage(promptText)}
-                    className="w-full text-left p-3 rounded-xl bg-dark-950/40 border border-dark-850 hover:border-rose-500/40 hover:bg-rose-500/5 transition-all text-xs text-dark-300 hover:text-white font-medium"
+                    onClick={() => handleSendMessage(prompt)}
+                    className="w-full text-left p-3 rounded-xl bg-dark-950/40 border border-dark-850 text-dark-300 hover:text-white hover:border-rose-500/40 hover:bg-rose-500/5 transition-all text-xs font-medium leading-snug"
                   >
-                    "{promptText}"
+                    "{prompt}"
                   </button>
                 ))}
               </div>
             </div>
           </div>
         </div>
+<<<<<<< HEAD
       ) : activeTab === 'analytics' ? (
         /* Analytics Insights Tab */
         <div className="space-y-8">
@@ -545,6 +564,8 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
             </div>
           </div>
         </div>
+=======
+>>>>>>> main
       ) : (
         /* RAG Academic Policy Knowledge Base Tab */
         <div className="space-y-6">
@@ -600,7 +621,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         </div>
       )}
 
-      {/* Add Custom Policy Modal */}
+      {/* Add Custom Policy Modal (HOD & Admin) */}
       {isPolicyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-sm">
           <div className="glass-panel w-full max-w-md p-6 relative">

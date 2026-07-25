@@ -121,6 +121,17 @@ async def list_users(db: AsyncSession = Depends(get_db)):
 # 3. CSV & PICTURE OCR IMPORTERS (/import/csv & /import/ocr)
 # ==========================================
 
+@router.get("/export/csv-template")
+async def get_csv_template():
+    """Download standard CSV template header format for importing real college data."""
+    template_content = "Department Code,Department Name,Academic Year,Section Name,Subject Code,Subject Name,Subject Type,Faculty Name,Faculty Email,Designation,Room Number,Capacity,Room Type,Is HOD,Is Class Teacher,Max Workload\nCSE,Computer Science & Engineering,3,CSE 3-A,CS301,Database Management Systems,THEORY,Dr. K. Srinivasa Rao,k.srinivasa@anits.edu.in,Professor,F-101,60,CLASSROOM,yes,yes,16\nCSE,Computer Science & Engineering,3,CSE 3-A,CS301L,DBMS Laboratory,LAB,Dr. K. Srinivasa Rao,k.srinivasa@anits.edu.in,Professor,LAB-201,30,LAB,yes,no,16\nECE,Electronics & Communication Eng,2,ECE 2-A,EC201,Digital Electronics,THEORY,Dr. S.V.S. Santhi,santhi@anits.edu.in,Associate Professor,F-102,60,CLASSROOM,no,yes,18\n"
+    from fastapi.responses import Response
+    return Response(
+        content=template_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=academic_master_data_template.csv"}
+    )
+
 @router.post("/import/csv")
 @router.post("/faculty/import-csv")
 @router.post("/import/excel")
@@ -140,6 +151,7 @@ async def import_master_data(file: UploadFile = File(...), db: AsyncSession = De
     created_faculty = 0
     created_classrooms = 0
     created_sections = 0
+    warnings = []
 
     rows_to_process = []
 
@@ -151,7 +163,7 @@ async def import_master_data(file: UploadFile = File(...), db: AsyncSession = De
                 raw_rows = list(ws.iter_rows(values_only=True))
                 if not raw_rows or len(raw_rows) < 2:
                     continue
-                headers = [str(h).strip().lower() for h in raw_rows[0] if h is not None]
+                headers = [str(h).strip().lower().replace(" ", "").replace("_", "").replace("-", "") for h in raw_rows[0] if h is not None]
                 for r in raw_rows[1:]:
                     if not any(r):
                         continue
@@ -164,127 +176,201 @@ async def import_master_data(file: UploadFile = File(...), db: AsyncSession = De
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to parse Excel file: {str(e)}")
     else:
-        text_data = content.decode('utf-8', errors='ignore')
+        text_data = content.decode('utf-8-sig', errors='ignore')
         reader = csv.DictReader(io.StringIO(text_data))
         for r in reader:
-            clean_row = {k.strip().lower(): v.strip() for k, v in r.items() if k and v}
+            clean_row = {}
+            for k, v in r.items():
+                if k and v:
+                    clean_key = k.strip().lower().replace(" ", "").replace("_", "").replace("-", "")
+                    clean_row[clean_key] = v.strip()
             if clean_row:
                 rows_to_process.append(clean_row)
 
-    for row in rows_to_process:
-        dept_code = (row.get('departmentcode') or row.get('department') or 'CSE').upper()
-        dept_name = row.get('departmentname') or f"{dept_code} Department"
-        year_val = int(row.get('academicyear') or row.get('year') or 1)
-        sec_name = row.get('sectionname') or row.get('section') or f"{dept_code} {year_val}-A"
-        subj_code = (row.get('subjectcode') or row.get('code') or f"{dept_code}101").upper()
-        subj_name = row.get('subjectname') or row.get('subject') or 'Core Subject'
-        subj_type = (row.get('subjecttype') or row.get('type') or 'THEORY').upper()
-        fac_email = (row.get('facultyemail') or row.get('email') or f"prof.{uuid.uuid4().hex[:6]}@college.edu").lower()
-        fac_name = row.get('facultyname') or row.get('faculty') or 'Faculty Member'
-        designation = row.get('designation') or 'Assistant Professor'
-        
-        is_class_teacher = str(row.get('isclassteacher', '')).lower() in ['true', '1', 'yes']
-        is_hod = str(row.get('ishod', '')).lower() in ['true', '1', 'yes']
-        is_dean = str(row.get('isdean', '')).lower() in ['true', '1', 'yes']
-        
-        # Mentor details (single or comma-separated list of emails/names)
-        mentor_raw = row.get('mentoremails') or row.get('mentors') or row.get('iscounselingmentor') or ''
-        is_mentor_flag = str(mentor_raw).lower() in ['true', '1', 'yes'] or len(str(mentor_raw).strip()) > 3
+    for row_idx, row in enumerate(rows_to_process, start=1):
+        try:
+            # Department Code resolution
+            dept_code = (row.get('departmentcode') or row.get('deptcode') or row.get('department') or row.get('dept') or row.get('branch') or 'CSE').upper()
+            dept_name = row.get('departmentname') or row.get('deptname') or row.get('branchname') or f"{dept_code} Department"
+            
+            # Academic Year & Section
+            year_raw = row.get('academicyear') or row.get('year') or row.get('sem') or row.get('semester') or '1'
+            try:
+                year_val = int(''.join(filter(str.isdigit, str(year_raw))) or 1)
+            except Exception:
+                year_val = 1
 
-        # 1. Dept
-        dept_res = await db.execute(select(Department).where(Department.code == dept_code))
-        dept = dept_res.scalars().first()
-        if not dept:
-            dept = Department(name=dept_name, code=dept_code)
-            db.add(dept)
-            await db.flush()
-            created_depts += 1
-        dept_id = dept.id
+            sec_name = row.get('sectionname') or row.get('section') or row.get('sec') or f"{dept_code} {year_val}-A"
 
-        # 2. Subject
-        subj_res = await db.execute(select(Subject).where(Subject.code == subj_code))
-        subj = subj_res.scalars().first()
-        if not subj:
-            subj = Subject(name=subj_name, code=subj_code, department_id=dept_id, subject_type=subj_type, academic_year=year_val)
-            db.add(subj)
-            await db.flush()
-            created_subjects += 1
-
-        # 3. User & FacultyProfile
-        user_res = await db.execute(select(User).where(User.email == fac_email))
-        usr = user_res.scalars().first()
-        if not usr:
-            usr = User(email=fac_email, full_name=fac_name, password_hash="imported_hash", role=UserRole.FACULTY)
-            db.add(usr)
-            await db.flush()
-        usr_id = usr.id
-
-        prof_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == usr_id))
-        prof = prof_res.scalars().first()
-        if not prof:
-            prof = FacultyProfile(user_id=usr_id, department_id=dept_id, designation=designation, is_hod=is_hod, is_dean=is_dean)
-            db.add(prof)
-            await db.flush()
-            created_faculty += 1
-
-        # Link faculty to subject
-        if subj and subj not in prof.subjects:
-            prof.subjects.append(subj)
-
-        # 4. Classrooms if specified in row
-        room_num = row.get('roomnumber') or row.get('room')
-        if room_num:
-            rm_res = await db.execute(select(Classroom).where(Classroom.room_number == str(room_num).strip()))
-            rm = rm_res.scalars().first()
-            if not rm:
-                cap = int(row.get('capacity') or 60)
-                rm_type = (row.get('roomtype') or 'CLASSROOM').upper()
-                if rm_type not in ['CLASSROOM', 'LAB', 'SEMINAR_HALL']:
-                    rm_type = 'CLASSROOM'
-                rm = Classroom(room_number=str(room_num).strip(), capacity=cap, room_type=rm_type, department_id=dept_id)
-                db.add(rm)
-                await db.flush()
-                created_classrooms += 1
-
-        # 5. SectionConfig & Dynamic Mentors
-        sec_res = await db.execute(select(SectionConfig).where(SectionConfig.department_id == dept_id, SectionConfig.name == sec_name))
-        sec_cfg = sec_res.scalars().first()
-        if not sec_cfg:
-            sec_cfg = SectionConfig(department_id=dept_id, academic_year=year_val, name=sec_name)
-            db.add(sec_cfg)
-            await db.flush()
-            created_sections += 1
-
-        if is_class_teacher:
-            sec_cfg.class_teacher_id = prof.id
-
-        if is_mentor_flag:
-            # Parse comma-separated list of mentor emails if provided
-            if ',' in str(mentor_raw):
-                mentor_emails = [m.strip().lower() for m in str(mentor_raw).split(',') if m.strip()]
-                for m_email in mentor_emails:
-                    m_usr_res = await db.execute(select(User).where(User.email == m_email))
-                    m_usr = m_usr_res.scalars().first()
-                    if m_usr:
-                        m_prof_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == m_usr.id))
-                        m_prof = m_prof_res.scalars().first()
-                        if m_prof and m_prof not in sec_cfg.counseling_mentors:
-                            sec_cfg.counseling_mentors.append(m_prof)
+            # Subject Details
+            subj_code = (row.get('subjectcode') or row.get('coursecode') or row.get('code') or row.get('subcode') or f"{dept_code}101").upper()
+            subj_name = row.get('subjectname') or row.get('coursename') or row.get('subject') or row.get('title') or 'Core Subject'
+            
+            type_raw = str(row.get('subjecttype') or row.get('type') or row.get('coursetype') or 'THEORY').upper()
+            if any(lk in type_raw for lk in ['LAB', 'PRACTICAL', 'LABORATORY']):
+                subj_type = 'LAB'
+            elif any(ck in type_raw for ck in ['COUNSEL', 'MENTOR']):
+                subj_type = 'COUNSELLING'
+            elif any(sk in type_raw for sk in ['SPORT', 'LIBRARY']):
+                subj_type = 'SPORTS_LIBRARY'
+            elif 'ELEC' in type_raw:
+                subj_type = 'ELECTIVE'
             else:
-                if prof not in sec_cfg.counseling_mentors:
-                    sec_cfg.counseling_mentors.append(prof)
+                subj_type = 'THEORY'
 
-        records_processed += 1
+            # Faculty Details
+            fac_email = (row.get('facultyemail') or row.get('teacheremail') or row.get('profemail') or row.get('email') or f"prof.{uuid.uuid4().hex[:6]}@college.edu").lower()
+            fac_name = row.get('facultyname') or row.get('teachername') or row.get('profname') or row.get('name') or row.get('faculty') or 'Faculty Member'
+            designation = row.get('designation') or row.get('role') or row.get('title') or 'Assistant Professor'
+
+            # Workload
+            max_workload_raw = row.get('maxweeklyworkload') or row.get('maxworkload') or row.get('workload') or row.get('weeklyworkload') or '16'
+            try:
+                max_workload = int(''.join(filter(str.isdigit, str(max_workload_raw))) or 16)
+            except Exception:
+                max_workload = 16
+            
+            is_class_teacher = str(row.get('isclassteacher', '') or row.get('classteacher', '')).lower() in ['true', '1', 'yes']
+            is_hod = str(row.get('ishod', '') or row.get('hod', '')).lower() in ['true', '1', 'yes']
+            is_dean = str(row.get('isdean', '') or row.get('dean', '')).lower() in ['true', '1', 'yes']
+            
+            mentor_raw = row.get('mentoremails') or row.get('mentors') or row.get('iscounselingmentor') or ''
+            is_mentor_flag = str(mentor_raw).lower() in ['true', '1', 'yes'] or len(str(mentor_raw).strip()) > 3
+
+            # 1. Department Creation/Lookup
+            dept_res = await db.execute(select(Department).where(Department.code == dept_code))
+            dept = dept_res.scalars().first()
+            if not dept:
+                dept = Department(name=dept_name, code=dept_code)
+                db.add(dept)
+                await db.flush()
+                created_depts += 1
+            dept_id = dept.id
+
+            # 2. Subject Creation/Lookup
+            subj_res = await db.execute(select(Subject).where(Subject.code == subj_code))
+            subj = subj_res.scalars().first()
+            if not subj:
+                subj = Subject(name=subj_name, code=subj_code, department_id=dept_id, subject_type=subj_type, academic_year=year_val)
+                db.add(subj)
+                await db.flush()
+                created_subjects += 1
+            else:
+                # Update existing subject properties if needed
+                subj.name = subj_name
+                subj.subject_type = subj_type
+                subj.academic_year = year_val
+
+            # 3. User & FacultyProfile Creation/Lookup
+            user_res = await db.execute(select(User).where(User.email == fac_email))
+            usr = user_res.scalars().first()
+            if not usr:
+                usr = User(email=fac_email, full_name=fac_name, password_hash="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW", role=UserRole.FACULTY)
+                db.add(usr)
+                await db.flush()
+            else:
+                usr.full_name = fac_name
+            usr_id = usr.id
+
+            prof_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == usr_id))
+            prof = prof_res.scalars().first()
+            if not prof:
+                prof = FacultyProfile(user_id=usr_id, department_id=dept_id, designation=designation, is_hod=is_hod, is_dean=is_dean, max_weekly_workload=max_workload)
+                db.add(prof)
+                await db.flush()
+                created_faculty += 1
+            else:
+                prof.department_id = dept_id
+                prof.designation = designation
+                prof.is_hod = is_hod or prof.is_hod
+                prof.is_dean = is_dean or prof.is_dean
+                prof.max_weekly_workload = max_workload
+
+            # Link faculty expertise to subject safely via SQL insert to prevent greenlet_spawn lazy load error
+            if subj:
+                fs_stmt = select(faculty_subjects).where(
+                    faculty_subjects.c.faculty_id == prof.id,
+                    faculty_subjects.c.subject_id == subj.id
+                )
+                fs_res = await db.execute(fs_stmt)
+                if not fs_res.first():
+                    await db.execute(faculty_subjects.insert().values(faculty_id=prof.id, subject_id=subj.id))
+
+            # 4. Classrooms Creation/Lookup
+            room_num = row.get('roomnumber') or row.get('room') or row.get('classroom')
+            if room_num:
+                rm_res = await db.execute(select(Classroom).where(Classroom.room_number == str(room_num).strip()))
+                rm = rm_res.scalars().first()
+                if not rm:
+                    cap_raw = row.get('capacity') or row.get('cap') or '60'
+                    try:
+                        cap = int(''.join(filter(str.isdigit, str(cap_raw))) or 60)
+                    except Exception:
+                        cap = 60
+                    rm_type_raw = (row.get('roomtype') or 'CLASSROOM').upper()
+                    if 'LAB' in rm_type_raw:
+                        rm_type = 'LAB'
+                    elif 'HALL' in rm_type_raw:
+                        rm_type = 'SEMINAR_HALL'
+                    else:
+                        rm_type = 'CLASSROOM'
+                    rm = Classroom(room_number=str(room_num).strip(), capacity=cap, room_type=rm_type, department_id=dept_id)
+                    db.add(rm)
+                    await db.flush()
+                    created_classrooms += 1
+
+            # 5. SectionConfig & Mentors
+            sec_res = await db.execute(select(SectionConfig).where(SectionConfig.department_id == dept_id, SectionConfig.name == sec_name))
+            sec_cfg = sec_res.scalars().first()
+            if not sec_cfg:
+                sec_cfg = SectionConfig(department_id=dept_id, academic_year=year_val, name=sec_name)
+                db.add(sec_cfg)
+                await db.flush()
+                created_sections += 1
+
+            if is_class_teacher:
+                sec_cfg.class_teacher_id = prof.id
+
+            if is_mentor_flag:
+                if ',' in str(mentor_raw):
+                    mentor_emails = [m.strip().lower() for m in str(mentor_raw).split(',') if m.strip()]
+                    for m_email in mentor_emails:
+                        m_usr_res = await db.execute(select(User).where(User.email == m_email))
+                        m_usr = m_usr_res.scalars().first()
+                        if m_usr:
+                            m_prof_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == m_usr.id))
+                            m_prof = m_prof_res.scalars().first()
+                            if m_prof:
+                                sm_stmt = select(section_mentors).where(
+                                    section_mentors.c.section_id == sec_cfg.id,
+                                    section_mentors.c.faculty_id == m_prof.id
+                                )
+                                sm_res = await db.execute(sm_stmt)
+                                if not sm_res.first():
+                                    await db.execute(section_mentors.insert().values(section_id=sec_cfg.id, faculty_id=m_prof.id))
+                else:
+                    sm_stmt = select(section_mentors).where(
+                        section_mentors.c.section_id == sec_cfg.id,
+                        section_mentors.c.faculty_id == prof.id
+                    )
+                    sm_res = await db.execute(sm_stmt)
+                    if not sm_res.first():
+                        await db.execute(section_mentors.insert().values(section_id=sec_cfg.id, faculty_id=prof.id))
+
+            records_processed += 1
+        except Exception as err:
+            warnings.append(f"Row {row_idx}: {str(err)}")
 
     await db.commit()
     return {
-        "message": "Master Data (CSV/Excel) imported successfully!",
+        "message": f"Master Data imported successfully! Processed {records_processed} row(s) cleanly.",
         "records_processed": records_processed,
         "departments_created": created_depts,
         "subjects_created": created_subjects,
         "faculty_created": created_faculty,
         "classrooms_created": created_classrooms,
-        "sections_created": created_sections
+        "sections_created": created_sections,
+        "warnings": warnings
     }
 
 @router.delete("/clear-semester-data")

@@ -27,6 +27,10 @@ logger = logging.getLogger("ai-api")
 
 router = APIRouter()
 
+@router.get("/ai/test_ping")
+def test_ping():
+    return {"ping": "PONG_VERSION_9999"}
+
 # ==========================================
 # 1. RAG ACADEMIC POLICIES KNOWLEDGE BASE
 # ==========================================
@@ -274,6 +278,8 @@ async def ai_chat_consultation(
     dept_matches = [d for d in ["cse", "csd", "csm", "ece", "eee", "it", "mech", "civil"] if d in prompt_lower]
     target_dept = dept_matches[0].upper() if dept_matches else None
 
+    logger.info(f"AI_CHAT_PROMPT_RECEIVED: prompt='{chat_in.prompt}' | prompt_normalized='{prompt_normalized}'")
+
     reply_text = ""
     suggested_actions = []
 
@@ -311,8 +317,8 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Re-optimize Timetable", payload_json="{}")
         ]
 
-    # 2. LEAVE RULES & REGULATIONS QUERY
-    elif any(k in prompt_normalized for k in ["leave rule", "rule about leave", "leave policy", "leave regulation", "rules for leave", "how many leave", "duty leave", "casual leave", "want leave rule"]) or ("leave" in prompt_normalized and "rule" in prompt_normalized):
+    # 2. LEAVE RULES & REGULATIONS QUERY (Triggers for any leave query unless explicitly asking for active absentees/substitutes)
+    elif "leave" in prompt_normalized and not any(sub_k in prompt_normalized for sub_k in ["absent", "substitute", "coverage", "pending"]):
         leave_pols = [p for p in policies if p.category == "LEAVE_POLICY"]
         if not leave_pols:
             leave_pols = policies

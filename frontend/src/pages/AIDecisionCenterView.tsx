@@ -178,6 +178,28 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
 
         {/* Department Filter */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setActiveConversationId(undefined);
+              setMessages([
+                {
+                  id: 'welcome-1',
+                  role: 'assistant',
+                  content: `Hello ${user?.full_name || 'Academic Administrator'}! I am your AI Operations & Decision Assistant Engine.\n\nI can analyze teacher workload metrics, evaluate pending leave substitution options, inspect campus room occupancy, auto-schedule class timetables, and search institutional policy RAG documents.`,
+                  actions: [
+                    { action_type: 'AUTO_SOLVE_TIMETABLE', label: 'Auto-Schedule Timetable', payload_json: '{}' },
+                    { action_type: 'APPLY_SUBSTITUTION', label: 'Leave & Substitution Desk', payload_json: '{}' },
+                    { action_type: 'VIEW_ROOM_GRID', label: 'Classrooms Inventory', payload_json: '{}' }
+                  ]
+                }
+              ]);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-dark-900 border border-dark-800 hover:border-rose-500/40 rounded-xl text-dark-300 hover:text-white text-xs font-bold transition-all"
+            title="Start new conversation"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            New Chat
+          </button>
           <div className="w-56">
             <select
               value={selectedDeptId}

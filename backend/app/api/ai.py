@@ -244,62 +244,56 @@ async def ai_chat_consultation(
     # --- AGENT TOOL & NLP REASONING DISPATCHER ---
 
     # 1. RAG Policy & Rules Query (Highest Priority for Rules, Policy, Regulations, Leave Rules)
-    if any(k in prompt_normalized for k in ["rule", "policy", "regulation", "guideline", "duty leave", "lab hour", "invigilation", "exam rule", "workload policy"]) or "leave" in prompt_normalized:
-        # If prompt is purely asking about active substitute candidates / pending leave applications rather than rules
-        if any(sub_k in prompt_lower for sub_k in ["who is absent", "pending leave", "substitute candidate", "active leave application", "coverage for today"]):
-            # Pass through to substitute coverage query below
-            pass
-        else:
-            policies_stmt = select(AcademicPolicy)
-            policies_res = await db.execute(policies_stmt)
-            policies = policies_res.scalars().all()
+    if any(k in prompt_normalized for k in ["rule", "policy", "regulation", "guideline", "duty leave", "lab hour", "invigilation", "exam rule", "workload policy"]) or ("leave" in prompt_normalized and not any(sub_k in prompt_lower for sub_k in ["who is absent", "pending leave", "substitute candidate", "active leave application", "coverage for today"])):
+        policies_stmt = select(AcademicPolicy)
+        policies_res = await db.execute(policies_stmt)
+        policies = policies_res.scalars().all()
 
-            # Normalize query words (length > 2)
-            raw_words = [w.strip("?,.!") for w in prompt_normalized.split() if len(w) > 2]
-            words = [w[:-1] if w.endswith("s") and len(w) > 3 else w for w in raw_words]
+        # Extract search keywords from normalized prompt
+        words = [w.strip("?,.!") for w in prompt_normalized.split() if len(w) > 2]
 
-            # Find matching policy documents by keyword overlap
-            matching_pol = [
-                p for p in policies 
-                if any(w in p.title.lower() or w in p.content.lower() or (p.tags and w in p.tags.lower()) for w in words)
-            ]
-            
-            # Fallback category match
-            if not matching_pol:
-                if "leave" in prompt_normalized:
-                    matching_pol = [p for p in policies if p.category == "LEAVE_POLICY"]
-                elif "lab" in prompt_normalized or "timetable" in prompt_normalized or "slot" in prompt_normalized:
-                    matching_pol = [p for p in policies if p.category == "TIMETABLE_RULES"]
-                elif "workload" in prompt_normalized or "capacity" in prompt_normalized:
-                    matching_pol = [p for p in policies if p.category == "WORKLOAD_POLICY"]
-                elif "exam" in prompt_normalized:
-                    matching_pol = [p for p in policies if p.category == "EXAM_RULES"]
+        # Find matching policy documents by title, content, or tags overlap
+        matching_pol = [
+            p for p in policies 
+            if any(w in p.title.lower() or w in p.content.lower() or (p.tags and w in p.tags.lower()) for w in words)
+        ]
+        
+        # Fallback category match if keyword overlap produced empty list
+        if not matching_pol:
+            if "leave" in prompt_normalized:
+                matching_pol = [p for p in policies if p.category == "LEAVE_POLICY"]
+            elif "lab" in prompt_normalized or "timetable" in prompt_normalized or "slot" in prompt_normalized:
+                matching_pol = [p for p in policies if p.category == "TIMETABLE_RULES"]
+            elif "workload" in prompt_normalized or "capacity" in prompt_normalized:
+                matching_pol = [p for p in policies if p.category == "WORKLOAD_POLICY"]
+            elif "exam" in prompt_normalized:
+                matching_pol = [p for p in policies if p.category == "EXAM_RULES"]
 
-            if not matching_pol:
-                matching_pol = policies
+        if not matching_pol:
+            matching_pol = policies
 
-            reply_lines = [
-                "### 📜 RAG Academic Regulations & Policy Knowledge Base",
-                f"Here are the active institutional rules and policy regulations retrieved for **\"{chat_in.prompt}\"**:",
-                ""
-            ]
-            for p in matching_pol:
-                reply_lines.append(f"#### 📌 {p.title} (`{p.category}`)")
-                reply_lines.append(f"{p.content}")
-                if p.tags:
-                    reply_lines.append(f"*Tags*: `{p.tags}`")
-                reply_lines.append("")
+        reply_lines = [
+            "### 📜 Institutional Academic Regulations & Leave Rules",
+            f"Here are the active policy regulations retrieved for **\"{chat_in.prompt}\"**:",
+            ""
+        ]
+        for p in matching_pol:
+            reply_lines.append(f"#### 📌 {p.title} (`{p.category}`)")
+            reply_lines.append(f"{p.content}")
+            if p.tags:
+                reply_lines.append(f"*Tags*: `{p.tags}`")
+            reply_lines.append("")
 
-            reply_lines.append("---")
-            reply_lines.append("💡 *Note: HODs and Admins can add or update custom policy documents anytime via the **RAG Policies** tab.*")
-            reply_text = "\n".join(reply_lines)
-            suggested_actions = [
-                AISuggestedAction(action_type="APPLY_SUBSTITUTION", label="Leave Operations Desk", payload_json="{}"),
-                AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Timetable Solver", payload_json="{}")
-            ]
+        reply_lines.append("---")
+        reply_lines.append("💡 *Note: Administrators & HODs can add or modify custom policy documents anytime via the **RAG Policies** tab.*")
+        reply_text = "\n".join(reply_lines)
+        suggested_actions = [
+            AISuggestedAction(action_type="APPLY_SUBSTITUTION", label="Leave Operations Desk", payload_json="{}"),
+            AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Timetable Solver", payload_json="{}")
+        ]
 
     # 2. Faculty Workload & Capacity Query
-    if not reply_text and any(k in prompt_normalized for k in ["workload", "overutilized", "underutilized", "busy", "capacity", "teaching hour"]):
+    elif not reply_text and any(k in prompt_normalized for k in ["workload", "overutilized", "underutilized", "busy", "capacity", "teaching hour"]):
         analytics = await get_analytics_dashboard(chat_in.department_id, current_user, db)
         top_busy = sorted(analytics.workload_metrics, key=lambda m: m.utilization_percentage, reverse=True)[:3]
         
@@ -323,7 +317,6 @@ async def ai_chat_consultation(
 
     # 3. Active Leave & Substitute Coverage Query
     elif not reply_text and any(k in prompt_normalized for k in ["substitute", "substitution", "coverage", "absent", "replace", "pending leave", "who is absent", "applied leave"]):
-        # Query active leaves
         leaves_stmt = select(LeaveRequest).options(selectinload(LeaveRequest.faculty).selectinload(FacultyProfile.user)).order_by(LeaveRequest.created_at.desc())
         leaves_res = await db.execute(leaves_stmt)
         leaves = leaves_res.scalars().all()
@@ -384,23 +377,24 @@ async def ai_chat_consultation(
 
     # 6. Intelligent Conversational & General Query NLP Fallback
     elif not reply_text:
-        # Fetch policies and analytics summary to answer general questions
         policies_stmt = select(AcademicPolicy)
         policies_res = await db.execute(policies_stmt)
         all_pols = policies_res.scalars().all()
         
-        pol_titles = ", ".join([f"'{p.title}'" for p in all_pols[:3]])
+        pol_list = "\n".join([f"- **{p.title}**: {p.content}" for p in all_pols])
         analytics = await get_analytics_dashboard(chat_in.department_id, current_user, db)
 
         reply_text = (
-            f"Hello {current_user.full_name}! I am your AI Operations & Decision Engine.\n\n"
-            f"Regarding **\"{chat_in.prompt}\"**:\n\n"
-            f"I have direct access to our live institutional database and RAG academic policy knowledge base.\n\n"
-            f"**Current System Overview:**\n"
-            f"- **Faculty Members**: {analytics.total_faculty} active profiles ({analytics.average_faculty_utilization}% average workload utilization)\n"
-            f"- **Classrooms & Labs**: {analytics.total_classrooms} registered rooms ({analytics.average_room_occupancy}% campus occupancy rate)\n"
-            f"- **RAG Institutional Policies**: Available regulations include {pol_titles}.\n\n"
-            "Feel free to ask me any questions about leave rules, faculty workload, classroom availability, exam seating, or timetable generation!"
+            f"Hello {current_user.full_name}! I am your AI Academic Operations & Decision Engine.\n\n"
+            f"Regarding your query **\"{chat_in.prompt}\"**:\n\n"
+            f"Here is a comprehensive summary of our institutional operational rules and active system metrics:\n\n"
+            f"### 📋 Institutional Regulations & Rules\n"
+            f"{pol_list}\n\n"
+            f"### 📊 System Operations Summary\n"
+            f"- **Faculty Members**: {analytics.total_faculty} registered profiles ({analytics.average_faculty_utilization}% avg workload utilization)\n"
+            f"- **Classrooms & Labs**: {analytics.total_classrooms} rooms ({analytics.average_room_occupancy}% campus occupancy rate)\n"
+            f"- **Scheduled Sessions**: {analytics.total_timetable_slots} active slots booked across all departments\n\n"
+            "Feel free to ask any specific questions regarding leave applications, substitution rules, timetable generation, or room availability!"
         )
         suggested_actions = [
             AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Auto-Schedule Timetable", payload_json="{}"),

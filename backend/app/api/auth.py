@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.models.user import User, PasswordReset, UserRole
-from app.schemas.user import UserCreate, UserResponse, Token, ForgotPasswordRequest, VerifyOTPRequest, ResetPasswordRequest
+from app.schemas.user import UserCreate, UserLogin, UserResponse, Token, ForgotPasswordRequest, VerifyOTPRequest, ResetPasswordRequest
 from app.api.deps import get_current_user
 
 # Setup logger
@@ -89,7 +89,7 @@ async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     return new_user
 
 @router.post("/login", response_model=Token)
-async def login(login_data: UserCreate, db: AsyncSession = Depends(get_db)):
+async def login(login_data: UserLogin, db: AsyncSession = Depends(get_db)):
     email_clean = login_data.email.strip().lower()
     
     # Find user by email

@@ -4,14 +4,22 @@ from typing import Optional
 
 class UserBase(BaseModel):
     email: EmailStr
-    full_name: str
+    full_name: Optional[str] = None
 
 class UserCreate(UserBase):
+    full_name: str
     password: str = Field(..., min_length=6, description="Password must be at least 6 characters")
     role: str = Field("FACULTY", description="User role (ADMIN, HOD, FACULTY)")
 
-class UserResponse(UserBase):
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+
+class UserResponse(BaseModel):
     id: str
+    email: EmailStr
+    full_name: str
     role: str
     created_at: datetime
 

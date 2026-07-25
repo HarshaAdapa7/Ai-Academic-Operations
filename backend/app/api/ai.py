@@ -270,6 +270,7 @@ async def ai_chat_consultation(
     reply_text = ""
     suggested_actions = []
 
+<<<<<<< HEAD
     # Fetch base entities for name matching from database
     fac_stmt = select(FacultyProfile).options(
         selectinload(FacultyProfile.user),
@@ -457,6 +458,59 @@ async def ai_chat_consultation(
 
     # Tool 1: Workload Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["workload", "overutilized", "underutilized", "busy", "capacity"]):
+=======
+    # --- AGENT TOOL & NLP REASONING DISPATCHER ---
+
+    # 1. RAG Policy & Rules Query (Highest Priority for Rules, Policy, Regulations)
+    if any(k in prompt_lower for k in ["rule", "rules", "policy", "policies", "regulation", "regulations", "guideline", "guidelines", "duty leave", "lab hour", "invigilation", "exam rule", "workload policy"]) or ("leave" in prompt_lower and any(w in prompt_lower for w in ["rule", "policy", "system", "give", "show", "what", "tell", "explain", "detail"])):
+        policies_stmt = select(AcademicPolicy)
+        policies_res = await db.execute(policies_stmt)
+        policies = policies_res.scalars().all()
+
+        # Find matching policy documents by keyword overlap
+        words = [w for w in prompt_lower.replace("?", "").replace(".", "").split() if len(w) > 2]
+        matching_pol = [
+            p for p in policies 
+            if any(w in p.title.lower() or w in p.content.lower() or (p.tags and w in p.tags.lower()) for w in words)
+        ]
+        
+        # Fallback category match if specific words didn't filter down
+        if not matching_pol:
+            if "leave" in prompt_lower:
+                matching_pol = [p for p in policies if p.category == "LEAVE_POLICY"]
+            elif "lab" in prompt_lower or "timetable" in prompt_lower or "slot" in prompt_lower:
+                matching_pol = [p for p in policies if p.category == "TIMETABLE_RULES"]
+            elif "workload" in prompt_lower or "capacity" in prompt_lower:
+                matching_pol = [p for p in policies if p.category == "WORKLOAD_POLICY"]
+            elif "exam" in prompt_lower:
+                matching_pol = [p for p in policies if p.category == "EXAM_RULES"]
+
+        if not matching_pol:
+            matching_pol = policies
+
+        reply_lines = [
+            "### 📜 RAG Academic Regulations & Policy Knowledge Base",
+            f"Here are the active institutional rules and policy regulations retrieved for **\"{chat_in.prompt}\"**:",
+            ""
+        ]
+        for p in matching_pol:
+            reply_lines.append(f"#### 📌 {p.title} (`{p.category}`)")
+            reply_lines.append(f"{p.content}")
+            if p.tags:
+                reply_lines.append(f"*Tags*: `{p.tags}`")
+            reply_lines.append("")
+
+        reply_lines.append("---")
+        reply_lines.append("💡 *Note: HODs and Admins can add or update custom policy documents anytime via the **RAG Policies** tab.*")
+        reply_text = "\n".join(reply_lines)
+        suggested_actions = [
+            AISuggestedAction(action_type="APPLY_SUBSTITUTION", label="Leave Operations Desk", payload_json="{}"),
+            AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Timetable Solver", payload_json="{}")
+        ]
+
+    # 2. Faculty Workload & Capacity Query
+    elif any(k in prompt_lower for k in ["workload", "overutilized", "underutilized", "busy", "capacity", "teaching hours"]):
+>>>>>>> 811a9dd (feat: enhance AI Chat dispatcher to prioritize RAG rules and policies, and provide rich natural language responses for all general queries)
         analytics = await get_analytics_dashboard(chat_in.department_id, current_user, db)
         top_busy = sorted(analytics.workload_metrics, key=lambda m: m.utilization_percentage, reverse=True)[:3]
         
@@ -478,8 +532,14 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Re-optimize Timetable", payload_json="{}")
         ]
 
+<<<<<<< HEAD
     # Tool 2: Substitute / Leave Coverage Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["substitute", "coverage", "leave", "absent", "replace"]):
+=======
+    # 3. Active Leave & Substitute Coverage Query
+    elif any(k in prompt_lower for k in ["substitute", "substitution", "coverage", "absent", "replace", "pending leave", "who is absent", "applied leave"]):
+        # Query active leaves
+>>>>>>> 811a9dd (feat: enhance AI Chat dispatcher to prioritize RAG rules and policies, and provide rich natural language responses for all general queries)
         leaves_stmt = select(LeaveRequest).options(selectinload(LeaveRequest.faculty).selectinload(FacultyProfile.user)).order_by(LeaveRequest.created_at.desc())
         leaves_res = await db.execute(leaves_stmt)
         leaves = leaves_res.scalars().all()
@@ -507,8 +567,13 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="APPLY_SUBSTITUTION", label="Open Substitution Desk", payload_json="{}")
         ]
 
+<<<<<<< HEAD
     # Tool 3: Classroom / Lab Occupancy Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["room", "classroom", "occupancy", "lab", "free room"]):
+=======
+    # 4. Classroom / Lab Occupancy Query
+    elif any(k in prompt_lower for k in ["room", "classroom", "occupancy", "free room", "seating", "hall"]):
+>>>>>>> 811a9dd (feat: enhance AI Chat dispatcher to prioritize RAG rules and policies, and provide rich natural language responses for all general queries)
         analytics = await get_analytics_dashboard(chat_in.department_id, current_user, db)
         reply_lines = [
             "### 🏫 Classroom & Lab Utilization Report",
@@ -524,8 +589,13 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="VIEW_ROOM_GRID", label="Manage Classrooms Inventory", payload_json="{}")
         ]
 
+<<<<<<< HEAD
     # Tool 4: Timetable Solver / Clash Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["generate", "solver", "clash", "schedule", "timetable"]):
+=======
+    # 5. Timetable Solver / Clash Query
+    elif any(k in prompt_lower for k in ["generate", "solver", "clash", "schedule", "timetable", "autogenerate"]):
+>>>>>>> 811a9dd (feat: enhance AI Chat dispatcher to prioritize RAG rules and policies, and provide rich natural language responses for all general queries)
         reply_text = (
             "### ⚡ AI Master Timetable Solver Guidance\n"
             "The platform includes an automated backtracking solver engine that respects:\n"
@@ -538,39 +608,30 @@ async def ai_chat_consultation(
             AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Open Auto-Scheduler Solver", payload_json="{}")
         ]
 
+<<<<<<< HEAD
     # Tool 5: RAG Policy Query (Fallback Keyword match)
     elif any(k in prompt_lower for k in ["policy", "rule", "regulation", "duty", "limit"]):
+=======
+    # 6. Intelligent Conversational & General Query NLP Fallback
+    else:
+        # Fetch policies and analytics summary to answer general questions
+>>>>>>> 811a9dd (feat: enhance AI Chat dispatcher to prioritize RAG rules and policies, and provide rich natural language responses for all general queries)
         policies_stmt = select(AcademicPolicy)
         policies_res = await db.execute(policies_stmt)
-        policies = policies_res.scalars().all()
+        all_pols = policies_res.scalars().all()
+        
+        pol_titles = ", ".join([f"'{p.title}'" for p in all_pols[:3]])
+        analytics = await get_analytics_dashboard(chat_in.department_id, current_user, db)
 
-        matching_pol = [p for p in policies if any(w in p.title.lower() or w in p.content.lower() for w in prompt_lower.split())]
-        if not matching_pol:
-            matching_pol = policies[:2]
-
-        reply_lines = [
-            "### 📜 RAG Academic Policy Search",
-            "Here are the relevant institutional regulations retrieved from the knowledge base:",
-            ""
-        ]
-        for p in matching_pol:
-            reply_lines.append(f"#### {p.title} (`{p.category}`)")
-            reply_lines.append(f"> {p.content}")
-            reply_lines.append("")
-
-        reply_text = "\n".join(reply_lines)
-
-    # Fallback General Response
-    else:
         reply_text = (
-            f"Hello {current_user.full_name}! I am your AI Operations Assistant.\n\n"
-            "I can assist you with:\n"
-            "- **Faculty Workload Analysis** (Query workload balances and capacities)\n"
-            "- **Substitution Recommendations** (Match available coverage teachers for leaves)\n"
-            "- **Classroom & Lab Occupancy** (Analyze room utilization rates)\n"
-            "- **Master Timetable Generation** (Trigger AI backtracking constraint solver)\n"
-            "- **RAG Institutional Policies** (Search leave rules, invigilation limits, and lab policies)\n\n"
-            "How can I assist your department today?"
+            f"Hello {current_user.full_name}! I am your AI Operations & Decision Engine.\n\n"
+            f"Regarding **\"{chat_in.prompt}\"**:\n\n"
+            f"I have direct access to our live institutional database and RAG academic policy knowledge base.\n\n"
+            f"**Current System Overview:**\n"
+            f"- **Faculty Members**: {analytics.total_faculty} active profiles ({analytics.average_faculty_utilization}% average workload utilization)\n"
+            f"- **Classrooms & Labs**: {analytics.total_classrooms} registered rooms ({analytics.average_room_occupancy}% campus occupancy rate)\n"
+            f"- **RAG Institutional Policies**: Available regulations include {pol_titles}.\n\n"
+            "Feel free to ask me any questions about leave rules, faculty workload, classroom availability, exam seating, or timetable generation!"
         )
         suggested_actions = [
             AISuggestedAction(action_type="AUTO_SOLVE_TIMETABLE", label="Auto-Schedule Timetable", payload_json="{}"),

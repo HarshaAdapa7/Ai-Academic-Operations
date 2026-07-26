@@ -133,6 +133,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     const currentDept = departments.find(d => d.id === selectedDeptId);
     const deptCode = currentDept ? currentDept.code.toUpperCase() : '';
 
+    // First add all actual registered sections from SectionConfig
     sectionConfigs.forEach(s => {
       if (s.name && (!selectedDeptId || s.department_id === selectedDeptId)) {
         list.add(s.name.trim().toUpperCase());
@@ -145,23 +146,25 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       }
     });
 
-    if (deptCode) {
-      [1, 2, 3, 4].forEach(yr => {
-        list.add(`${deptCode} ${yr}-A`);
-        list.add(`${deptCode} ${yr}-B`);
-      });
-    } else {
-      departments.forEach(d => {
-        const code = d.code.toUpperCase();
+    if (list.size === 0) {
+      if (deptCode) {
         [1, 2, 3, 4].forEach(yr => {
-          list.add(`${code} ${yr}-A`);
-          list.add(`${code} ${yr}-B`);
+          list.add(`${deptCode} ${yr}-A`);
+          list.add(`${deptCode} ${yr}-B`);
         });
-      });
+      } else {
+        departments.forEach(d => {
+          const code = d.code.toUpperCase();
+          [1, 2, 3, 4].forEach(yr => {
+            list.add(`${code} ${yr}-A`);
+            list.add(`${code} ${yr}-B`);
+          });
+        });
+      }
     }
 
     const sorted = Array.from(list).sort();
-    return sorted.length > 0 ? sorted : [`${deptCode || 'CSE'} 3-A`];
+    return sorted.length > 0 ? sorted : [`${deptCode || 'CSE'} 2-A`];
   };
 
   // Auto-switch section to match newly selected department
@@ -169,10 +172,13 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     if (!selectedDeptId || departments.length === 0) return;
     const available = getAvailableSections();
     if (available.length > 0 && !available.includes(selectedSection)) {
-      const prefer3rdYear = available.find(s => s.includes('3-A')) || available[0];
-      setSelectedSection(prefer3rdYear);
+      const validSections = sectionConfigs
+        .filter(s => s.department_id === selectedDeptId)
+        .map(s => s.name.trim().toUpperCase());
+      const defaultSec = validSections.length > 0 ? validSections[0] : (available.find(s => s.includes('2-A')) || available[0]);
+      setSelectedSection(defaultSec);
     }
-  }, [selectedDeptId, departments]);
+  }, [selectedDeptId, departments, sectionConfigs]);
 
   const handleOpenSlotModal = (day: string, slotNum: number, existing?: TimetableEntry) => {
     setTargetDay(day);

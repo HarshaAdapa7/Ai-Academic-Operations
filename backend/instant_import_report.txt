@@ -1,0 +1,66 @@
+======================================================================
+=== ANITS REAL COLLEGE DATA IMPORT SUMMARY REPORT ===
+======================================================================
+Total CSV Data Rows Processed Across 7 Departments: 408
+
+Department [BT] - Bio Technology:
+  - Rows Processed: 10
+  - Unique Subjects: 10
+  - Unique Faculty: 8
+  - Unique Sections: 1 (BT 2-A)
+  - Unique Classrooms: 2
+--------------------------------------------------
+Department [CHE] - Chemical Engineering:
+  - Rows Processed: 31
+  - Unique Subjects: 31
+  - Unique Faculty: 17
+  - Unique Sections: 3 (CHE 2-A, CHE 3-A, CHE 4-A)
+  - Unique Classrooms: 6
+--------------------------------------------------
+Department [CIVIL] - Civil Engineering:
+  - Rows Processed: 33
+  - Unique Subjects: 33
+  - Unique Faculty: 18
+  - Unique Sections: 3 (CIVIL 2-A, CIVIL 3-A, CIVIL 4-A)
+  - Unique Classrooms: 4
+--------------------------------------------------
+Department [CSD] - Computer Science & Data Science:
+  - Rows Processed: 81
+  - Unique Subjects: 27
+  - Unique Faculty: 22
+  - Unique Sections: 9 (CSD 2-A, CSD 2-B, CSD 2-C, CSD 3-A, CSD 3-B, CSD 3-C, CSD 4-A, CSD 4-B, CSD 4-C)
+  - Unique Classrooms: 6
+--------------------------------------------------
+Department [CSE] - Computer Science & Engineering:
+  - Rows Processed: 68
+  - Unique Subjects: 17
+  - Unique Faculty: 12
+  - Unique Sections: 8 (CSE 3-A, CSE 3-B, CSE 3-C, CSE 3-D, CSE 4-A, CSE 4-B, CSE 4-C, CSE 4-D)
+  - Unique Classrooms: 8
+--------------------------------------------------
+Department [EEE] - Electrical & Electronics Engineering:
+  - Rows Processed: 84
+  - Unique Subjects: 28
+  - Unique Faculty: 22
+  - Unique Sections: 9 (EEE 2-A, EEE 2-B, EEE 2-C, EEE 3-A, EEE 3-B, EEE 3-C, EEE 4-A, EEE 4-B, EEE 4-C)
+  - Unique Classrooms: 9
+--------------------------------------------------
+Department [IT] - Information Technology:
+  - Rows Processed: 101
+  - Unique Subjects: 36
+  - Unique Faculty: 19
+  - Unique Sections: 10 (CS 2-A, IT 2-A, IT 2-B, IT 2-C, IT 3-A, IT 3-B, IT 3-C, IT 4-A, IT 4-B, IT 4-C)
+  - Unique Classrooms: 10
+--------------------------------------------------
+
+--- POST-IMPORT DATABASE RECORD COUNTS ---
+  users                         : 112 rows
+  departments                   : 7 rows
+  subjects                      : 168 rows
+  faculty_profiles              : 111 rows
+  faculty_subjects              : 184 rows
+  section_configs               : 43 rows
+  section_mentors               : 50 rows
+  classrooms                    : 45 rows
+  academic_policies             : 3 rows
+======================================================================

@@ -273,7 +273,7 @@ async def generate_master_timetable(
             l_dur = 3 if s.subject_type == "LAB" else 1
             l_count = 1 if s.subject_type == "LAB" else 0
             subjs_rules[s.id] = SubjectSchedulingRule(
-                subject_id=s.id, lectures_per_week=3 if s.subject_type == "THEORY" else 0,
+                subject_id=s.id, lectures_per_week=4 if s.subject_type == "THEORY" else (2 if s.subject_type in ["SPORTS_LIBRARY", "COUNSELLING"] else 0),
                 labs_per_week=l_count, lab_duration=l_dur
             )
 
@@ -403,15 +403,17 @@ async def generate_master_timetable(
                             "duration": spec.lab_duration, "year": sec_yr, "dept_id": sec_dept_id
                         })
             elif s.subject_type == "COUNSELLING":
-                tasks.append({
-                    "section": sec, "subject_id": s.id, "type": "COUNSELLING",
-                    "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
-                })
+                for _ in range(max(1, spec.lectures_per_week)):
+                    tasks.append({
+                        "section": sec, "subject_id": s.id, "type": "COUNSELLING",
+                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
+                    })
             elif s.subject_type == "SPORTS_LIBRARY":
-                tasks.append({
-                    "section": sec, "subject_id": s.id, "type": "SPORTS_LIBRARY",
-                    "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
-                })
+                for _ in range(max(1, spec.lectures_per_week)):
+                    tasks.append({
+                        "section": sec, "subject_id": s.id, "type": "SPORTS_LIBRARY",
+                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
+                    })
             else:
                 for _ in range(spec.lectures_per_week):
                     tasks.append({

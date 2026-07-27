@@ -69,11 +69,29 @@ export interface AnalyticsDashboardOutput {
 }
 
 export const aiService = {
-  async sendChatMessage(prompt: string, conversationId?: string, departmentId?: string): Promise<AIChatOutput> {
+  async sendChatMessage(
+    promptOrParams: string | { prompt: string; conversation_id?: string; department_id?: string },
+    conversationId?: string,
+    departmentId?: string
+  ): Promise<AIChatOutput> {
+    let prompt: string;
+    let convId: string | null = null;
+    let deptId: string | null = null;
+
+    if (typeof promptOrParams === 'object' && promptOrParams !== null) {
+      prompt = promptOrParams.prompt;
+      convId = promptOrParams.conversation_id || null;
+      deptId = promptOrParams.department_id || null;
+    } else {
+      prompt = promptOrParams;
+      convId = conversationId || null;
+      deptId = departmentId || null;
+    }
+
     const res = await axios.post(`${API_URL}/ai/chat`, {
       prompt,
-      conversation_id: conversationId || null,
-      department_id: departmentId || null
+      conversation_id: convId,
+      department_id: deptId
     });
     return res.data;
   },

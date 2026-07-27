@@ -107,12 +107,18 @@ async def login(login_data: UserLogin, db: AsyncSession = Depends(get_db)):
     token_str = access_token.decode('utf-8') if isinstance(access_token, bytes) else str(access_token)
     role_str = user.role.value if hasattr(user.role, 'value') else str(user.role)
 
+    # Fetch faculty profile department_id if present
+    from app.models.faculty import FacultyProfile
+    f_res = await db.execute(select(FacultyProfile.department_id).where(FacultyProfile.user_id == user.id))
+    dept_id = f_res.scalars().first()
+
     return {
         "access_token": token_str,
         "token_type": "bearer",
         "role": role_str,
         "full_name": user.full_name,
-        "email": user.email
+        "email": user.email,
+        "department_id": dept_id
     }
 
 @router.get("/me", response_model=UserResponse)

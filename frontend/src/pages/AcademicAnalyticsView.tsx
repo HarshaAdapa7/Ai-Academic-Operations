@@ -12,6 +12,8 @@ interface AcademicAnalyticsViewProps {
   onBack: () => void;
 }
 
+import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
+
 export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ onBack }) => {
   const { user } = useAuth();
 
@@ -25,24 +27,29 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
   const loadAnalyticsData = async () => {
     try {
       setIsLoading(true);
-      const [deptsData, facultyData, roomsData, entriesData] = await Promise.all([
-        facultyService.getDepartments(),
-        facultyService.getFacultyProfiles(),
-        classroomService.getClassrooms(),
-        timetableService.getTimetable({})
-      ]);
-
+      const deptsData = await facultyService.getDepartments();
       setDepartments(deptsData);
-      setFacultyProfiles(facultyData);
-      setClassrooms(roomsData);
-      setTimetableEntries(entriesData);
 
-      // Default department selection based on user role
-      if (user?.role === 'HOD' && user?.department_id) {
-        setSelectedDeptId(user.department_id);
+      const userDeptId = getUserDeptId(user, deptsData);
+      const isAdmin = isUserAdminOrDean(user);
+
+      let targetDeptId: string | undefined = undefined;
+      if (!isAdmin && userDeptId) {
+        targetDeptId = userDeptId;
+        setSelectedDeptId(userDeptId);
       } else if (deptsData.length > 0 && !selectedDeptId) {
         setSelectedDeptId(deptsData[0].id);
       }
+
+      const [facultyData, roomsData, entriesData] = await Promise.all([
+        facultyService.getFacultyProfiles(targetDeptId),
+        classroomService.getClassrooms(targetDeptId),
+        timetableService.getTimetable(targetDeptId ? { department_id: targetDeptId } : {})
+      ]);
+
+      setFacultyProfiles(facultyData);
+      setClassrooms(roomsData);
+      setTimetableEntries(entriesData);
     } catch (err) {
       console.error('Failed to load analytics data:', err);
     } finally {
@@ -52,12 +59,14 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
 
   useEffect(() => {
     loadAnalyticsData();
-  }, []);
+  }, [user]);
 
   // Filter available departments based on role
   const availableDepartments = useMemo(() => {
-    if (user?.role === 'HOD' && user?.department_id) {
-      return departments.filter(d => d.id === user.department_id);
+    const isAdmin = isUserAdminOrDean(user);
+    const userDeptId = getUserDeptId(user, departments);
+    if (!isAdmin && userDeptId) {
+      return departments.filter(d => d.id === userDeptId);
     }
     return departments;
   }, [user, departments]);
@@ -157,8 +166,12 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
             <Building2 className="w-4 h-4 text-primary-400" />
             <select
               value={selectedDeptId}
-              onChange={e => setSelectedDeptId(e.target.value)}
-              disabled={user?.role === 'HOD' && Boolean(user?.department_id)}
+              onChange={e => {
+                if (isUserAdminOrDean(user)) {
+                  setSelectedDeptId(e.target.value);
+                }
+              }}
+              disabled={!isUserAdminOrDean(user)}
               className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer disabled:cursor-not-allowed"
             >
               {availableDepartments.map(d => (

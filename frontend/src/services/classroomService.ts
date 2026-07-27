@@ -46,8 +46,9 @@ export interface CourseStudentInput {
 }
 
 export const classroomService = {
-  async getClassrooms(): Promise<Classroom[]> {
-    const res = await axios.get(`${API_URL}/classrooms`);
+  async getClassrooms(departmentId?: string): Promise<Classroom[]> {
+    const params = departmentId ? { department_id: departmentId } : {};
+    const res = await axios.get(`${API_URL}/classrooms`, { params });
     return res.data;
   },
 

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { facultyService } from '../services/facultyService';
 import type { FacultyProfile, Department, Subject, UserMini } from '../services/facultyService';
 import { Search, Plus, Edit, Trash2, CalendarDays, RefreshCw, X, ChevronLeft } from 'lucide-react';
+import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface FacultyManagerViewProps {
   onBack: () => void;
@@ -9,6 +11,8 @@ interface FacultyManagerViewProps {
 }
 
 export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, onOpenAvailability }) => {
+  const { user } = useAuth();
+  
   const [profiles, setProfiles] = useState<FacultyProfile[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -37,18 +41,29 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [profilesData, deptsData, subjsData, usersData] = await Promise.all([
-        facultyService.getFacultyProfiles(),
+      const [deptsData, subjsData, usersData] = await Promise.all([
         facultyService.getDepartments(),
         facultyService.getSubjects(),
         facultyService.getUsers()
       ]);
-      setProfiles(profilesData);
+      
       setDepartments(deptsData);
       setSubjects(subjsData);
       setUsers(usersData);
+
+      // Security Scoping: HODs get strictly scoped profiles for their department only
+      let targetDeptId: string | undefined = undefined;
+      if (!isUserAdminOrDean(user)) {
+        targetDeptId = getUserDeptId(user, deptsData);
+        if (targetDeptId) {
+          setDeptFilter(targetDeptId);
+        }
+      }
+
+      const profilesData = await facultyService.getFacultyProfiles(targetDeptId);
+      setProfiles(profilesData);
     } catch (err) {
-      console.error('Failed to load data:', err);
+      console.error('Failed to load faculty registry data:', err);
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +71,7 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   const openAddModal = () => {
     setEditingProfile(null);
@@ -225,13 +240,22 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
         <div className="w-full md:w-64">
           <select
             value={deptFilter}
-            onChange={e => setDeptFilter(e.target.value)}
-            className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+            onChange={e => {
+              if (user?.role === 'ADMIN' || user?.role === 'DEAN') {
+                setDeptFilter(e.target.value);
+              }
+            }}
+            disabled={user?.role !== 'ADMIN' && user?.role !== 'DEAN'}
+            className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300 disabled:opacity-80 cursor-not-allowed"
           >
-            <option value="">All Departments</option>
-            {departments.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
+            {user?.role === 'ADMIN' || user?.role === 'DEAN' ? (
+              <option value="">All Departments</option>
+            ) : null}
+            {departments
+              .filter(d => (user?.role === 'ADMIN' || user?.role === 'DEAN') ? true : d.id === deptFilter)
+              .map(d => (
+                <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+              ))}
           </select>
         </div>
       </div>

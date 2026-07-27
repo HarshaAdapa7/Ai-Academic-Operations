@@ -10,6 +10,8 @@ interface LeaveManagerViewProps {
   onBack: () => void;
 }
 
+import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
+
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const SLOTS = [1, 2, 3, 4, 5, 6];
 
@@ -52,12 +54,17 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
   const loadData = async () => {
     try {
       setIsLoading(true);
+      const deptsData = await facultyService.getDepartments();
+      const userDeptId = getUserDeptId(user, deptsData);
+      const isAdmin = isUserAdminOrDean(user);
+      const targetDeptId = !isAdmin ? userDeptId : undefined;
+
       const [balsData, reqsData, propsData, subjsData, profsData] = await Promise.all([
         user?.role === 'FACULTY' ? leaveService.getLeaveBalances() : Promise.resolve([]),
         leaveService.getLeaveRequests(),
         user?.role === 'FACULTY' ? leaveService.getMySubProposals() : Promise.resolve([]),
-        facultyService.getSubjects(),
-        facultyService.getFacultyProfiles()
+        facultyService.getSubjects(targetDeptId),
+        facultyService.getFacultyProfiles(targetDeptId)
       ]);
       setBalances(balsData);
       setRequests(reqsData);

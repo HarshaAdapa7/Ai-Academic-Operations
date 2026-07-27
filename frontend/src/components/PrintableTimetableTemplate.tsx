@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { TimetableEntry } from '../services/timetableService';
 import type { Department, Subject, FacultyProfile, SectionConfig } from '../services/facultyService';
 import type { Classroom } from '../services/classroomService';
-import { X, Printer, Download } from 'lucide-react';
+import { X, Printer } from 'lucide-react';
 
 interface PrintableTimetableTemplateProps {
   selectedSection: string;
@@ -10,7 +10,7 @@ interface PrintableTimetableTemplateProps {
   timetableEntries: TimetableEntry[];
   subjects: Subject[];
   facultyProfiles: FacultyProfile[];
-  classrooms: Classroom[];
+  classrooms?: Classroom[];
   sectionConfig?: SectionConfig | null;
   ruleSlotsPerDay?: number;
   ruleLunchSlot?: number | null;
@@ -23,7 +23,6 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
   timetableEntries,
   subjects,
   facultyProfiles,
-  classrooms,
   sectionConfig,
   ruleSlotsPerDay = 7,
   ruleLunchSlot = null,
@@ -35,16 +34,16 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
   const effectiveLunchSlot = ruleLunchSlot !== null ? ruleLunchSlot : (sectionYear === 1 ? 4 : 5);
 
   // Dynamic Header Editable States
-  const [academicYearText, setAcademicYearText] = useState('2026-2027');
-  const [mid1Date, setMid1Date] = useState('20/08/2026');
-  const [mid2Date, setMid2Date] = useState('15/10/2026');
-  const [semExamDate, setSemExamDate] = useState('28/10/2026');
-  const [wefDate, setWefDate] = useState('22/06/2026');
+  const [academicYearText] = useState('2026-2027');
+  const [mid1Date] = useState('20/08/2026');
+  const [mid2Date] = useState('15/10/2026');
+  const [semExamDate] = useState('28/10/2026');
+  const [wefDate] = useState('22/06/2026');
 
   // Infer Classroom Room Number from section entries
   const sectionEntries = timetableEntries.filter(e => e.section === selectedSection);
   const assignedRoomNo = sectionEntries.find(e => e.classroom?.room_number)?.classroom?.room_number || 'I-506';
-  const [roomNumberText, setRoomNumberText] = useState(assignedRoomNo);
+  const [roomNumberText] = useState(assignedRoomNo);
 
   // Infer Class Teacher & Mentors
   const classTeacherName = sectionConfig?.class_teacher?.user?.full_name 

@@ -8,7 +8,9 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
-  role: 'ADMIN' | 'HOD' | 'FACULTY';
+  role: 'ADMIN' | 'HOD' | 'FACULTY' | 'DEAN';
+  department_id?: string;
+  faculty_profile?: any;
   created_at: string;
 }
 
@@ -45,7 +47,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await axios.get(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      setUser(response.data);
+      const userData = response.data;
+      if (!userData.department_id && response.data.faculty_profile?.department_id) {
+        userData.department_id = response.data.faculty_profile.department_id;
+      }
+      setUser(userData);
     } catch (error) {
       console.error('Failed to fetch user profiles:', error);
       logout();

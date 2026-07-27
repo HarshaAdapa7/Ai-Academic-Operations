@@ -7,7 +7,8 @@ import type { Subject, Department, FacultyProfile, SectionConfig } from '../serv
 import { classroomService } from '../services/classroomService';
 import type { Classroom } from '../services/classroomService';
 import { PrintableTimetableTemplate } from '../components/PrintableTimetableTemplate';
-import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer, Building2, ChevronDown, Download, FileSpreadsheet, Activity, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer, Building2, ChevronDown, FileSpreadsheet, Activity, CheckCircle2 } from 'lucide-react';
+import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface TimetableManagerViewProps {
   onBack: () => void;
@@ -21,27 +22,29 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [facultyProfiles, setFacultyProfiles] = useState<FacultyProfile[]>([]);
   const [sectionConfigs, setSectionConfigs] = useState<SectionConfig[]>([]);
-  
-  const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [selectedSection, setSelectedSection] = useState('CSE 3-A');
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('CSE 1-A');
   const [isCustomSection, setIsCustomSection] = useState(false);
   const [customSectionInput, setCustomSectionInput] = useState('');
   const [activeTab, setActiveTab] = useState<'class' | 'exam' | 'settings'>('class');
-  const [isLoading, setIsLoading] = useState(true);
 
-  // Scheduling Rule states
-  const [ruleSlotsPerDay, setRuleSlotsPerDay] = useState<number>(7);
+  // Timetable grid data
+  const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
+
+  // Scheduling rules state
+  const [ruleSlotsPerDay, setRuleSlotsPerDay] = useState(8);
   const [ruleLunchSlot, setRuleLunchSlot] = useState<number | null>(null);
   const [ruleDays, setRuleDays] = useState<string[]>(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']);
-  const [ruleActivityBlocks, setRuleActivityBlocks] = useState('Saturday-5,Saturday-6,Saturday-7');
+  const [ruleActivityBlocks, setRuleActivityBlocks] = useState('Sports, Library, Counselling');
   const [isSavingRule, setIsSavingRule] = useState(false);
   const [ruleSaveMessage, setRuleSaveMessage] = useState('');
   const [ruleSaveError, setRuleSaveError] = useState('');
 
-  // Timetable Entries states
-  const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
+  // Modal & slot creation states
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
-  const [targetDay, setTargetDay] = useState('');
+  const [targetDay, setTargetDay] = useState('Monday');
   const [targetSlot, setTargetSlot] = useState(1);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedFacultyId, setSelectedFacultyId] = useState('');
@@ -82,8 +85,12 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       setExams(examsData);
       setSectionConfigs(sectionsData);
       
-      if (user?.role === 'HOD' && user?.department_id) {
-        setSelectedDeptId(user.department_id);
+      let userDeptId: string | undefined = undefined;
+      if (!isUserAdminOrDean(user)) {
+        userDeptId = getUserDeptId(user, deptsData);
+        if (userDeptId) {
+          setSelectedDeptId(userDeptId);
+        }
       } else if (deptsData.length > 0 && !selectedDeptId) {
         setSelectedDeptId(deptsData[0].id);
       }
@@ -96,7 +103,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
 
   useEffect(() => {
     loadBaseData();
-  }, []);
+  }, [user]);
 
   const loadTimetableAndRules = async () => {
     try {

@@ -1,0 +1,208 @@
+Master Engineering Instruction for the AI Academic Operations Platform
+Before implementing any feature, follow these engineering principles.
+
+Project Context
+This is NOT a college assignment or a prototype.
+
+This project is being designed as a startup-quality, enterprise-grade SaaS platform that can be adopted by multiple universities and colleges.
+
+Every design and implementation decision must prioritize scalability, maintainability, configurability, security, performance, and future extensibility.
+
+Do NOT implement quick fixes or hardcoded solutions.
+
+Engineering Principles
+For every feature you develop:
+
+Think like a Principal Software Architect.
+
+Follow enterprise software engineering best practices.
+
+Assume thousands of concurrent users.
+
+Assume hundreds of departments.
+
+Assume multiple colleges will use the same platform.
+
+Assume the product will continue evolving for many years.
+
+Every module should be configurable instead of hardcoded.
+
+Before Writing Code
+Before implementing any feature:
+
+Analyze the existing architecture.
+
+Check whether a similar feature already exists.
+
+Reuse existing components whenever possible.
+
+Avoid duplicate code.
+
+Follow SOLID principles.
+
+Follow clean architecture.
+
+Follow modular design.
+
+Preserve backward compatibility whenever possible.
+
+If the requested implementation would create technical debt, explain why and recommend a better design before coding.
+
+Startup Mindset
+Always ask yourself:
+
+Will this work for one college?
+
+Will this work for one hundred colleges?
+
+Can this support multiple academic regulations?
+
+Can new departments be added without code changes?
+
+Can administrators configure the behavior?
+
+Can future AI features be added without redesigning the system?
+
+If the answer is "No", redesign the solution.
+
+Configuration First
+Never hardcode:
+
+Working hours
+
+Subject durations
+
+Laboratory durations
+
+Number of periods
+
+Department names
+
+Approval workflows
+
+Academic rules
+
+Holidays
+
+Timetable rules
+
+Faculty limits
+
+Classroom rules
+
+Everything should come from configurable database tables.
+
+AI-First Philosophy
+Whenever implementing a feature, consider:
+
+Can AI automate this?
+
+Can AI recommend a better solution?
+
+Can AI detect errors?
+
+Can AI explain its decision?
+
+Can AI reduce manual work?
+
+Should this action require human approval?
+
+If AI adds value, design the architecture so AI can be integrated cleanly.
+
+Data Integrity
+Never risk data loss.
+
+Always implement:
+
+Validation
+
+Transactions
+
+Rollback support
+
+Audit logging
+
+Version history
+
+Import staging
+
+Error reporting
+
+Production data must never be corrupted by invalid imports.
+
+Code Quality
+Generate production-quality code that is:
+
+Modular
+
+Reusable
+
+Well documented
+
+Strongly typed where applicable
+
+Easy to test
+
+Easy to maintain
+
+Avoid large files and tightly coupled code.
+
+Scalability
+Every feature should support:
+
+Multi-department architecture
+
+Multi-campus institutions
+
+Multi-college deployments
+
+Role-based permissions
+
+High-volume data
+
+Future cloud scaling
+
+Security
+Always consider:
+
+Authentication
+
+Authorization
+
+Input validation
+
+Audit logs
+
+Least-privilege access
+
+Secure API design
+
+Never expose sensitive data.
+
+Deliverables
+For every requested feature, provide:
+
+Architecture impact analysis.
+
+Database changes (if any).
+
+API design.
+
+Business logic.
+
+Validation rules.
+
+Edge cases.
+
+Security considerations.
+
+Performance considerations.
+
+Future scalability considerations.
+
+Production-ready implementation.
+
+If you identify a better enterprise solution than the requested one, explain the trade-offs and recommend it before implementation.
+
+Our goal is to build a professional SaaS platform that universities can trust in production, not simply to make the current feature work.
+

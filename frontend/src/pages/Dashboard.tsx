@@ -12,9 +12,10 @@ import { AcademicAnalyticsView } from './AcademicAnalyticsView';
 import { FacultyWeeklyTimetable } from './FacultyWeeklyTimetable';
 import { FacultyAnalyticsRecordsView } from './FacultyAnalyticsRecordsView';
 import { leaveService } from '../services/leaveService';
+import { DepartmentDataImportView } from './DepartmentDataImportView';
 import type { DailyBulletin } from '../services/leaveService';
 
-type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'ai_decision_center' | 'academic_analytics' | 'faculty_weekly_timetable' | 'faculty_analytics_records';
+type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'ai_decision_center' | 'academic_analytics' | 'faculty_weekly_timetable' | 'faculty_analytics_records' | 'dept_data_import';
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -53,6 +54,16 @@ export const Dashboard: React.FC = () => {
   }, [user]);
 
   const allModules = [
+    { 
+      id: 'dept_data_import',
+      name: 'Department Data Portal', 
+      desc: 'Securely upload, validate, stage, and commit department Faculty, Subjects, Hours & Rooms.', 
+      icon: LayoutGrid, 
+      color: 'from-indigo-600 to-purple-600', 
+      active: true,
+      roles: ['HOD', 'ADMIN', 'DEAN'],
+      onClick: () => setActiveView('dept_data_import')
+    },
     { 
       id: 'faculty_profiles',
       name: 'Faculty Profiles', 
@@ -344,6 +355,12 @@ export const Dashboard: React.FC = () => {
 
       {activeView === 'faculty_analytics_records' && (
         <FacultyAnalyticsRecordsView 
+          onBack={() => setActiveView('dashboard')}
+        />
+      )}
+
+      {activeView === 'dept_data_import' && (
+        <DepartmentDataImportView 
           onBack={() => setActiveView('dashboard')}
         />
       )}

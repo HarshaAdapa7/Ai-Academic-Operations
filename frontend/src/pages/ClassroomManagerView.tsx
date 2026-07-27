@@ -5,6 +5,7 @@ import type { Classroom, SeatingPlan, SeatingAssignment } from '../services/clas
 import { facultyService } from '../services/facultyService';
 import type { Subject, Department } from '../services/facultyService';
 import { ChevronLeft, Plus, Trash2, Edit, X, Calendar, Eye, RefreshCw, Layers, Printer, Grid3X3 } from 'lucide-react';
+import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface ClassroomManagerViewProps {
   onBack: () => void;
@@ -50,16 +51,28 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({ onBa
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [roomsData, deptsData, subjsData, plansData] = await Promise.all([
-        classroomService.getClassrooms(),
+      const [deptsData, subjsData, plansData] = await Promise.all([
         facultyService.getDepartments(),
         facultyService.getSubjects(),
         classroomService.getSeatingPlans()
       ]);
-      setClassrooms(roomsData);
+
       setDepartments(deptsData);
       setSubjects(subjsData);
       setSeatingPlans(plansData);
+
+      let targetDeptId: string | undefined = undefined;
+      if (!isUserAdminOrDean(user)) {
+        targetDeptId = getUserDeptId(user, deptsData);
+        if (targetDeptId) {
+          setRoomDeptId(targetDeptId);
+        }
+      } else if (deptsData.length > 0 && !roomDeptId) {
+        setRoomDeptId(deptsData[0].id);
+      }
+
+      const roomsData = await classroomService.getClassrooms(targetDeptId);
+      setClassrooms(roomsData);
     } catch (err) {
       console.error('Failed to load classrooms data:', err);
     } finally {
@@ -69,7 +82,7 @@ export const ClassroomManagerView: React.FC<ClassroomManagerViewProps> = ({ onBa
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   const handleRoomSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

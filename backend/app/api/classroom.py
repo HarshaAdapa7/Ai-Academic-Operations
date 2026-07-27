@@ -21,12 +21,26 @@ router = APIRouter()
 # 1. CLASSROOM INVENTORY CRUD
 # ==========================================
 
+from typing import Optional
+from fastapi import Query
+
 @router.get("/classrooms", response_model=List[ClassroomResponse])
 async def list_classrooms(
+    department_id: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     stmt = select(Classroom).order_by(Classroom.room_number)
+    
+    # Enforce department scoping for HODs
+    if current_user.role not in [UserRole.ADMIN, "DEAN"]:
+        from app.api.deps import get_user_department_id
+        user_dept_id = await get_user_department_id(current_user, db)
+        if user_dept_id:
+            stmt = stmt.where(Classroom.department_id == user_dept_id)
+    elif department_id:
+        stmt = stmt.where(Classroom.department_id == department_id)
+
     res = await db.execute(stmt)
     return res.scalars().all()
 

@@ -68,9 +68,21 @@ async def delete_department(id: str, db: AsyncSession = Depends(get_db)):
 # 2. SUBJECTS CRUD
 # ==========================================
 
+from app.api.deps import get_current_user, get_user_department_id
+
 @router.get("/subjects", response_model=List[SubjectResponse])
-async def list_subjects(department_id: str = None, db: AsyncSession = Depends(get_db)):
+async def list_subjects(
+    department_id: str = None, 
+    current_user: Optional[User] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     query = select(Subject).options(selectinload(Subject.department), selectinload(Subject.parallel_subject))
+    
+    if current_user and current_user.role not in [UserRole.ADMIN, "DEAN"]:
+        user_dept_id = await get_user_department_id(current_user, db)
+        if user_dept_id:
+            department_id = user_dept_id
+
     if department_id:
         query = query.where(Subject.department_id == department_id)
     query = query.order_by(Subject.code.asc())
@@ -547,7 +559,11 @@ async def save_section_config(data: SectionConfigCreate, db: AsyncSession = Depe
 # ==========================================
 
 @router.get("/faculty", response_model=List[FacultyProfileResponse])
-async def list_faculty_profiles(department_id: str = None, db: AsyncSession = Depends(get_db)):
+async def list_faculty_profiles(
+    department_id: str = None, 
+    current_user: Optional[User] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     query = (
         select(FacultyProfile)
         .options(
@@ -556,6 +572,11 @@ async def list_faculty_profiles(department_id: str = None, db: AsyncSession = De
             selectinload(FacultyProfile.subjects)
         )
     )
+    if current_user and current_user.role not in [UserRole.ADMIN, "DEAN"]:
+        user_dept_id = await get_user_department_id(current_user, db)
+        if user_dept_id:
+            department_id = user_dept_id
+
     if department_id:
         query = query.where(FacultyProfile.department_id == department_id)
     result = await db.execute(query)

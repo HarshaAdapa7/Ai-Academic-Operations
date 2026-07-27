@@ -31,3 +31,8 @@ async def get_current_user(
         raise credentials_exception
     
     return user
+
+async def get_user_department_id(user: User, db: AsyncSession) -> Optional[str]:
+    from app.models.faculty import FacultyProfile
+    res = await db.execute(select(FacultyProfile.department_id).where(FacultyProfile.user_id == user.id))
+    return res.scalars().first()

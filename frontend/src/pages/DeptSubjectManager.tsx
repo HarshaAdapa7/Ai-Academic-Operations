@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { facultyService } from '../services/facultyService';
 import type { Department, Subject } from '../services/facultyService';
 import { Plus, Trash2, FolderPlus, BookOpen, RefreshCw, ChevronLeft, Upload, FileSpreadsheet, Image as ImageIcon, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface DeptSubjectManagerProps {
   onBack: () => void;
 }
 
 export const DeptSubjectManager: React.FC<DeptSubjectManagerProps> = ({ onBack }) => {
+  const { user } = useAuth();
+
   const [departments, setDepartments] = useState<Department[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   
@@ -39,23 +43,29 @@ export const DeptSubjectManager: React.FC<DeptSubjectManagerProps> = ({ onBack }
 
   const loadData = async () => {
     try {
-      const [deptsData, subjsData] = await Promise.all([
-        facultyService.getDepartments(),
-        facultyService.getSubjects()
-      ]);
+      const deptsData = await facultyService.getDepartments();
       setDepartments(deptsData);
-      setSubjects(subjsData);
-      if (deptsData.length > 0 && !subjDeptId) {
+
+      let targetDeptId: string | undefined = undefined;
+      if (!isUserAdminOrDean(user)) {
+        targetDeptId = getUserDeptId(user, deptsData);
+        if (targetDeptId) {
+          setSubjDeptId(targetDeptId);
+        }
+      } else if (deptsData.length > 0 && !subjDeptId) {
         setSubjDeptId(deptsData[0].id);
       }
+
+      const subjsData = await facultyService.getSubjects(targetDeptId);
+      setSubjects(subjsData);
     } catch (err: any) {
-      console.error('Failed to load data:', err);
+      console.error('Failed to load subjects data:', err);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   const handleCreateDept = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -318,13 +328,19 @@ export const DeptSubjectManager: React.FC<DeptSubjectManagerProps> = ({ onBack }
                 <label className="text-xs font-semibold text-dark-300 block mb-1.5">Department</label>
                 <select
                   value={subjDeptId}
-                  onChange={e => setSubjDeptId(e.target.value)}
-                  className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                  onChange={e => {
+                    if (user?.role === 'ADMIN' || user?.role === 'DEAN') {
+                      setSubjDeptId(e.target.value);
+                    }
+                  }}
+                  disabled={user?.role !== 'ADMIN' && user?.role !== 'DEAN'}
+                  className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300 disabled:opacity-80 cursor-not-allowed"
                 >
-                  <option value="">Select Department</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
-                  ))}
+                  {departments
+                    .filter(d => (user?.role === 'ADMIN' || user?.role === 'DEAN') ? true : d.id === subjDeptId)
+                    .map(d => (
+                      <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                    ))}
                 </select>
               </div>
 

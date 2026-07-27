@@ -35,16 +35,16 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
   const effectiveLunchSlot = ruleLunchSlot !== null ? ruleLunchSlot : (sectionYear === 1 ? 4 : 5);
 
   // Dynamic Header Editable States
-  const [academicYearText] = useState('2026-2027');
-  const [mid1Date] = useState('20/08/2026');
-  const [mid2Date] = useState('15/10/2026');
-  const [semExamDate] = useState('28/10/2026');
-  const [wefDate] = useState('22/06/2026');
+  const [academicYearText, setAcademicYearText] = useState('2026-2027');
+  const [mid1Date, setMid1Date] = useState('20/08/2026');
+  const [mid2Date, setMid2Date] = useState('15/10/2026');
+  const [semExamDate, setSemExamDate] = useState('28/10/2026');
+  const [wefDate, setWefDate] = useState('22/06/2026');
 
   // Infer Classroom Room Number from section entries
   const sectionEntries = timetableEntries.filter(e => e.section === selectedSection);
   const assignedRoomNo = sectionEntries.find(e => e.classroom?.room_number)?.classroom?.room_number || 'I-506';
-  const [roomNumberText] = useState(assignedRoomNo);
+  const [roomNumberText, setRoomNumberText] = useState(assignedRoomNo);
 
   // Infer Class Teacher & Mentors
   const classTeacherName = sectionConfig?.class_teacher?.user?.full_name 

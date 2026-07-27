@@ -12,7 +12,6 @@ export interface User {
   department_id?: string;
   faculty_profile?: any;
   created_at: string;
-  department_id?: string | null;
 }
 
 interface AuthContextType {

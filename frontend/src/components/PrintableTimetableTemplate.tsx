@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { TimetableEntry } from '../services/timetableService';
 import type { Department, Subject, FacultyProfile, SectionConfig } from '../services/facultyService';
 import type { Classroom } from '../services/classroomService';
-import { X, Printer, Download } from 'lucide-react';
+import { X, Printer } from 'lucide-react';
 
 interface PrintableTimetableTemplateProps {
   selectedSection: string;
@@ -10,7 +10,7 @@ interface PrintableTimetableTemplateProps {
   timetableEntries: TimetableEntry[];
   subjects: Subject[];
   facultyProfiles: FacultyProfile[];
-  classrooms: Classroom[];
+  classrooms?: Classroom[];
   sectionConfig?: SectionConfig | null;
   ruleSlotsPerDay?: number;
   ruleLunchSlot?: number | null;
@@ -23,7 +23,7 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
   timetableEntries,
   subjects,
   facultyProfiles,
-  classrooms,
+  classrooms: _classrooms,
   sectionConfig,
   ruleSlotsPerDay = 7,
   ruleLunchSlot = null,
@@ -140,7 +140,7 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
 
         {/* 2. Main Title Banner */}
         <div className="border border-black text-center py-1 font-bold text-xs uppercase bg-gray-100 mb-2">
-          {yearRoman} B. Tech. FIRST SEMESTER TIME TABLE (A. Y. {academicYearText})
+          {yearRoman} B. Tech. FIRST SEMESTER TIME TABLE (A. Y. <input value={academicYearText} onChange={e => setAcademicYearText(e.target.value)} className="bg-transparent text-center font-bold outline-none border-b border-dashed border-gray-400 print:border-none w-24" />)
         </div>
 
         {/* 3. Metadata Header Grid */}
@@ -148,22 +148,22 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
           <tbody>
             <tr>
               <td className="border border-black p-1.5 w-1/6">
-                Room No. <span className="font-extrabold">{roomNumberText}</span>
+                Room No. <input value={roomNumberText} onChange={e => setRoomNumberText(e.target.value)} className="bg-transparent text-center font-extrabold outline-none w-16 print:w-auto" />
               </td>
               <td className="border border-black p-1.5 w-1/6">
-                MID-I<br/><span className="font-semibold text-[9px]">{mid1Date}</span>
+                MID-I<br/><input value={mid1Date} onChange={e => setMid1Date(e.target.value)} className="bg-transparent text-center font-semibold text-[9px] outline-none w-20 print:w-auto" />
               </td>
               <td className="border border-black p-1.5 w-1/6">
-                MID-II<br/><span className="font-semibold text-[9px]">{mid2Date}</span>
+                MID-II<br/><input value={mid2Date} onChange={e => setMid2Date(e.target.value)} className="bg-transparent text-center font-semibold text-[9px] outline-none w-20 print:w-auto" />
               </td>
               <td className="border border-black p-1.5 w-1/6 text-sm font-black bg-gray-50">
                 {department?.code || 'CSD'} - {selectedSection.split(' ').pop() || 'A'}
               </td>
               <td className="border border-black p-1.5 w-1/6">
-                Sem End Exam<br/><span className="font-semibold text-[9px]">{semExamDate}</span>
+                Sem End Exam<br/><input value={semExamDate} onChange={e => setSemExamDate(e.target.value)} className="bg-transparent text-center font-semibold text-[9px] outline-none w-20 print:w-auto" />
               </td>
               <td className="border border-black p-1.5 w-1/6">
-                W.E.F. : <span className="font-semibold">{wefDate}</span>
+                W.E.F. : <input value={wefDate} onChange={e => setWefDate(e.target.value)} className="bg-transparent text-center font-semibold outline-none w-20 print:w-auto" />
               </td>
             </tr>
           </tbody>

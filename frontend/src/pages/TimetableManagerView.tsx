@@ -7,7 +7,7 @@ import type { Subject, Department, FacultyProfile, SectionConfig } from '../serv
 import { classroomService } from '../services/classroomService';
 import type { Classroom } from '../services/classroomService';
 import { PrintableTimetableTemplate } from '../components/PrintableTimetableTemplate';
-import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer, Building2, ChevronDown, Download, FileSpreadsheet, Activity, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer, Building2, ChevronDown, FileSpreadsheet, Activity, CheckCircle2 } from 'lucide-react';
 
 interface TimetableManagerViewProps {
   onBack: () => void;

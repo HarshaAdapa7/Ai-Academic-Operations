@@ -13,6 +13,7 @@ from app.models.leave import FacultyLeaveBalance, LeaveRequest, SubstitutionProp
 from app.models.classroom import Classroom, SeatingPlan, SeatingAssignment
 from app.models.timetable import SchedulingRule, SubjectSchedulingRule, TimetableEntry, ExamTimetableEntry
 from app.models.ai import AIConversation, AIMessage, AcademicPolicy
+from app.models.academic_calendar import AcademicCalendar
 
 from app.api.auth import router as auth_router
 from app.api.faculty import router as faculty_router
@@ -20,6 +21,7 @@ from app.api.leave import router as leave_router
 from app.api.classroom import router as classroom_router
 from app.api.timetable import router as timetable_router
 from app.api.ai import router as ai_router
+from app.api.academic_calendar import router as academic_calendar_router
 
 # Trigger live uvicorn reload - active
 app = FastAPI(
@@ -52,6 +54,7 @@ app.include_router(leave_router, prefix=settings.API_V1_STR, tags=["Leave & Subs
 app.include_router(classroom_router, prefix=settings.API_V1_STR, tags=["Classrooms & Seating"])
 app.include_router(timetable_router, prefix=settings.API_V1_STR, tags=["Timetable Operations"])
 app.include_router(ai_router, prefix=settings.API_V1_STR, tags=["AI Decision Center"])
+app.include_router(academic_calendar_router, prefix=settings.API_V1_STR, tags=["Academic Calendar"])
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 

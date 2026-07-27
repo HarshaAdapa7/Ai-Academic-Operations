@@ -10,6 +10,7 @@ export interface User {
   full_name: string;
   role: 'ADMIN' | 'HOD' | 'FACULTY';
   created_at: string;
+  department_id?: string | null;
 }
 
 interface AuthContextType {

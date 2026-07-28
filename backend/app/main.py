@@ -60,18 +60,20 @@ app.include_router(import_router, prefix=f"{settings.API_V1_STR}/import", tags=[
 app.include_router(academic_calendar_router, prefix=settings.API_V1_STR, tags=["Academic Calendar"])
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
 
+@app.exception_handler(FastAPIHTTPException)
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     """HTTPException handler to return CORS-compliant error responses."""
-    origin = request.headers.get("origin") or "http://localhost:5173"
+    origin = request.headers.get("origin") or "*"
     headers = {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "*",
         "Access-Control-Allow-Headers": "*"
     }
-    if exc.headers:
+    if getattr(exc, "headers", None):
         headers.update(exc.headers)
     return JSONResponse(
         status_code=exc.status_code,

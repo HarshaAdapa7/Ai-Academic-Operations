@@ -573,15 +573,19 @@ async def confirm_production_commit(
         # 2. Process Subject if code present
         subj_obj = None
         if subj_code:
-            s_res = await db.execute(select(Subject).where(Subject.code == subj_code))
+            effective_code = subj_code
+            if subj_type == "LAB" and not effective_code.endswith("L") and not effective_code.endswith("_LAB") and not effective_code.endswith("LAB"):
+                effective_code = f"{subj_code}L"
+
+            s_res = await db.execute(select(Subject).where(Subject.code == effective_code))
             subj_obj = s_res.scalars().first()
             if not subj_obj:
                 subj_obj = Subject(
                     id=str(uuid.uuid4()),
-                    name=subj_name or subj_code,
-                    code=subj_code,
+                    name=subj_name or effective_code,
+                    code=effective_code,
                     department_id=dept_id,
-                    credits=3,
+                    credits=3 if subj_type == "THEORY" else 2,
                     subject_type=subj_type,
                     academic_year=acad_yr
                 )

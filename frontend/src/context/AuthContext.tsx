@@ -66,6 +66,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       setIsLoading(false);
     }
+
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.status === 401) {
+          logout();
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
   }, [token]);
 
   const login = async (email: string, password: string) => {

@@ -20,13 +20,31 @@ from app.api.deps import get_current_user
 
 router = APIRouter()
 
-def get_user_dept_id(user: User) -> Optional[str]:
-    """Helper to resolve the department ID for a user safely."""
-    if hasattr(user, "faculty_profile") and user.faculty_profile and user.faculty_profile.department_id:
-        return user.faculty_profile.department_id
+async def resolve_user_dept_id(user: User, db: AsyncSession) -> Optional[str]:
+    """Helper to resolve the department ID for a user safely with multi-level fallback."""
     if hasattr(user, "department_id") and user.department_id:
         return user.department_id
-    return None
+
+    # Check FacultyProfile
+    f_res = await db.execute(select(FacultyProfile.department_id).where(FacultyProfile.user_id == user.id))
+    f_dept_id = f_res.scalars().first()
+    if f_dept_id:
+        return f_dept_id
+
+    # Email Code Parsing Fallback (e.g. hod_csd@anits.edu.in -> CSD)
+    if user.email:
+        email_prefix = user.email.split("@")[0].lower()
+        parts = email_prefix.split("_")
+        possible_code = parts[1].upper() if len(parts) > 1 else parts[0].upper()
+        
+        d_res = await db.execute(select(Department).where(Department.code == possible_code))
+        d_obj = d_res.scalars().first()
+        if d_obj:
+            return d_obj.id
+
+    # Final Fallback to first department in system
+    all_d_res = await db.execute(select(Department.id).limit(1))
+    return all_d_res.scalars().first()
 
 @router.post("/upload", response_model=Dict[str, Any])
 async def upload_department_data(
@@ -40,7 +58,7 @@ async def upload_department_data(
     Stores records in staging tables, enforces department security scoping,
     and runs multi-stage validation (missing fields, duplicates, subject weekly hours rules).
     """
-    user_dept_id = get_user_dept_id(current_user)
+    user_dept_id = await resolve_user_dept_id(current_user, db)
     
     # Security Check: Non-admin users are strictly locked to their assigned department
     if current_user.role not in ["ADMIN", "DEAN"]:
@@ -355,7 +373,7 @@ async def get_staging_preview(
     if not import_job:
         raise HTTPException(status_code=404, detail="Import job not found.")
 
-    user_dept_id = get_user_dept_id(current_user)
+    user_dept_id = await resolve_user_dept_id(current_user, db)
     if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != import_job.department_id:
         raise HTTPException(status_code=403, detail="Unauthorized access to another department's import job.")
 
@@ -412,7 +430,7 @@ async def remediate_staging_record(
     if not record:
         raise HTTPException(status_code=404, detail="Staged record not found.")
 
-    user_dept_id = get_user_dept_id(current_user)
+    user_dept_id = await resolve_user_dept_id(current_user, db)
     if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != record.department_id:
         raise HTTPException(status_code=403, detail="Unauthorized access to record.")
 
@@ -468,7 +486,7 @@ async def confirm_production_commit(
     if not import_job:
         raise HTTPException(status_code=404, detail="Import job not found.")
 
-    user_dept_id = get_user_dept_id(current_user)
+    user_dept_id = await resolve_user_dept_id(current_user, db)
     if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != import_job.department_id:
         raise HTTPException(status_code=403, detail="Unauthorized confirmation of another department's data.")
 
@@ -671,7 +689,7 @@ async def get_import_history(
     db: AsyncSession = Depends(get_db)
 ):
     """Retrieve audit trail of past department imports."""
-    user_dept_id = get_user_dept_id(current_user)
+    user_dept_id = await resolve_user_dept_id(current_user, db)
     
     query = select(ImportHistory).options(selectinload(ImportHistory.department), selectinload(ImportHistory.uploaded_by))
     if current_user.role not in ["ADMIN", "DEAN"]:

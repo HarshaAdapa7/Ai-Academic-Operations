@@ -48,7 +48,7 @@ export const importService = {
     if (departmentId) {
       formData.append('department_id', departmentId);
     }
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('token');
     const res = await axios.post(`${API_URL}/import/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',

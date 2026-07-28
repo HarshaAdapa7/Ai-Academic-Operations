@@ -495,11 +495,18 @@ async def generate_master_timetable(
                 is_afternoon = start_slot > lunch_slot
 
                 if task_type in ["LAB", "DUAL_LAB"] and duration == 3:
-                    # ANITS B.Tech Lab Rule: Morning Lab = Slots 2, 3, 4. Afternoon Lab = Slots 6, 7, 8.
-                    if is_morning and (start_slot != 2 or end_slot != 4):
-                        continue
-                    if is_afternoon and (start_slot != 6 or end_slot != 8):
-                        continue
+                    if year == 1:
+                        # 1st Year: Lunch is slot 4. Morning lab is slots 1-3. Afternoon lab is slots 5-7.
+                        if is_morning and (start_slot != 1 or end_slot != 3):
+                            continue
+                        if is_afternoon and (start_slot != 5 or end_slot != 7):
+                            continue
+                    else:
+                        # 2nd, 3rd, 4th Year: Lunch is slot 5. Morning lab is slots 1-3 or 2-4. Afternoon lab is slots 5-7 or 6-8.
+                        if is_morning and (start_slot not in [1, 2]):
+                            continue
+                        if is_afternoon and (start_slot not in [5, 6]):
+                            continue
 
                 if task_type == "COUNSELLING" and start_slot != 7:
                     continue

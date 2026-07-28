@@ -490,35 +490,54 @@ async def confirm_production_commit(
     committed_sections = 0
     committed_rooms = 0
 
+    # Maps for post-processing links
+    sec_class_teachers = {} # sec_name -> prof_id
+    sec_mentors_map = {} # sec_name -> list of mentor emails
+
     for rec in valid_records:
         data = rec.raw_data or {}
         etype = rec.entity_type
 
-        if etype == "FACULTY":
-            name = data.get("full_name") or data.get("name") or data.get("Faculty Name") or "Faculty Member"
-            email = (data.get("email") or data.get("Email") or f"fac_{uuid.uuid4().hex[:6]}@anits.edu.in").lower()
-            designation = data.get("designation") or data.get("Designation") or "Assistant Professor"
+        # Extract unified fields if available
+        fac_email = (data.get("email") or data.get("FacultyEmail") or data.get("Email") or "").strip().lower()
+        fac_name = (data.get("full_name") or data.get("name") or data.get("FacultyName") or "").strip()
+        designation = (data.get("designation") or data.get("Designation") or "Assistant Professor").strip()
+        
+        subj_code = (data.get("subject_code") or data.get("code") or data.get("SubjectCode") or "").strip().upper()
+        subj_name = (data.get("subject_name") or data.get("name") or data.get("SubjectName") or "").strip()
+        subj_type = (data.get("subject_type") or data.get("type") or data.get("SubjectType") or "THEORY").strip().upper()
+        acad_yr = int(data.get("academic_year") or data.get("AcademicYear") or 1)
 
-            # Check if user exists
-            u_res = await db.execute(select(User).where(User.email == email))
+        sec_name = (data.get("section_name") or data.get("section") or data.get("SectionName") or "").strip().upper()
+        room_no = (data.get("room_number") or data.get("room") or data.get("RoomNumber") or "").strip().upper()
+
+        is_class_teacher = str(data.get("is_class_teacher") or data.get("IsClassTeacher") or "FALSE").upper() == "TRUE"
+        mentor_emails_str = str(data.get("mentor_emails") or data.get("MentorEmails") or "").strip()
+
+        # 1. Process Faculty if email present
+        prof_obj = None
+        if fac_email:
+            u_res = await db.execute(select(User).where(User.email == fac_email))
             user_obj = u_res.scalars().first()
             if not user_obj:
                 user_obj = User(
                     id=str(uuid.uuid4()),
-                    email=email,
+                    email=fac_email,
                     password_hash=default_hashed_pw,
-                    full_name=name,
+                    full_name=fac_name or fac_email.split('@')[0].capitalize(),
                     role="FACULTY"
                 )
                 db.add(user_obj)
                 await db.flush()
+            elif fac_name:
+                user_obj.full_name = fac_name
 
             f_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == user_obj.id))
-            prof = f_res.scalars().first()
-            if not prof:
-                is_hod_val = str(data.get("is_hod") or "FALSE").upper() == "TRUE"
-                is_dean_val = str(data.get("is_dean") or "FALSE").upper() == "TRUE"
-                prof = FacultyProfile(
+            prof_obj = f_res.scalars().first()
+            if not prof_obj:
+                is_hod_val = str(data.get("is_hod") or data.get("IsHOD") or "FALSE").upper() == "TRUE"
+                is_dean_val = str(data.get("is_dean") or data.get("IsDean") or "FALSE").upper() == "TRUE"
+                prof_obj = FacultyProfile(
                     id=str(uuid.uuid4()),
                     user_id=user_obj.id,
                     department_id=dept_id,
@@ -527,91 +546,104 @@ async def confirm_production_commit(
                     is_dean=is_dean_val,
                     max_weekly_workload=16
                 )
-                db.add(prof)
+                db.add(prof_obj)
                 await db.flush()
             else:
-                prof.designation = designation
-                prof.is_hod = str(data.get("is_hod") or "FALSE").upper() == "TRUE"
-                prof.is_dean = str(data.get("is_dean") or "FALSE").upper() == "TRUE"
+                prof_obj.designation = designation
             committed_faculty += 1
 
-        elif etype == "SUBJECT":
-            code = (data.get("subject_code") or data.get("code") or f"SUB_{uuid.uuid4().hex[:4]}").upper()
-            name = data.get("subject_name") or data.get("name") or code
-            stype = (data.get("subject_type") or data.get("type") or "THEORY").upper()
-            try:
-                credits_val = int(data.get("credits") or 3)
-            except ValueError:
-                credits_val = 3
-            
-            # Department Subject Weekly Hours Rule
-            raw_hours = data.get("weekly_hours") or data.get("lectures_per_week") or data.get("hours")
-            try:
-                weekly_hours = int(raw_hours) if raw_hours else (4 if stype == "THEORY" else 3)
-            except ValueError:
-                weekly_hours = 4
-
-            s_res = await db.execute(select(Subject).where(Subject.code == code))
-            subj = s_res.scalars().first()
-            if not subj:
-                subj = Subject(
+        # 2. Process Subject if code present
+        subj_obj = None
+        if subj_code:
+            s_res = await db.execute(select(Subject).where(Subject.code == subj_code))
+            subj_obj = s_res.scalars().first()
+            if not subj_obj:
+                subj_obj = Subject(
                     id=str(uuid.uuid4()),
-                    name=name,
-                    code=code,
+                    name=subj_name or subj_code,
+                    code=subj_code,
                     department_id=dept_id,
-                    credits=credits_val,
-                    subject_type=stype,
-                    academic_year=int(data.get("academic_year") or 1)
+                    credits=3,
+                    subject_type=subj_type,
+                    academic_year=acad_yr
                 )
-                db.add(subj)
+                db.add(subj_obj)
                 await db.flush()
 
-            # Create / Update Subject Scheduling Rule for Subject Weekly Hours
-            rule_res = await db.execute(select(SubjectSchedulingRule).where(SubjectSchedulingRule.subject_id == subj.id))
+            # Create / Update Subject Scheduling Rule
+            rule_res = await db.execute(select(SubjectSchedulingRule).where(SubjectSchedulingRule.subject_id == subj_obj.id))
             sub_rule = rule_res.scalars().first()
             if not sub_rule:
                 sub_rule = SubjectSchedulingRule(
                     id=str(uuid.uuid4()),
-                    subject_id=subj.id,
-                    lectures_per_week=weekly_hours if stype == "THEORY" else 0,
-                    labs_per_week=1 if stype == "LAB" else 0,
-                    lab_duration=3 if stype == "LAB" else 1
+                    subject_id=subj_obj.id,
+                    lectures_per_week=4 if subj_type == "THEORY" else 0,
+                    labs_per_week=1 if subj_type == "LAB" else 0,
+                    lab_duration=3 if subj_type == "LAB" else 1
                 )
                 db.add(sub_rule)
 
             committed_subjects += 1
 
-        elif etype == "SECTION":
-            sec_name = (data.get("section_name") or data.get("section") or "SEC 1-A").upper()
-            try:
-                yr = int(data.get("academic_year") or sec_name.split()[1].split("-")[0] if "-" in sec_name else 1)
-            except Exception:
-                yr = 1
+        # Link Faculty and Subject in faculty_subjects join table
+        if prof_obj and subj_obj:
+            # Check existing link
+            link_stmt = select(faculty_subjects).where(
+                faculty_subjects.c.faculty_id == prof_obj.id,
+                faculty_subjects.c.subject_id == subj_obj.id
+            )
+            link_res = await db.execute(link_stmt)
+            if not link_res.first():
+                await db.execute(
+                    faculty_subjects.insert().values(
+                        faculty_id=prof_obj.id,
+                        subject_id=subj_obj.id
+                    )
+                )
 
-            sec_res = await db.execute(select(SectionConfig).where(SectionConfig.department_id == dept_id, SectionConfig.name == sec_name))
+        # 3. Process Section if name present
+        if sec_name:
+            sec_res = await db.execute(select(SectionConfig).options(selectinload(SectionConfig.counseling_mentors)).where(SectionConfig.department_id == dept_id, SectionConfig.name == sec_name))
             sec_obj = sec_res.scalars().first()
             if not sec_obj:
                 sec_obj = SectionConfig(
                     id=str(uuid.uuid4()),
                     department_id=dept_id,
-                    academic_year=yr,
+                    academic_year=acad_yr,
                     name=sec_name
                 )
                 db.add(sec_obj)
+                await db.flush()
+
+            if is_class_teacher and prof_obj:
+                sec_obj.class_teacher_id = prof_obj.id
+
+            if mentor_emails_str:
+                m_emails = [m.strip().lower() for m in mentor_emails_str.replace('"', '').split(',') if m.strip()]
+                for m_email in m_emails:
+                    m_u_res = await db.execute(select(User).where(User.email == m_email))
+                    m_u = m_u_res.scalars().first()
+                    if m_u:
+                        m_f_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == m_u.id))
+                        m_prof = m_f_res.scalars().first()
+                        if m_prof and m_prof not in sec_obj.counseling_mentors:
+                            sec_obj.counseling_mentors.append(m_prof)
+
             committed_sections += 1
 
-        elif etype == "CLASSROOM":
-            r_number = (data.get("room_number") or data.get("room") or f"R-{uuid.uuid4().hex[:4]}").upper()
-            rtype = (data.get("room_type") or data.get("type") or "THEORY").upper()
+        # 4. Process Classroom if room_no present
+        if room_no:
+            rtype = (data.get("room_type") or data.get("type") or data.get("RoomType") or "THEORY").strip().upper()
+            cap = int(data.get("capacity") or data.get("Capacity") or 60)
             
-            r_res = await db.execute(select(Classroom).where(Classroom.room_number == r_number))
+            r_res = await db.execute(select(Classroom).where(Classroom.room_number == room_no))
             room_obj = r_res.scalars().first()
             if not room_obj:
                 room_obj = Classroom(
                     id=str(uuid.uuid4()),
                     department_id=dept_id,
-                    room_number=r_number,
-                    capacity=int(data.get("capacity") or 60),
+                    room_number=room_no,
+                    capacity=cap,
                     room_type=rtype
                 )
                 db.add(room_obj)
@@ -623,7 +655,7 @@ async def confirm_production_commit(
     await db.commit()
 
     return {
-        "message": f"Successfully committed {len(valid_records)} records to production database.",
+        "message": f"Successfully committed {len(valid_records)} records to production database with full subject-faculty and mentor relationships.",
         "import_id": import_job.id,
         "committed_faculty": committed_faculty,
         "committed_subjects": committed_subjects,

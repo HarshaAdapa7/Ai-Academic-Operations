@@ -269,12 +269,16 @@ async def generate_master_timetable(
     subjs_rules = {r.subject_id: r for r in subjs_rules_res.scalars().all()}
 
     for s in subjects:
-        if s.id not in subjs_rules:
+        rule = subjs_rules.get(s.id)
+        if not rule or (s.subject_type == "THEORY" and (rule.lectures_per_week or 0) == 0):
             l_dur = 3 if s.subject_type == "LAB" else 1
             l_count = 1 if s.subject_type == "LAB" else 0
+            lec_count = 4 if s.subject_type in ["THEORY", "ELECTIVE"] else (1 if s.subject_type in ["SPORTS_LIBRARY", "COUNSELLING"] else 0)
             subjs_rules[s.id] = SubjectSchedulingRule(
-                subject_id=s.id, lectures_per_week=4 if s.subject_type == "THEORY" else (2 if s.subject_type in ["SPORTS_LIBRARY", "COUNSELLING"] else 0),
-                labs_per_week=l_count, lab_duration=l_dur
+                subject_id=s.id,
+                lectures_per_week=lec_count,
+                labs_per_week=l_count,
+                lab_duration=l_dur
             )
 
     # 4. Load Classrooms
@@ -301,13 +305,13 @@ async def generate_master_timetable(
     faculty_profiles = fac_res.scalars().all()
 
     fac_ids = [f.id for f in faculty_profiles]
-    avail_stmt = select(FacultyAvailability).where(FacultyAvailability.faculty_id.in_(fac_ids))
-    avail_res = await db.execute(avail_stmt)
-    
     unavailable_faculty = set()
-    for a in avail_res.scalars().all():
-        if not a.is_available:
-            unavailable_faculty.add((a.faculty_id, a.day_of_week, a.time_slot))
+    if fac_ids:
+        avail_stmt = select(FacultyAvailability).where(FacultyAvailability.faculty_id.in_(fac_ids))
+        avail_res = await db.execute(avail_stmt)
+        for a in avail_res.scalars().all():
+            if not a.is_available:
+                unavailable_faculty.add((a.faculty_id, a.day_of_week, a.time_slot))
 
     # Map qualified faculty per subject
     subject_teachers: Dict[str, List[FacultyProfile]] = {}
@@ -371,9 +375,9 @@ async def generate_master_timetable(
         sec_yr = section_year_map[sec]
         sec_dept_id = section_dept_map[sec]
 
-        sec_subjs = [s for s in subjects if s.department_id == sec_dept_id and s.academic_year == sec_yr][:6]
+        sec_subjs = [s for s in subjects if s.department_id == sec_dept_id and s.academic_year == sec_yr]
         if not sec_subjs:
-            sec_subjs = [s for s in subjects if s.department_id == sec_dept_id][:6]
+            sec_subjs = [s for s in subjects if s.department_id == sec_dept_id]
 
         for s in sec_subjs:
             spec = subjs_rules[s.id]

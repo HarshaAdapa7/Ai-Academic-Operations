@@ -568,6 +568,8 @@ async def confirm_production_commit(
                 await db.flush()
             else:
                 prof_obj.designation = designation
+                prof_obj.is_hod = str(data.get("is_hod") or data.get("IsHOD") or "FALSE").upper() == "TRUE"
+                prof_obj.is_dean = str(data.get("is_dean") or data.get("IsDean") or "FALSE").upper() == "TRUE"
             committed_faculty += 1
 
         # 2. Process Subject if code present

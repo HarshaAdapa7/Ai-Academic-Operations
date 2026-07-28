@@ -92,6 +92,17 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
   const activeDepartment = departments.find(d => d.id === selectedDeptId);
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
   // Handle File Upload & Parsing
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,7 +326,11 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
         </div>
 
         <form onSubmit={handleFileUpload} className="space-y-4">
-          <div className="border-2 border-dashed border-slate-700 hover:border-indigo-500 transition-colors rounded-xl p-6 text-center cursor-pointer bg-slate-950/40">
+          <div 
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className="border-2 border-dashed border-slate-700 hover:border-indigo-500 transition-colors rounded-xl p-6 text-center cursor-pointer bg-slate-950/40"
+          >
             <input 
               type="file" 
               accept=".csv, .xlsx, .xls"

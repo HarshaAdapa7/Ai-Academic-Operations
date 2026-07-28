@@ -118,6 +118,26 @@ async def upload_department_data(
     existing_rooms_res = await db.execute(select(Classroom.room_number))
     existing_room_numbers = set(r.upper() for r in existing_rooms_res.scalars().all() if r)
 
+    # Normalize headers of rows to lower/stripped keys for easy case-insensitive matching
+    normalized_rows = []
+    for row in raw_rows:
+        norm = {}
+        for k, v in row.items():
+            if k:
+                norm_key = k.strip().lower().replace("_", "").replace(" ", "")
+                norm[norm_key] = str(v).strip() if v is not None else ""
+        normalized_rows.append((row, norm))
+
+    # Detect if the file is unified (has elements for all 4 entities)
+    first_norm = normalized_rows[0][1]
+    has_fac_name = any(x in first_norm for x in ["facultyname", "fullname", "name"])
+    has_fac_email = any(x in first_norm for x in ["facultyemail", "email"])
+    has_subj_code = any(x in first_norm for x in ["subjectcode", "code"])
+    has_sec_name = any(x in first_norm for x in ["sectionname", "section"])
+    has_room_number = any(x in first_norm for x in ["roomnumber", "room"])
+
+    is_unified = has_fac_name and has_fac_email and has_subj_code and has_sec_name and has_room_number
+
     staged_records = []
     total_valid = 0
     total_failed = 0
@@ -127,115 +147,173 @@ async def upload_department_data(
 
     seen_emails_in_file = set()
     seen_subjs_in_file = set()
+    seen_secs_in_file = set()
+    seen_rooms_in_file = set()
 
-    for idx, row in enumerate(raw_rows, start=1):
-        row_num = idx
-        # Detect Entity Type from CSV/Excel row headers
-        entity_type = "FACULTY"
-        if any(k in row for k in ["subject_code", "Subject Code", "subject_name", "Subject Name", "code", "Code"]):
-            if "designation" not in [k.lower() for k in row.keys()]:
-                entity_type = "SUBJECT"
-        elif any(k in row for k in ["section_name", "Section", "section"]):
-            if "designation" not in [k.lower() for k in row.keys()] and "subject_code" not in [k.lower() for k in row.keys()]:
-                entity_type = "SECTION"
-        elif any(k in row for k in ["room_number", "Room", "room"]):
-            entity_type = "CLASSROOM"
+    row_num_counter = 1
 
-        errors = []
-        warnings = []
-        missing_fields = []
-        status_val = "VALID"
-
-        # Universal Department Security Override: Enforce user's department ID
-        row["department_id"] = effective_dept_id
-        row["department_code"] = dept.code
-
-        # Field-by-Field Validation
-        if entity_type == "FACULTY":
-            name = row.get("full_name") or row.get("name") or row.get("Faculty Name") or row.get("faculty_name")
-            email = row.get("email") or row.get("Email")
-            designation = row.get("designation") or row.get("Designation") or "Assistant Professor"
-
-            if not name:
-                missing_fields.append("full_name")
-                errors.append("Faculty full_name is required.")
-            if not email:
-                missing_fields.append("email")
-                errors.append("Faculty email address is required.")
-            elif email.lower() in existing_emails or email.lower() in seen_emails_in_file:
-                warnings.append(f"Email '{email}' already registered. Profile will be updated.")
-            else:
-                seen_emails_in_file.add(email.lower())
-
-        elif entity_type == "SUBJECT":
-            s_code = row.get("subject_code") or row.get("code") or row.get("Subject Code")
-            s_name = row.get("subject_name") or row.get("name") or row.get("Subject Name")
-            s_type = (row.get("subject_type") or row.get("type") or "THEORY").upper()
-            
-            # Department-Specific Subject Weekly Hours Validation Rule
-            raw_hours = row.get("weekly_hours") or row.get("lectures_per_week") or row.get("hours") or row.get("periods_per_week")
-            try:
-                weekly_hours = int(raw_hours) if raw_hours != "" and raw_hours is not None else (4 if s_type == "THEORY" else 3)
-            except ValueError:
-                weekly_hours = 4
-                warnings.append(f"Invalid weekly hours '{raw_hours}'. Defaulted to 4 hours/week.")
-
-            if not s_code:
-                missing_fields.append("subject_code")
-                errors.append("Subject code is required.")
-            if not s_name:
-                missing_fields.append("subject_name")
-                errors.append("Subject name is required.")
-
-            if s_code and s_code.upper() in seen_subjs_in_file:
-                errors.append(f"Duplicate subject code '{s_code}' within uploaded file.")
-            elif s_code:
-                seen_subjs_in_file.add(s_code.upper())
-
-            if s_type not in ["THEORY", "LAB", "ELECTIVE", "COUNSELLING", "SPORTS_LIBRARY"]:
-                warnings.append(f"Subject type '{s_type}' mapped to STANDARD THEORY.")
-
-        elif entity_type == "SECTION":
-            sec_name = row.get("section_name") or row.get("section") or row.get("Section")
-            if not sec_name:
-                missing_fields.append("section_name")
-                errors.append("Section name (e.g. CSE 3-A) is required.")
-
-        elif entity_type == "CLASSROOM":
-            room_no = row.get("room_number") or row.get("room") or row.get("Room Number")
-            if not room_no:
-                missing_fields.append("room_number")
-                errors.append("Classroom room_number is required.")
-
-        # Determine Final Record Validation Status
-        if errors:
-            status_val = "INVALID"
-            total_failed += 1
-            all_validation_errors.append(f"Row {row_num} [{entity_type}]: " + "; ".join(errors))
-        elif missing_fields:
-            status_val = "MISSING_DATA"
-            total_missing_fields += 1
-            total_warnings += 1
-        elif warnings:
-            status_val = "WARNING"
-            total_warnings += 1
-            total_valid += 1
+    for idx, (orig_row, norm_row) in enumerate(normalized_rows, start=1):
+        # Determine what entity types we can extract from this row
+        row_entities = []
+        if is_unified:
+            row_entities = ["FACULTY", "SUBJECT", "SECTION", "CLASSROOM"]
         else:
-            status_val = "VALID"
-            total_valid += 1
+            entity_type = "FACULTY"
+            if any(k in norm_row for k in ["subjectcode", "subjectname", "code"]):
+                if "designation" not in norm_row:
+                    entity_type = "SUBJECT"
+            elif any(k in norm_row for k in ["sectionname", "section"]):
+                if "designation" not in norm_row and "subjectcode" not in norm_row:
+                    entity_type = "SECTION"
+            elif any(k in norm_row for k in ["roomnumber", "room"]):
+                entity_type = "CLASSROOM"
+            row_entities = [entity_type]
 
-        staging_rec = ImportStagingRecord(
-            id=str(uuid.uuid4()),
-            import_history_id=import_job.id,
-            department_id=effective_dept_id,
-            entity_type=entity_type,
-            row_number=row_num,
-            raw_data=row,
-            validation_status=status_val,
-            missing_fields_list=missing_fields,
-            error_messages=errors + warnings
-        )
-        staged_records.append(staging_rec)
+        for entity_type in row_entities:
+            errors = []
+            warnings = []
+            missing_fields = []
+            status_val = "VALID"
+            
+            clean_data = {}
+            if entity_type == "FACULTY":
+                name = norm_row.get("facultyname") or norm_row.get("fullname") or norm_row.get("name")
+                email = norm_row.get("facultyemail") or norm_row.get("email")
+                designation = norm_row.get("designation") or "Assistant Professor"
+                
+                clean_data = {
+                    "full_name": name,
+                    "email": email,
+                    "designation": designation,
+                    "is_hod": norm_row.get("ishod") or "FALSE",
+                    "is_dean": norm_row.get("isdean") or "FALSE"
+                }
+                
+                if not name:
+                    missing_fields.append("full_name")
+                    errors.append("Faculty full_name is required.")
+                if not email:
+                    missing_fields.append("email")
+                    errors.append("Faculty email address is required.")
+                elif email.lower() in existing_emails or email.lower() in seen_emails_in_file:
+                    warnings.append(f"Email '{email}' already registered. Profile will be updated.")
+                else:
+                    seen_emails_in_file.add(email.lower())
+
+            elif entity_type == "SUBJECT":
+                s_code = norm_row.get("subjectcode") or norm_row.get("code")
+                s_name = norm_row.get("subjectname") or norm_row.get("name")
+                s_type = (norm_row.get("subjecttype") or norm_row.get("type") or "THEORY").upper()
+                raw_hours = norm_row.get("weeklyhours") or norm_row.get("lecturesperweek") or norm_row.get("hours")
+                credits_val = norm_row.get("credits") or "3"
+                acad_year = norm_row.get("academicyear") or "1"
+                
+                try:
+                    weekly_hours = int(raw_hours) if raw_hours != "" and raw_hours is not None else (4 if s_type == "THEORY" else 3)
+                except ValueError:
+                    weekly_hours = 4
+                    
+                clean_data = {
+                    "subject_code": s_code,
+                    "subject_name": s_name,
+                    "subject_type": s_type,
+                    "weekly_hours": weekly_hours,
+                    "credits": credits_val,
+                    "academic_year": acad_year
+                }
+
+                if not s_code:
+                    missing_fields.append("subject_code")
+                    errors.append("Subject code is required.")
+                if not s_name:
+                    missing_fields.append("subject_name")
+                    errors.append("Subject name is required.")
+
+                if s_code and s_code.upper() in seen_subjs_in_file:
+                    if is_unified:
+                        warnings.append(f"Subject '{s_code}' already exists in staging. Profile will be updated.")
+                    else:
+                        errors.append(f"Duplicate subject code '{s_code}' within uploaded file.")
+                elif s_code:
+                    seen_subjs_in_file.add(s_code.upper())
+
+                if s_type not in ["THEORY", "LAB", "ELECTIVE", "COUNSELLING", "SPORTS_LIBRARY"]:
+                    warnings.append(f"Subject type '{s_type}' mapped to STANDARD THEORY.")
+
+            elif entity_type == "SECTION":
+                sec_name = norm_row.get("sectionname") or norm_row.get("section")
+                acad_year = norm_row.get("academicyear") or "1"
+                
+                clean_data = {
+                    "section_name": sec_name,
+                    "academic_year": acad_year
+                }
+                
+                if not sec_name:
+                    missing_fields.append("section_name")
+                    errors.append("Section name (e.g. CSE 3-A) is required.")
+                elif sec_name.upper() in seen_secs_in_file:
+                    if is_unified:
+                        warnings.append(f"Section '{sec_name}' already exists in staging.")
+                    else:
+                        warnings.append(f"Duplicate section '{sec_name}' in file.")
+                else:
+                    seen_secs_in_file.add(sec_name.upper())
+
+            elif entity_type == "CLASSROOM":
+                room_no = norm_row.get("roomnumber") or norm_row.get("room")
+                building = norm_row.get("buildingname") or "Main Block"
+                capacity = norm_row.get("capacity") or "60"
+                room_type = (norm_row.get("roomtype") or norm_row.get("type") or "THEORY").upper()
+                
+                clean_data = {
+                    "room_number": room_no,
+                    "building_name": building,
+                    "capacity": capacity,
+                    "room_type": room_type
+                }
+
+                if not room_no:
+                    missing_fields.append("room_number")
+                    errors.append("Classroom room_number is required.")
+                elif room_no.upper() in seen_rooms_in_file:
+                    if is_unified:
+                        warnings.append(f"Room '{room_no}' already exists in staging.")
+                    else:
+                        warnings.append(f"Duplicate room '{room_no}' in file.")
+                else:
+                    seen_rooms_in_file.add(room_no.upper())
+
+            # Determine Final Record Validation Status
+            if errors:
+                status_val = "INVALID"
+                total_failed += 1
+                all_validation_errors.append(f"Row {idx} [{entity_type}]: " + "; ".join(errors))
+            elif missing_fields:
+                status_val = "MISSING_DATA"
+                total_missing_fields += 1
+                total_warnings += 1
+            elif warnings:
+                status_val = "WARNING"
+                total_warnings += 1
+                total_valid += 1
+            else:
+                status_val = "VALID"
+                total_valid += 1
+
+            staging_rec = ImportStagingRecord(
+                id=str(uuid.uuid4()),
+                import_history_id=import_job.id,
+                department_id=effective_dept_id,
+                entity_type=entity_type,
+                row_number=row_num_counter,
+                raw_data=clean_data,
+                validation_status=status_val,
+                missing_fields_list=missing_fields,
+                error_messages=errors + warnings
+            )
+            staged_records.append(staging_rec)
+            row_num_counter += 1
 
     # Save all staged records
     db.add_all(staged_records)
@@ -428,11 +506,9 @@ async def confirm_production_commit(
                 user_obj = User(
                     id=str(uuid.uuid4()),
                     email=email,
-                    hashed_password=default_hashed_pw,
+                    password_hash=default_hashed_pw,
                     full_name=name,
-                    role="FACULTY",
-                    department_id=dept_id,
-                    is_active=True
+                    role="FACULTY"
                 )
                 db.add(user_obj)
                 await db.flush()
@@ -440,15 +516,23 @@ async def confirm_production_commit(
             f_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == user_obj.id))
             prof = f_res.scalars().first()
             if not prof:
+                is_hod_val = str(data.get("is_hod") or "FALSE").upper() == "TRUE"
+                is_dean_val = str(data.get("is_dean") or "FALSE").upper() == "TRUE"
                 prof = FacultyProfile(
                     id=str(uuid.uuid4()),
                     user_id=user_obj.id,
                     department_id=dept_id,
                     designation=designation,
+                    is_hod=is_hod_val,
+                    is_dean=is_dean_val,
                     max_weekly_workload=16
                 )
                 db.add(prof)
                 await db.flush()
+            else:
+                prof.designation = designation
+                prof.is_hod = str(data.get("is_hod") or "FALSE").upper() == "TRUE"
+                prof.is_dean = str(data.get("is_dean") or "FALSE").upper() == "TRUE"
             committed_faculty += 1
 
         elif etype == "SUBJECT":
@@ -527,7 +611,6 @@ async def confirm_production_commit(
                     id=str(uuid.uuid4()),
                     department_id=dept_id,
                     room_number=r_number,
-                    building_name=data.get("building_name") or "Main Block",
                     capacity=int(data.get("capacity") or 60),
                     room_type=rtype
                 )

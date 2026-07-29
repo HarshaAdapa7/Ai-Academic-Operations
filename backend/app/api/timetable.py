@@ -296,6 +296,11 @@ async def generate_master_timetable(
     if not lecture_rooms:
         lecture_rooms = classrooms
 
+    # Load Scheduling Rules for slots_per_day
+    rules_stmt = select(SchedulingRule).where(SchedulingRule.department_id.in_(dept_ids))
+    rules_res = await db.execute(rules_stmt)
+    rules_map = {r.department_id: r for r in rules_res.scalars().all()}
+
     # 5. Load ALL Faculty Profiles for Rule 19 Cross-Branch protection
     fac_stmt = (
         select(FacultyProfile)
@@ -456,6 +461,7 @@ async def generate_master_timetable(
     teacher_weekly_labs: Dict[str, int] = {}
     elective_sync_slots: Dict[tuple, tuple] = {}
     dual_lab_first_session: Dict[tuple, tuple] = {}
+    section_daily_subjects: Set[tuple] = set() # (sec, day, subj_id)
 
     for p in faculty_profiles:
         teacher_p1_count[p.id] = 0
@@ -464,7 +470,7 @@ async def generate_master_timetable(
     step_count = [0]
 
     def backtrack(task_idx: int) -> bool:
-        if step_count[0] > 50:
+        if step_count[0] > 2000:
             return False
         step_count[0] += 1
 
@@ -483,7 +489,8 @@ async def generate_master_timetable(
         weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
         for day in weekdays:
-            max_day_slots = 4 if day == "Saturday" else 7
+            dept_slots = rules_map[dept_id].slots_per_day if (dept_id in rules_map) else 8
+            max_day_slots = 4 if day == "Saturday" else dept_slots
 
             if day == "Saturday" and task_type in ["LAB", "DUAL_LAB"]:
                 continue
@@ -506,10 +513,10 @@ async def generate_master_timetable(
                         if is_afternoon and (start_slot != 5 or end_slot != 7):
                             continue
                     else:
-                        # 2nd, 3rd, 4th Year: Lunch is slot 5. Morning lab is slots 1-3 or 2-4. Afternoon lab is slots 5-7 or 6-8.
-                        if is_morning and (start_slot not in [1, 2]):
+                        # 2nd, 3rd, 4th Year: Lunch is slot 5. Morning lab is strictly slots 2-4. Afternoon lab is strictly slots 5-7.
+                        if is_morning and start_slot != 2:
                             continue
-                        if is_afternoon and (start_slot not in [5, 6]):
+                        if is_afternoon and start_slot != 5:
                             continue
 
                 if task_type == "COUNSELLING" and start_slot != 7:
@@ -517,6 +524,11 @@ async def generate_master_timetable(
                 elif task_type == "SPORTS_LIBRARY":
                     pre_lunch_slot = 3 if year == 1 else 4
                     if start_slot not in [7, pre_lunch_slot]:
+                        continue
+
+                # Enforce at most 1 theory/elective period of the same subject per section per day
+                if task_type in ["THEORY", "ELECTIVE"]:
+                    if (sec, day, subj_id) in section_daily_subjects:
                         continue
 
                 if task_type == "DUAL_LAB" and task["session_num"] == 2:
@@ -589,6 +601,51 @@ async def generate_master_timetable(
                     curr_daily = teacher_daily_periods.get((teacher.id, day), 0)
                     added_periods = 0 if task_type == "COUNSELLING" else duration
                     if curr_daily + added_periods > 4:
+                        continue
+
+                    # Rule 10: Max 1 lab per day for a teacher
+                    has_lab_already = teacher_daily_has_lab.get((teacher.id, day), False)
+                    if has_lab_already and task_type in ["LAB", "DUAL_LAB"]:
+                        continue
+
+                    # Rules 5 & 12: Consecutive periods and morning lab restrictions
+                    occupied_slots = set()
+                    for slot in range(1, 8):
+                        if (day, slot, teacher.id) in busy_teachers or (day, slot, str(teacher.id)) in busy_teachers:
+                            occupied_slots.add(slot)
+                    
+                    candidate_slots = set(range(start_slot, end_slot + 1))
+                    all_slots = occupied_slots.union(candidate_slots)
+                    
+                    consecutive_groups = []
+                    current_group = []
+                    for slot in sorted(all_slots):
+                        if not current_group or slot == current_group[-1] + 1:
+                            current_group.append(slot)
+                        else:
+                            consecutive_groups.append(current_group)
+                            current_group = [slot]
+                    if current_group:
+                        consecutive_groups.append(current_group)
+                        
+                    violates_consecutive = False
+                    for group in consecutive_groups:
+                        group_len = len(group)
+                        if group_len > 2:
+                            has_lab_today = (task_type in ["LAB", "DUAL_LAB"]) or has_lab_already
+                            if group_len == 3:
+                                if not has_lab_today:
+                                    violates_consecutive = True
+                                    break
+                            elif group_len == 4:
+                                is_morning_group = all(slot < lunch_slot for slot in group)
+                                if not (has_lab_today and is_morning_group):
+                                    violates_consecutive = True
+                                    break
+                            else:
+                                violates_consecutive = True
+                                break
+                    if violates_consecutive:
                         continue
 
                     # Rule 20: Cross-Branch Transition Gap Shield (1-Period Buffer)
@@ -664,12 +721,16 @@ async def generate_master_timetable(
                             elective_sync_slots[sync_key] = (day, start_slot)
                         if task_type == "DUAL_LAB" and task["session_num"] == 1:
                             dual_lab_first_session[(sec, subj_id)] = (day, is_morning)
+                        if task_type in ["THEORY", "ELECTIVE"]:
+                            section_daily_subjects.add((sec, day, subj_id))
 
                         if backtrack(task_idx + 1):
                             schedule_state.extend(temp_entries)
                             return True
 
                         # ---- BACKTRACK ----
+                        if task_type in ["THEORY", "ELECTIVE"]:
+                            section_daily_subjects.remove((sec, day, subj_id))
                         if task_type != "COUNSELLING":
                             teacher_daily_periods[(teacher.id, day)] = curr_daily
                         if task_type in ["LAB", "DUAL_LAB"]:
@@ -695,6 +756,11 @@ async def generate_master_timetable(
 
     if not success:
         logger.info("Strict backtracking reached preference threshold. Applying Greedy Fallback Solver with zero collision enforcement...")
+        
+        fallback_section_daily_subjects = set()
+        fallback_dual_lab_first_session = {}
+        fallback_teacher_daily_has_lab = {}
+
         # Greedy Fallback to complete any remaining tasks while strictly preventing collisions
         for task_idx, task in enumerate(tasks):
             sec = task["section"]
@@ -706,7 +772,6 @@ async def generate_master_timetable(
             lunch_slot = 4 if year == 1 else 5
             weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-            # Check if this task type needs scheduling
             teachers = subject_teachers.get(subj_id, [])
             if not teachers:
                 teachers = [p for p in faculty_profiles if p.department_id == dept_id]
@@ -722,7 +787,8 @@ async def generate_master_timetable(
             for day in weekdays:
                 if assigned:
                     break
-                max_day_slots = 4 if day == "Saturday" else 7
+                dept_slots = rules_map[dept_id].slots_per_day if (dept_id in rules_map) else 8
+                max_day_slots = 4 if day == "Saturday" else dept_slots
                 if day == "Saturday" and task_type in ["LAB", "DUAL_LAB"]:
                     continue
 
@@ -732,6 +798,35 @@ async def generate_master_timetable(
                     if crosses_lunch:
                         continue
 
+                    is_morning = end_slot < lunch_slot
+                    is_afternoon = start_slot > lunch_slot
+
+                    # Lab Slots Alignment (Rule 9)
+                    if task_type in ["LAB", "DUAL_LAB"] and duration == 3:
+                        if year == 1:
+                            if is_morning and (start_slot != 1 or end_slot != 3):
+                                continue
+                            if is_afternoon and (start_slot != 5 or end_slot != 7):
+                                continue
+                        else:
+                            if is_morning and start_slot != 2:
+                                continue
+                            if is_afternoon and start_slot != 5:
+                                continue
+
+                    # Daily Subject Spreading check
+                    if task_type in ["THEORY", "ELECTIVE"]:
+                        if (sec, day, subj_id) in fallback_section_daily_subjects:
+                            continue
+
+                    # Dual Lab same-day protection (Rule 8)
+                    if task_type == "DUAL_LAB" and task.get("session_num", 1) == 2:
+                        first_info = fallback_dual_lab_first_session.get((sec, subj_id))
+                        if first_info:
+                            first_day, first_is_morning = first_info
+                            if day == first_day or is_morning == first_is_morning:
+                                continue
+
                     # Strict collision check
                     sec_busy = any((day, slot, str(sec)) in busy_sections or (day, slot, sec) in busy_sections for slot in range(start_slot, end_slot + 1))
                     if sec_busy:
@@ -739,8 +834,32 @@ async def generate_master_timetable(
 
                     all_candidates = teachers + [p for p in faculty_profiles if p.department_id == dept_id and p.id not in [t.id for t in teachers]]
                     for teacher in all_candidates[:5]:
+                        # HOD Exclusions
+                        if teacher.is_hod or teacher.designation.upper() == "HOD":
+                            if start_slot == 1 or end_slot == 7 or (start_slot <= 1 <= end_slot) or (start_slot <= 7 <= end_slot):
+                                continue
+                            if day == "Wednesday" and start_slot > lunch_slot:
+                                continue
+
                         teacher_busy = any((day, slot, str(teacher.id)) in busy_teachers or (day, slot, teacher.id) in busy_teachers or (str(teacher.id), day, slot) in unavailable_faculty for slot in range(start_slot, end_slot + 1))
                         if teacher_busy:
+                            continue
+
+                        # Consecutive slots check for teacher
+                        consec_count = duration
+                        check_slot = start_slot - 1
+                        while check_slot >= 1 and ((day, check_slot, str(teacher.id)) in busy_teachers or (day, check_slot, teacher.id) in busy_teachers):
+                            consec_count += 1
+                            check_slot -= 1
+                        check_slot = end_slot + 1
+                        while check_slot <= max_day_slots and ((day, check_slot, str(teacher.id)) in busy_teachers or (day, check_slot, teacher.id) in busy_teachers):
+                            consec_count += 1
+                            check_slot += 1
+                        
+                        has_lab_today = (task_type in ["LAB", "DUAL_LAB"]) or fallback_teacher_daily_has_lab.get((teacher.id, day), False)
+                        if consec_count > 3:
+                            continue
+                        if consec_count > 2 and not has_lab_today:
                             continue
 
                         for room in target_rooms:
@@ -769,6 +888,15 @@ async def generate_master_timetable(
                                 busy_sections.add((day, slot, str(sec)))
                                 busy_teachers.add((day, slot, str(teacher.id)))
                                 busy_rooms.add((day, slot, str(room.id)))
+                            
+                            # Bookkeeping
+                            if task_type in ["THEORY", "ELECTIVE"]:
+                                fallback_section_daily_subjects.add((sec, day, subj_id))
+                            if task_type == "DUAL_LAB" and task.get("session_num", 1) == 1:
+                                fallback_dual_lab_first_session[(sec, subj_id)] = (day, is_morning)
+                            if task_type in ["LAB", "DUAL_LAB"]:
+                                fallback_teacher_daily_has_lab[(teacher.id, day)] = True
+
                             assigned = True
                             break
                         if assigned:

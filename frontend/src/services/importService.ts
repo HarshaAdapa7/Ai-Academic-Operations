@@ -41,6 +41,11 @@ export interface UploadResponse {
   validation_errors: string[];
 }
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+};
+
 export const importService = {
   async uploadDepartmentData(file: File, departmentId?: string): Promise<UploadResponse> {
     const formData = new FormData();
@@ -48,11 +53,10 @@ export const importService = {
     if (departmentId) {
       formData.append('department_id', departmentId);
     }
-    const token = localStorage.getItem('token');
     const res = await axios.post(`${API_URL}/import/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
+        ...getAuthHeaders().headers
       }
     });
     return res.data;
@@ -63,23 +67,34 @@ export const importService = {
     if (statusFilter) params.status_filter = statusFilter;
     if (entityFilter) params.entity_filter = entityFilter;
 
-    const res = await axios.get(`${API_URL}/import/staging/${importId}`, { params });
+    const res = await axios.get(`${API_URL}/import/staging/${importId}`, {
+      params,
+      ...getAuthHeaders()
+    });
     return res.data;
   },
 
   async remediateRecord(importId: string, recordId: string, updatedData: Record<string, any>) {
-    const res = await axios.put(`${API_URL}/import/staging/${importId}/record/${recordId}`, updatedData);
+    const res = await axios.put(`${API_URL}/import/staging/${importId}/record/${recordId}`, updatedData, getAuthHeaders());
     return res.data;
   },
 
   async confirmCommit(importId: string) {
-    const res = await axios.post(`${API_URL}/import/confirm/${importId}`);
+    const res = await axios.post(`${API_URL}/import/confirm/${importId}`, {}, getAuthHeaders());
     return res.data;
   },
 
   async getImportHistory(departmentId?: string): Promise<{ history: ImportHistoryItem[] }> {
     const params = departmentId ? { department_id: departmentId } : {};
-    const res = await axios.get(`${API_URL}/import/history`, { params });
+    const res = await axios.get(`${API_URL}/import/history`, {
+      params,
+      ...getAuthHeaders()
+    });
+    return res.data;
+  },
+
+  async clearDepartmentData(departmentId?: string): Promise<{ message: string; deleted_sections: number; deleted_subjects: number; deleted_faculty_users: number }> {
+    const res = await axios.post(`${API_URL}/import/clear-department-data`, { department_id: departmentId }, getAuthHeaders());
     return res.data;
   }
 };

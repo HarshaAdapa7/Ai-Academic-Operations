@@ -7,7 +7,7 @@ import type { ImportHistoryItem, StagingRecord, UploadResponse } from '../servic
 import { 
   ChevronLeft, Upload, FileSpreadsheet, AlertTriangle, ShieldCheck, 
   CheckCircle2, Clock, RefreshCw, Database, FileText, 
-  AlertCircle, Lock, Download, Edit3
+  AlertCircle, Lock, Download, Edit3, Trash2
 } from 'lucide-react';
 
 import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
@@ -44,6 +44,11 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<any | null>(null);
+
+  // Clear Department Data states
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isClearingData, setIsClearingData] = useState(false);
+  const [clearSuccessMsg, setClearSuccessMsg] = useState('');
 
   // Import history states
   const [historyItems, setHistoryItems] = useState<ImportHistoryItem[]>([]);
@@ -186,12 +191,37 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
     }
   };
 
+  // Clear Department Data for New Semester
+  const handleClearDepartmentData = async () => {
+    setIsClearingData(true);
+    setClearSuccessMsg('');
+    try {
+      const res = await importService.clearDepartmentData(selectedDeptId || undefined);
+      setClearSuccessMsg(res.message || `Successfully cleared all semester data (${res.deleted_sections} sections, ${res.deleted_subjects} subjects, ${res.deleted_faculty_users} faculty users). You can now import fresh semester data!`);
+      setIsClearModalOpen(false);
+      setActiveImportId(null);
+      setUploadResult(null);
+      setStagingRecords([]);
+      await loadHistory();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to clear department data.');
+    } finally {
+      setIsClearingData(false);
+    }
+  };
+
   // Download Sample Template CSV helper
-  const handleDownloadSampleTemplate = (type: 'faculty' | 'subject' | 'section' | 'classroom') => {
+  const handleDownloadSampleTemplate = (type: 'faculty' | 'subject' | 'section' | 'classroom' | 'master') => {
     let csvContent = "";
     let fileName = "";
 
-    if (type === 'faculty') {
+    if (type === 'master') {
+      fileName = "csd_master_import.csv";
+      csvContent = "Department,DepartmentName,AcademicYear,SectionName,SubjectCode,SubjectName,SubjectType,FacultyEmail,FacultyName,Designation,IsHOD,IsDean,IsClassTeacher,MentorEmail,RoomNumber,Capacity,RoomType,Lectures per week,Labs per week,Lab duration\n" +
+                 "CSD,Computer Science & Data Science,2,CSD 2-A,23CD4111,DATA STRUCTURES(DS),THEORY,y.satish.kumar@anits.edu.in,Mr. Y Satish Kumar,Assistant Professor,FALSE,FALSE,FALSE,,I-503,60,THEORY,4,0,1\n" +
+                 "CSD,Computer Science & Data Science,2,CSD 2-A,23CD4211,CN & OS LAB,LAB,y.satish.kumar@anits.edu.in,Mr. Y Satish Kumar,Assistant Professor,FALSE,FALSE,FALSE,,I-508,60,LAB,0,1,3\n" +
+                 "CSD,Computer Science & Data Science,3,CSD 3-A,23CD9204,R PROGRAMMING,THEORY,s.aruna.jyothi@anits.edu.in,Mrs. S Aruna Jyothi,Assistant Professor,FALSE,FALSE,FALSE,,I-506,60,THEORY,4,0,1\n";
+    } else if (type === 'faculty') {
       fileName = "sample_faculty_import.csv";
       csvContent = "full_name,email,designation,max_weekly_workload\n" +
                  "Dr. A. Srinivas Rao,srinivas_cse@anits.edu.in,Professor,16\n" +
@@ -268,8 +298,33 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
             <Lock className="w-3.5 h-3.5 text-indigo-400" />
             <span>Scope: <strong className="text-white">{activeDepartment?.name || 'All Departments'}</strong></span>
           </div>
+
+          <button
+            onClick={() => setIsClearModalOpen(true)}
+            className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+            title="Clear department section, subject, classroom and faculty data for new semester import"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Clear Semester Data</span>
+          </button>
         </div>
       </div>
+
+      {/* Clear Department Data Success Banner */}
+      {clearSuccessMsg && (
+        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-4 rounded-xl flex items-center justify-between text-sm shadow-lg animate-in fade-in">
+          <div className="flex items-center space-x-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <span>{clearSuccessMsg}</span>
+          </div>
+          <button 
+            onClick={() => setClearSuccessMsg('')}
+            className="text-xs bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 px-3 py-1 rounded-lg transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Security Lock Banner Notice */}
       <div className="bg-gradient-to-r from-indigo-950/40 via-slate-900 to-purple-950/40 p-4 rounded-xl border border-indigo-800/40 flex items-start gap-3">
@@ -298,6 +353,13 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
           {/* Download Sample Templates */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-slate-400">Download Templates:</span>
+            <button 
+              onClick={() => handleDownloadSampleTemplate('master')}
+              className="text-xs bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 font-semibold px-3 py-1 rounded border border-indigo-700/60 flex items-center gap-1 shadow-sm"
+              title="Download full 20-column Master CSV template for all department data"
+            >
+              <Download className="w-3 h-3 text-indigo-400" /> Master All-in-One CSV (20 Cols)
+            </button>
             <button 
               onClick={() => handleDownloadSampleTemplate('faculty')}
               className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 flex items-center gap-1"
@@ -738,6 +800,52 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
             >
               Done / Return to Portal
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Department Data Confirmation Modal */}
+      {isClearModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-rose-800/80 rounded-2xl max-w-lg w-full p-6 space-y-5 text-slate-300 shadow-2xl">
+            <div className="flex items-center space-x-3 text-rose-400">
+              <AlertTriangle className="w-8 h-8 shrink-0" />
+              <div>
+                <h3 className="text-lg font-bold text-white">Clear Semester Data</h3>
+                <p className="text-xs text-rose-300 font-medium">Action for New Semester Reset</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-950/40 border border-rose-900/50 rounded-xl p-4 text-xs space-y-2 leading-relaxed">
+              <p className="text-rose-200 font-semibold">
+                Are you sure you want to clear all semester database records for <strong className="text-white">{activeDepartment?.name || 'this department'}</strong>?
+              </p>
+              <ul className="list-disc list-inside space-y-1 text-slate-300 font-mono">
+                <li>Wipes all Sections & Student configs for this department</li>
+                <li>Wipes all Subjects & Weekly Hours rules for this department</li>
+                <li>Wipes all Classrooms & Labs assigned to this department</li>
+                <li>Deletes non-HOD Faculty login user accounts for this department</li>
+                <li><strong className="text-emerald-400">HOD and Admin accounts will remain preserved and active!</strong></li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                onClick={() => setIsClearModalOpen(false)}
+                disabled={isClearingData}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearDepartmentData}
+                disabled={isClearingData}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                {isClearingData ? 'Clearing Semester Data...' : 'Yes, Clear All Semester Data'}
+              </button>
+            </div>
           </div>
         </div>
       )}

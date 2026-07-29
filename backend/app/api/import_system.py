@@ -5,14 +5,14 @@ import json
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, func
+from sqlalchemy import select, text, func, delete
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.user import User
-from app.models.faculty import Department, Subject, FacultyProfile, SectionConfig, faculty_subjects, section_mentors
+from app.models.faculty import Department, Subject, FacultyProfile, SectionConfig, faculty_subjects, section_mentors, section_subject_teachers
 from app.models.classroom import Classroom
 from app.models.timetable import SubjectSchedulingRule
 from app.models.import_system import ImportHistory, ImportStagingRecord
@@ -174,7 +174,7 @@ async def upload_department_data(
         # Determine what entity types we can extract from this row
         row_entities = []
         if is_unified:
-            row_entities = ["FACULTY", "SUBJECT", "SECTION", "CLASSROOM"]
+            row_entities = ["UNIFIED"]
         else:
             entity_type = "FACULTY"
             if any(k in norm_row for k in ["subjectcode", "subjectname", "code"]):
@@ -194,7 +194,23 @@ async def upload_department_data(
             status_val = "VALID"
             
             clean_data = {}
-            if entity_type == "FACULTY":
+            if entity_type == "UNIFIED":
+                clean_data = orig_row
+                name = norm_row.get("facultyname") or norm_row.get("fullname") or norm_row.get("name")
+                email = norm_row.get("facultyemail") or norm_row.get("email")
+                s_code = norm_row.get("subjectcode") or norm_row.get("code")
+                sec_name = norm_row.get("sectionname") or norm_row.get("section")
+                
+                if not name:
+                    missing_fields.append("FacultyName")
+                if not email:
+                    missing_fields.append("FacultyEmail")
+                if not s_code:
+                    missing_fields.append("SubjectCode")
+                if not sec_name:
+                    missing_fields.append("SectionName")
+
+            elif entity_type == "FACULTY":
                 name = norm_row.get("facultyname") or norm_row.get("fullname") or norm_row.get("name")
                 email = norm_row.get("facultyemail") or norm_row.get("email")
                 designation = norm_row.get("designation") or "Assistant Professor"
@@ -492,7 +508,10 @@ async def confirm_production_commit(
 
     records_res = await db.execute(
         select(ImportStagingRecord)
-        .where(ImportStagingRecord.import_history_id == import_id, ImportStagingRecord.validation_status.in_(["VALID", "WARNING"]))
+        .where(
+            ImportStagingRecord.import_history_id == import_id,
+            ImportStagingRecord.validation_status.in_(["VALID", "VALIDATED", "WARNING"])
+        )
     )
     valid_records = records_res.scalars().all()
 
@@ -529,8 +548,8 @@ async def confirm_production_commit(
         sec_name = (data.get("section_name") or data.get("section") or data.get("SectionName") or "").strip().upper()
         room_no = (data.get("room_number") or data.get("room") or data.get("RoomNumber") or "").strip().upper()
 
-        is_class_teacher = str(data.get("is_class_teacher") or data.get("IsClassTeacher") or "FALSE").upper() == "TRUE"
-        mentor_emails_str = str(data.get("mentor_emails") or data.get("MentorEmails") or "").strip()
+        is_class_teacher = str(data.get("is_class_teacher") or data.get("IsClassTeacher") or data.get("ClassTeacher") or "").strip().upper() in ["TRUE", "YES", "1", "Y", "CLASS TEACHER"]
+        mentor_emails_str = str(data.get("mentor_emails") or data.get("MentorEmails") or data.get("MentorEmail") or "").strip()
 
         # 1. Process Faculty if email present
         prof_obj = None
@@ -642,6 +661,8 @@ async def confirm_production_commit(
             if is_class_teacher and prof_obj:
                 sec_obj.class_teacher_id = prof_obj.id
 
+            # Automatic mentor assignment (MentorEmail or row FacultyProfile fallback)
+            m_target_profs = []
             if mentor_emails_str:
                 m_emails = [m.strip().lower() for m in mentor_emails_str.replace('"', '').split(',') if m.strip()]
                 for m_email in m_emails:
@@ -649,9 +670,43 @@ async def confirm_production_commit(
                     m_u = m_u_res.scalars().first()
                     if m_u:
                         m_f_res = await db.execute(select(FacultyProfile).where(FacultyProfile.user_id == m_u.id))
-                        m_prof = m_f_res.scalars().first()
-                        if m_prof and m_prof not in sec_obj.counseling_mentors:
-                            sec_obj.counseling_mentors.append(m_prof)
+                        m_p = m_f_res.scalars().first()
+                        if m_p:
+                            m_target_profs.append(m_p)
+
+            if not m_target_profs and prof_obj:
+                m_target_profs.append(prof_obj)
+
+            for m_p in m_target_profs:
+                sm_stmt = select(section_mentors).where(
+                    section_mentors.c.section_id == sec_obj.id,
+                    section_mentors.c.faculty_id == m_p.id
+                )
+                sm_res = await db.execute(sm_stmt)
+                if not sm_res.first():
+                    await db.execute(
+                        section_mentors.insert().values(
+                            section_id=sec_obj.id,
+                            faculty_id=m_p.id
+                        )
+                    )
+
+            # Automatic Section-Subject-Teacher assignment
+            if subj_obj and prof_obj:
+                sst_stmt = select(section_subject_teachers).where(
+                    section_subject_teachers.c.section_id == sec_obj.id,
+                    section_subject_teachers.c.subject_id == subj_obj.id,
+                    section_subject_teachers.c.faculty_id == prof_obj.id
+                )
+                sst_res = await db.execute(sst_stmt)
+                if not sst_res.first():
+                    await db.execute(
+                        section_subject_teachers.insert().values(
+                            section_id=sec_obj.id,
+                            subject_id=subj_obj.id,
+                            faculty_id=prof_obj.id
+                        )
+                    )
 
             committed_sections += 1
 
@@ -672,6 +727,20 @@ async def confirm_production_commit(
                 )
                 db.add(room_obj)
             committed_rooms += 1
+
+    # Post-Processing Pass: Guarantee class_teacher_id for ALL section_configs in department
+    sec_all = (await db.execute(select(SectionConfig).where(SectionConfig.department_id == dept_id))).scalars().all()
+    for sec in sec_all:
+        if not sec.class_teacher_id:
+            sst_res = await db.execute(select(section_subject_teachers.c.faculty_id).where(section_subject_teachers.c.section_id == sec.id))
+            first_fac_id = sst_res.scalar()
+            if first_fac_id:
+                sec.class_teacher_id = first_fac_id
+            else:
+                fac_res = await db.execute(select(FacultyProfile.id).where(FacultyProfile.department_id == dept_id))
+                any_fac_id = fac_res.scalar()
+                if any_fac_id:
+                    sec.class_teacher_id = any_fac_id
 
     # Update Import History status
     import_job.import_status = "CONFIRMED"
@@ -727,4 +796,72 @@ async def get_import_history(
             }
             for h in history_items
         ]
+    }
+
+@router.post("/clear-department-data")
+async def clear_department_data_endpoint(
+    department_id: Optional[str] = Body(None, embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Clears all section configs, subjects, classrooms, scheduling rules, 
+    and faculty users for the target department to prepare for a fresh semester data import.
+    Preserves HOD & Admin logins.
+    """
+    user_dept_id = await resolve_user_dept_id(current_user, db)
+    target_dept_id = department_id or user_dept_id
+
+    if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != target_dept_id:
+        raise HTTPException(status_code=403, detail="Unauthorized to clear data for another department.")
+
+    if not target_dept_id:
+        raise HTTPException(status_code=400, detail="Department ID is required.")
+
+    # 1. Delete SectionConfigs (cascades or clears class_teacher_id)
+    sec_res = await db.execute(select(SectionConfig).where(SectionConfig.department_id == target_dept_id))
+    sections = sec_res.scalars().all()
+    sec_ids = [s.id for s in sections]
+
+    if sec_ids:
+        await db.execute(delete(section_subject_teachers).where(section_subject_teachers.c.section_id.in_(sec_ids)))
+        await db.execute(delete(section_mentors).where(section_mentors.c.section_id.in_(sec_ids)))
+
+    await db.execute(delete(SectionConfig).where(SectionConfig.department_id == target_dept_id))
+
+    # 2. Delete Subjects & Rules
+    subj_res = await db.execute(select(Subject).where(Subject.department_id == target_dept_id))
+    subjects = subj_res.scalars().all()
+    subj_ids = [s.id for s in subjects]
+
+    if subj_ids:
+        await db.execute(delete(SubjectSchedulingRule).where(SubjectSchedulingRule.subject_id.in_(subj_ids)))
+        await db.execute(delete(faculty_subjects).where(faculty_subjects.c.subject_id.in_(subj_ids)))
+
+    await db.execute(delete(Subject).where(Subject.department_id == target_dept_id))
+
+    # 3. Delete Classrooms
+    await db.execute(delete(Classroom).where(Classroom.department_id == target_dept_id))
+
+    # 4. Delete non-HOD/non-Admin Faculty User Accounts & Profiles
+    fac_res = await db.execute(select(FacultyProfile).where(FacultyProfile.department_id == target_dept_id))
+    fac_profiles = fac_res.scalars().all()
+
+    deleted_users_count = 0
+    for prof in fac_profiles:
+        if prof.is_hod or prof.is_dean:
+            continue
+        u_id = prof.user_id
+        await db.execute(delete(FacultyProfile).where(FacultyProfile.id == prof.id))
+        if u_id:
+            await db.execute(delete(User).where(User.id == u_id, User.role == "FACULTY"))
+            deleted_users_count += 1
+
+    await db.commit()
+
+    return {
+        "message": f"Successfully cleared all semester data for department.",
+        "deleted_sections": len(sections),
+        "deleted_subjects": len(subjects),
+        "deleted_faculty_users": deleted_users_count
     }

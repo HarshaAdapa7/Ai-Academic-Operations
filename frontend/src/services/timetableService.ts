@@ -46,6 +46,9 @@ export interface TimetableEntry {
 
 export interface ExamTimetableEntry {
   id: string;
+  exam_type: string;
+  academic_year: number;
+  semester: number;
   exam_date: string;
   time_slot: number;
   subject_id: string;
@@ -133,12 +136,47 @@ export const timetableService = {
     return res.data;
   },
 
-  async getExamSchedule(): Promise<ExamTimetableEntry[]> {
-    const res = await axios.get(`${API_URL}/timetable/exams`);
+  async getExamCalendarDates(): Promise<{
+    academic_year: string | null;
+    semester: string | null;
+    mid1_start_date: string | null;
+    mid2_start_date: string | null;
+    end_sem_exam_start_date: string | null;
+  }> {
+    const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`);
+    return res.data;
+  },
+
+  async getExamSchedule(filters?: {
+    category?: string;
+    exam_type?: string;
+    academic_year?: number;
+    department_id?: string;
+  }): Promise<ExamTimetableEntry[]> {
+    const res = await axios.get(`${API_URL}/timetable/exams`, { params: filters });
+    return res.data;
+  },
+
+  async generateExamSchedule(data: {
+    category: string;
+    exam_type: string;
+    start_date?: string;
+    semester?: number;
+    department_ids?: string[];
+  }): Promise<ExamTimetableEntry[]> {
+    const res = await axios.post(`${API_URL}/timetable/generate-exams`, data);
+    return res.data;
+  },
+
+  async clearExamSchedule(filters?: { exam_type?: string; department_id?: string; purge_all?: boolean }): Promise<any> {
+    const res = await axios.delete(`${API_URL}/timetable/exams-clear`, { params: filters });
     return res.data;
   },
 
   async createExamEntry(data: {
+    exam_type?: string;
+    academic_year?: number;
+    semester?: number;
     exam_date: string;
     time_slot: number;
     subject_id: string;
@@ -154,3 +192,4 @@ export const timetableService = {
     return res.data;
   }
 };
+

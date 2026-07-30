@@ -20,6 +20,7 @@ export interface Subject {
   academic_year: number;
   created_at: string;
   parallel_subject?: Subject | null;
+  department?: Department | null;
 }
 
 export interface UserMini {
@@ -33,6 +34,7 @@ export interface FacultyProfile {
   id: string;
   user_id: string;
   department_id: string | null;
+  employee_id?: string;
   designation: string;
   is_hod: boolean;
   is_dean: boolean;

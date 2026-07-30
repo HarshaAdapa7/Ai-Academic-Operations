@@ -627,9 +627,6 @@ class AcademicCalendarImportEngine:
     @staticmethod
     def detect_import_type(raw_headers: List[str], target_type: Optional[str] = None) -> str:
         """Detect whether row headers match Academic Calendar Schedules, Holidays DB, or Examinations DB."""
-        if target_type in ["HOLIDAYS_DB", "CALENDAR_SCHEDULE", "EXAMINATIONS_DB"]:
-            return target_type
-
         cleaned_headers = [clean_header(h) for h in raw_headers]
         
         has_exam_type = any(ch in ["exam_type", "examination_type", "exam_name", "session_timing"] for ch in cleaned_headers)
@@ -652,8 +649,22 @@ class AcademicCalendarImportEngine:
             "reason", "holiday_reason", "reason_for_holiday",
             "occasion", "festival", "particulars", "date", "event_date"
         ] for ch in cleaned_headers)
+
+        if target_type in ["HOLIDAYS_DB", "CALENDAR_SCHEDULE", "EXAMINATIONS_DB"]:
+            # If target_type was passed as CALENDAR_SCHEDULE but the file has ONLY holiday headers and NO calendar fields,
+            # override target_type to HOLIDAYS_DB to prevent skipping rows.
+            if target_type == "CALENDAR_SCHEDULE" and has_holiday_type and not has_calendar_fields:
+                return "HOLIDAYS_DB"
+            # Reverse check: if HOLIDAYS_DB passed but file has calendar fields and no holiday-specific fields,
+            # override to CALENDAR_SCHEDULE. This prevents holiday-type detection for schedule files.
+            if target_type == "HOLIDAYS_DB" and has_calendar_fields and not has_holiday_type:
+                return "CALENDAR_SCHEDULE"
+            return target_type
+
         if has_exam_type:
             return "EXAMINATIONS_DB"
+        elif has_holiday_type and not has_calendar_fields:
+            return "HOLIDAYS_DB"
         elif has_calendar_fields:
             return "CALENDAR_SCHEDULE"
         elif has_holiday_type:

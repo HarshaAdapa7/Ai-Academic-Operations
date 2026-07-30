@@ -55,6 +55,37 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
 
   // Exam Timetable states
   const [exams, setExams] = useState<ExamTimetableEntry[]>([]);
+  const [examTabCategory, setExamTabCategory] = useState<'MID' | 'SEM_END'>('MID');
+  const [examTabType, setExamTabType] = useState<'MID_1' | 'MID_2' | 'SEM_END'>('MID_1');
+
+  // Exam Generator Wizard states
+  const [isGenerateExamModalOpen, setIsGenerateExamModalOpen] = useState(false);
+  const [isGeneratingExams, setIsGeneratingExams] = useState(false);
+  const [genCategory, setGenCategory] = useState<'MID' | 'SEM_END'>('MID');
+  const [genExamType, setGenExamType] = useState<'MID_1' | 'MID_2' | 'SEM_END'>('MID_1');
+  const [genStartDate, setGenStartDate] = useState('');
+  const [genSemester, setGenSemester] = useState<number>(1);
+  const [genTargetDeptId, setGenTargetDeptId] = useState('ALL');
+  const [genError, setGenError] = useState('');
+  const [genSuccess, setGenSuccess] = useState('');
+
+  // Manual Exam Add Modal states
+  const [isAddExamModalOpen, setIsAddExamModalOpen] = useState(false);
+  const [newExamType, setNewExamType] = useState('MID_1');
+  const [newAcademicYear, setNewAcademicYear] = useState(1);
+  const [newSemester, setNewSemester] = useState(1);
+  const [newExamSubjectId, setNewExamSubjectId] = useState('');
+  const [newExamClassroomId, setNewExamClassroomId] = useState('');
+  const [newExamInvigilatorId, setNewExamInvigilatorId] = useState('');
+  const [newExamDate, setNewExamDate] = useState('');
+  const [newExamTimeSlot, setNewExamTimeSlot] = useState(1);
+  const [newExamError, setNewExamError] = useState('');
+  const [isSavingExam, setIsSavingExam] = useState(false);
+
+  const [examViewMode, setExamViewMode] = useState<'grid' | 'roster'>('grid');
+  const [examFilterDeptId, setExamFilterDeptId] = useState('ALL');
+  const [examFilterYear, setExamFilterYear] = useState('ALL');
+  const [examFilterSearch, setExamFilterSearch] = useState('');
 
   // Auto-generation wizard states
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -65,6 +96,16 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [solverError, setSolverError] = useState('');
   const [isSolving, setIsSolving] = useState(false);
 
+
+  // Academic Calendar Exam Dates
+  const [calExamDates, setCalExamDates] = useState<{
+    academic_year: string | null;
+    semester: string | null;
+    mid1_start_date: string | null;
+    mid2_start_date: string | null;
+    end_sem_exam_start_date: string | null;
+  } | null>(null);
+
   // Dynamic Rule 0 & Lunch calculation
   const sectionYear = parseInt(selectedSection.replace(/\D/g, '')) || 1;
   const currentLunchSlot = ruleLunchSlot !== null ? ruleLunchSlot : (sectionYear === 1 ? 4 : 5);
@@ -72,20 +113,23 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const loadBaseData = async () => {
     try {
       setIsLoading(true);
-      const [deptsData, subjsData, roomsData, facultyData, examsData, sectionsData] = await Promise.all([
+      const [deptsData, subjsData, roomsData, facultyData, examsData, sectionsData, calDatesData] = await Promise.all([
         facultyService.getDepartments(),
         facultyService.getSubjects(),
         classroomService.getClassrooms(),
         facultyService.getFacultyProfiles(),
         timetableService.getExamSchedule(),
-        facultyService.getSectionConfigs()
+        facultyService.getSectionConfigs(),
+        timetableService.getExamCalendarDates()
       ]);
+      
       setDepartments(deptsData);
       setSubjects(subjsData);
       setClassrooms(roomsData);
       setFacultyProfiles(facultyData);
       setExams(examsData);
       setSectionConfigs(sectionsData);
+      setCalExamDates(calDatesData);
       
       let userDeptId: string | undefined = undefined;
       if (!isUserAdminOrDean(user)) {
@@ -371,7 +415,117 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     link.click();
   };
 
+  // Exam Management Handlers (Mid & Semester End)
+  const handleGenerateExams = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGenError('');
+    setGenSuccess('');
+    setIsGeneratingExams(true);
+    try {
+      const targetDeptIds = genTargetDeptId === 'ALL' ? undefined : [genTargetDeptId];
+      const startIso = genStartDate ? new Date(genStartDate).toISOString() : undefined;
+      const res = await timetableService.generateExamSchedule({
+        category: genCategory,
+        exam_type: genExamType,
+        start_date: startIso,
+        semester: genSemester,
+        department_ids: targetDeptIds
+      });
+      setExams(res);
+      const label = genCategory === 'MID' ? `Mid Exam (${genExamType})` : `Semester ${genSemester} End Exam`;
+      setGenSuccess(`Successfully generated ${res.length} ${label} sessions with zero room & invigilator clashes!`);
+      setTimeout(() => {
+        setIsGenerateExamModalOpen(false);
+        setGenSuccess('');
+      }, 1500);
+    } catch (err: any) {
+      setGenError(err.response?.data?.detail || 'Failed to generate exam schedule.');
+    } finally {
+      setIsGeneratingExams(false);
+    }
+  };
+
+  const handleClearExams = async () => {
+    const label = examTabCategory === 'MID' ? `Mid Exam (${examTabType})` : 'Semester End Exam';
+    if (!window.confirm(`Are you sure you want to purge all scheduled ${label} entries?`)) return;
+    try {
+      setIsLoading(true);
+      await timetableService.clearExamSchedule({
+        exam_type: examTabType,
+        department_id: selectedDeptId || undefined
+      });
+      const updated = await timetableService.getExamSchedule({ category: examTabCategory });
+      setExams(updated);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to clear exam schedule.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateExamEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNewExamError('');
+    if (!newExamSubjectId || !newExamClassroomId || !newExamDate) {
+      setNewExamError('Please select Subject, Classroom, and Exam Date.');
+      return;
+    }
+    setIsSavingExam(true);
+    try {
+      const created = await timetableService.createExamEntry({
+        exam_type: newExamType,
+        academic_year: newAcademicYear,
+        semester: newSemester,
+        exam_date: new Date(newExamDate).toISOString(),
+        time_slot: newExamTimeSlot,
+        subject_id: newExamSubjectId,
+        classroom_id: newExamClassroomId,
+        invigilator_id: newExamInvigilatorId || null
+      });
+      setExams(prev => [...prev, created]);
+      setIsAddExamModalOpen(false);
+      setNewExamSubjectId('');
+      setNewExamClassroomId('');
+      setNewExamInvigilatorId('');
+      setNewExamDate('');
+    } catch (err: any) {
+      setNewExamError(err.response?.data?.detail || 'Failed to save exam session.');
+    } finally {
+      setIsSavingExam(false);
+    }
+  };
+
+  const handleDeleteExam = async (examId: string) => {
+    if (!window.confirm('Remove this exam session entry?')) return;
+    try {
+      await timetableService.deleteExamEntry(examId);
+      setExams(prev => prev.filter(e => e.id !== examId));
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to delete exam session.');
+    }
+  };
+
+  const handleExportExamsCSV = () => {
+    if (exams.length === 0) {
+      alert('No exam sessions scheduled to export.');
+      return;
+    }
+    let csv = "Category,Type,Year,Semester,Date,Slot,Time,Department,Subject Code,Subject Name,Classroom,Invigilator\n";
+    exams.forEach(ex => {
+      const dateStr = ex.exam_date ? new Date(ex.exam_date).toLocaleDateString() : 'TBA';
+      const slotTime = ex.time_slot === 1 ? "09:30 - 11:30 AM" : ex.time_slot === 2 ? "01:30 - 03:30 PM" : ex.time_slot === 3 ? "03:45 - 05:45 PM" : `Slot ${ex.time_slot}`;
+      csv += `"${ex.exam_type?.includes('MID') ? 'MID' : 'SEM_END'}","${ex.exam_type || 'MID_1'}","Year ${ex.academic_year || 1}","Sem ${ex.semester || 1}","${dateStr}","Slot ${ex.time_slot}","${slotTime}","${ex.subject?.department?.code || ''}","${ex.subject?.code || ''}","${ex.subject?.name || ''}","${ex.classroom?.room_number || ''}","${ex.invigilator?.user?.full_name || 'Unassigned'}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Examination_Schedule_Roster.csv`;
+    link.click();
+  };
+
   const activityBlocksList = ruleActivityBlocks.split(',').map(b => b.trim());
+
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
@@ -467,15 +621,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
             activeTab === 'class' ? 'bg-primary-500 text-white' : 'text-dark-400 hover:text-white'
           }`}
         >
-          Weekly Timetable Grid
-        </button>
-        <button
-          onClick={() => setActiveTab('exam')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-            activeTab === 'exam' ? 'bg-primary-500 text-white' : 'text-dark-400 hover:text-white'
-          }`}
-        >
-          Exams & Invigilators
+          Weekly Class Timetable
         </button>
         {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
           <button
@@ -489,6 +635,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
           </button>
         )}
       </div>
+
 
       {/* Tab Panels */}
       {isLoading ? (
@@ -810,44 +957,485 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
           </div>
         </div>
       ) : activeTab === 'exam' ? (
-        /* Exam Planner & Invigilators View */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-3 space-y-4">
-            <h3 className="text-base font-bold text-white">Scheduled Exam Sessions Ledger</h3>
-            {exams.length === 0 ? (
-              <div className="glass-panel p-8 text-center text-dark-500">
-                <Calendar className="w-10 h-10 mx-auto mb-3 opacity-25" />
-                <p className="text-sm font-medium">No exam sessions scheduled yet.</p>
+        /* Examination Preparation & Invigilators View */
+        <div className="space-y-6">
+          {/* Direct 1-Click Auto-Generator Info Banner */}
+          <div className="glass-panel p-4 border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-dark-900 to-indigo-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <Sparkles className="w-5 h-5" />
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {exams.map(exam => (
-                  <div key={exam.id} className="glass-panel p-5 border border-dark-800 relative flex flex-col justify-between min-h-[160px]">
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-sm font-extrabold text-white leading-tight">{exam.subject?.name}</h4>
-                          <span className="text-[9px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 font-bold uppercase mt-2 inline-block">
-                            Slot {exam.time_slot}
+              <div>
+                <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
+                  Direct One-Click Exam Timetable Generator
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-bold">
+                    Calendar & Subject Master Sync Active
+                  </span>
+                </h4>
+                <p className="text-xs text-dark-300 mt-0.5">
+                  Reads uploaded subjects across all 4 years and auto-detects examination start dates directly from the uploaded Academic Calendar.
+                </p>
+                {calExamDates && (
+                  <div className="flex items-center gap-3 mt-2 text-[11px] text-amber-300/90 font-medium flex-wrap">
+                    <span>📅 <strong>Mid-1 Start</strong>: {calExamDates.mid1_start_date ? new Date(calExamDates.mid1_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
+                    <span>•</span>
+                    <span>📅 <strong>Mid-2 Start</strong>: {calExamDates.mid2_start_date ? new Date(calExamDates.mid2_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
+                    <span>•</span>
+                    <span>📅 <strong>Sem End Start</strong>: {calExamDates.end_sem_exam_start_date ? new Date(calExamDates.end_sem_exam_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    setIsLoading(true);
+                    const res = await timetableService.generateExamSchedule({
+                      category: examTabCategory,
+                      exam_type: examTabType,
+                      semester: 1
+                    });
+                    setExams(res);
+                    alert(`Successfully generated ${res.length} exam sessions directly from uploaded subjects & calendar dates!`);
+                  } catch (err: any) {
+                    alert(err.response?.data?.detail || 'Direct generation failed.');
+                  } finally {
+                    setIsLoading(false);
+                  }
+                }}
+                className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-black shadow-lg shadow-amber-500/25 transition-all shrink-0 flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Direct Generate {examTabCategory === 'MID' ? `Mid Exam (${examTabType})` : 'Semester End Exam'}
+              </button>
+            )}
+          </div>
+
+          {/* Top Category Tabs: Mid Exams vs Semester End Exams */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-dark-900/60 p-2 border border-dark-800 rounded-2xl">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setExamTabCategory('MID');
+                  setExamTabType('MID_1');
+                }}
+                className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+                  examTabCategory === 'MID'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20'
+                    : 'bg-dark-950/60 text-dark-300 hover:text-white hover:bg-dark-850'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                Mid Examinations (Mid-1 & Mid-2)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setExamTabCategory('SEM_END');
+                  setExamTabType('SEM_END');
+                }}
+                className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+                  examTabCategory === 'SEM_END'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/20'
+                    : 'bg-dark-950/60 text-dark-300 hover:text-white hover:bg-dark-850'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                Semester End Examinations
+              </button>
+            </div>
+
+            {/* Sub-toggle for Mid-1 vs Mid-2 if MID category active */}
+            {examTabCategory === 'MID' && (
+              <div className="flex items-center gap-1.5 bg-dark-950/80 p-1 border border-dark-800 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setExamTabType('MID_1')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    examTabType === 'MID_1' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Mid-1 Schedule
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExamTabType('MID_2')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    examTabType === 'MID_2' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Mid-2 Schedule
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Action Control Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-900/40 p-4 border border-dark-800 rounded-2xl">
+            <div>
+              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                {examTabCategory === 'MID'
+                  ? `${examTabType === 'MID_1' ? 'First Mid-Term (Mid-1)' : 'Second Mid-Term (Mid-2)'} Examination Timetable`
+                  : 'Semester End Examination Timetable (Staggered Day Rotation)'}
+              </h3>
+              <p className="text-xs text-dark-400 mt-0.5">
+                {examTabCategory === 'MID'
+                  ? 'Yr 1 (Slot 1), Yr 2 & 3 (Slot 2 Concurrent), Yr 4 (Slot 3) — Zero clashes across rooms & faculty'
+                  : 'Staggered 4-Day Rotation (Day 1: Yr 1, Day 2: Yr 2, Day 3: Yr 3, Day 4: Yr 4 Sem 1 only) — Skips Sundays & Public Holidays'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGenCategory(examTabCategory);
+                      setGenExamType(examTabType);
+                      setIsGenerateExamModalOpen(true);
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-lg transition-all ${
+                      examTabCategory === 'MID'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/20'
+                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/20'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Generate {examTabCategory === 'MID' ? 'Mid Exam' : 'Sem End Exam'} Timetable
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewExamType(examTabType);
+                      setIsAddExamModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-white text-xs font-bold transition-all"
+                  >
+                    <Plus className="w-4 h-4 text-emerald-400" />
+                    Add Session
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClearExams}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-400 text-xs font-bold transition-all"
+                  >
+                    Clear All
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={handleExportExamsCSV}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-white text-xs font-bold transition-all"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                Export CSV
+              </button>
+            </div>
+          </div>
+
+          {/* Rules Banner Summary */}
+          {examTabCategory === 'MID' ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs">
+                <span className="font-extrabold text-amber-400 block mb-0.5">Slot 1 (09:30 - 11:30 AM)</span>
+                <span className="text-dark-300 text-[11px]">All Departments <strong>1st Year</strong> students write Mid Exam.</span>
+              </div>
+              <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs">
+                <span className="font-extrabold text-indigo-400 block mb-0.5">Slot 2 (01:30 - 03:30 PM) — Concurrent</span>
+                <span className="text-dark-300 text-[11px]">All Departments <strong>2nd & 3rd Year</strong> students write Mid Exam together.</span>
+              </div>
+              <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs">
+                <span className="font-extrabold text-purple-400 block mb-0.5">Slot 3 (03:45 - 05:45 PM)</span>
+                <span className="text-dark-300 text-[11px]">All Departments <strong>4th Year</strong> students write Mid Exam.</span>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs">
+                <span className="font-extrabold text-indigo-400 block mb-0.5">Day 1 Rotation</span>
+                <span className="text-dark-300 text-[11px]">All Depts <strong>1st Year</strong> Sem End Exam.</span>
+              </div>
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs">
+                <span className="font-extrabold text-blue-400 block mb-0.5">Day 2 Rotation</span>
+                <span className="text-dark-300 text-[11px]">All Depts <strong>2nd Year</strong> Sem End Exam.</span>
+              </div>
+              <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs">
+                <span className="font-extrabold text-purple-400 block mb-0.5">Day 3 Rotation</span>
+                <span className="text-dark-300 text-[11px]">All Depts <strong>3rd Year</strong> Sem End Exam.</span>
+              </div>
+              <div className="p-3 bg-pink-500/10 border border-pink-500/20 rounded-xl text-xs">
+                <span className="font-extrabold text-pink-400 block mb-0.5">Day 4 Rotation (Sem 1 Only)</span>
+                <span className="text-dark-300 text-[11px]">All Depts <strong>4th Year</strong> Sem End Exam (Sem 1).</span>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Metrics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass-panel p-4 border border-dark-800 rounded-2xl">
+              <span className="text-xs text-dark-400 font-semibold block mb-1">Total Scheduled Sessions</span>
+              <span className="text-2xl font-black text-white">{exams.length}</span>
+            </div>
+            <div className="glass-panel p-4 border border-dark-800 rounded-2xl">
+              <span className="text-xs text-dark-400 font-semibold block mb-1">Target Exam Dates</span>
+              <span className="text-2xl font-black text-amber-400">
+                {new Set(exams.map(e => e.exam_date ? e.exam_date.substring(0, 10) : '')).size} Days
+              </span>
+            </div>
+            <div className="glass-panel p-4 border border-dark-800 rounded-2xl">
+              <span className="text-xs text-dark-400 font-semibold block mb-1">Active Lecture Halls</span>
+              <span className="text-2xl font-black text-indigo-400">
+                {new Set(exams.map(e => e.classroom_id)).size} Halls
+              </span>
+            </div>
+            <div className="glass-panel p-4 border border-dark-800 rounded-2xl">
+              <span className="text-xs text-dark-400 font-semibold block mb-1">Faculty Duty Assignments</span>
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-black text-emerald-400">
+                  {new Set(exams.filter(e => e.invigilator_id).map(e => e.invigilator_id)).size}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-extrabold flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" /> Shield Active
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Search & View Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-dark-900/40 p-3 border border-dark-850 rounded-xl">
+            <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+              <input
+                type="text"
+                value={examFilterSearch}
+                onChange={e => setExamFilterSearch(e.target.value)}
+                placeholder="Search subject code, room, invigilator..."
+                className="px-3.5 py-1.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50 w-full sm:w-56"
+              />
+
+              <select
+                value={examFilterDeptId}
+                onChange={e => setExamFilterDeptId(e.target.value)}
+                className="px-3 py-1.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+              >
+                <option value="ALL">All Departments</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.code} - {d.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={examFilterYear}
+                onChange={e => setExamFilterYear(e.target.value)}
+                className="px-3 py-1.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+              >
+                <option value="ALL">All Years</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1 p-1 bg-dark-950 border border-dark-800 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setExamViewMode('grid')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  examViewMode === 'grid' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+                }`}
+              >
+                Schedule Grid
+              </button>
+              <button
+                type="button"
+                onClick={() => setExamViewMode('roster')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  examViewMode === 'roster' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+                }`}
+              >
+                Faculty Duty Roster
+              </button>
+            </div>
+          </div>
+
+          {/* Exam Content Views */}
+          {(() => {
+            const filtered = exams.filter(ex => {
+              if (examTabCategory === 'MID' && !ex.exam_type?.includes('MID')) return false;
+              if (examTabCategory === 'SEM_END' && ex.exam_type !== 'SEM_END') return false;
+              if (examTabCategory === 'MID' && ex.exam_type !== examTabType) return false;
+
+              if (examFilterDeptId !== 'ALL' && ex.subject?.department_id !== examFilterDeptId && ex.subject?.department?.id !== examFilterDeptId) {
+                return false;
+              }
+              if (examFilterYear !== 'ALL' && ex.academic_year !== parseInt(examFilterYear)) {
+                return false;
+              }
+              if (examFilterSearch.trim()) {
+                const q = examFilterSearch.toLowerCase();
+                const matchSubj = ex.subject?.name?.toLowerCase().includes(q) || ex.subject?.code?.toLowerCase().includes(q);
+                const matchRoom = ex.classroom?.room_number?.toLowerCase().includes(q);
+                const matchInvig = ex.invigilator?.user?.full_name?.toLowerCase().includes(q);
+                return matchSubj || matchRoom || matchInvig;
+              }
+              return true;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div className="glass-panel p-12 text-center text-dark-500 border border-dark-800 rounded-2xl">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-25 text-amber-400" />
+                  <h4 className="text-base font-bold text-white mb-1">No Exam Sessions Found</h4>
+                  <p className="text-xs text-dark-400 max-w-md mx-auto mb-6">
+                    Click "Generate {examTabCategory === 'MID' ? 'Mid Exam' : 'Sem End Exam'} Timetable" to automatically schedule clash-free examinations and assign invigilators across departments.
+                  </p>
+                  {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGenCategory(examTabCategory);
+                        setGenExamType(examTabType);
+                        setIsGenerateExamModalOpen(true);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-lg shadow-amber-500/20"
+                    >
+                      Generate Exam Timetable Now
+                    </button>
+                  )}
+                </div>
+              );
+            }
+
+            if (examViewMode === 'roster') {
+              // Group by Invigilator Faculty
+              const invigMap = new Map<string, { faculty: FacultyProfile | null, assignments: ExamTimetableEntry[] }>();
+              filtered.forEach(ex => {
+                const key = ex.invigilator_id || 'UNASSIGNED';
+                if (!invigMap.has(key)) {
+                  invigMap.set(key, { faculty: ex.invigilator || null, assignments: [] });
+                }
+                invigMap.get(key)!.assignments.push(ex);
+              });
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from(invigMap.values()).map(({ faculty, assignments }) => (
+                    <div key={faculty?.id || 'unassigned'} className="glass-panel p-5 border border-dark-800 rounded-2xl flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between mb-3 border-b border-dark-850 pb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-extrabold text-xs">
+                              {faculty?.user?.full_name ? faculty.user.full_name.charAt(0) : '?'}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-extrabold text-white">{faculty?.user?.full_name || 'Unassigned Invigilators'}</h4>
+                              <span className="text-[10px] text-dark-400 font-semibold">{faculty?.designation || 'Faculty Member'}</span>
+                            </div>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/25">
+                            {assignments.length} Duties
                           </span>
                         </div>
-                        <span className="text-xs font-extrabold text-white bg-dark-900 px-2 py-1 rounded border border-dark-850 uppercase">
-                          Room {exam.classroom?.room_number}
+
+                        <div className="space-y-2">
+                          {assignments.map(a => (
+                            <div key={a.id} className="p-2.5 rounded-xl bg-dark-950/60 border border-dark-850 text-xs flex items-center justify-between">
+                              <div>
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-300">
+                                    Yr {a.academic_year}
+                                  </span>
+                                  <span className="text-[10px] text-amber-400 font-bold">
+                                    {a.exam_date ? new Date(a.exam_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' }) : 'TBA'}
+                                  </span>
+                                </div>
+                                <span className="font-extrabold text-white text-[11px] truncate block max-w-[140px]">{a.subject?.name}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-dark-900 text-dark-300 font-bold block border border-dark-800">
+                                  Slot {a.time_slot} ({a.time_slot === 1 ? '09:30 AM' : a.time_slot === 2 ? '01:30 PM' : '03:45 PM'})
+                                </span>
+                                <span className="text-[10px] font-black text-indigo-400 block mt-0.5">Hall {a.classroom?.room_number}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map(exam => (
+                  <div key={exam.id} className="glass-panel p-5 border border-dark-800 relative flex flex-col justify-between min-h-[175px] rounded-2xl hover:border-amber-500/30 transition-all group">
+                    {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
+                      <button
+                        onClick={() => handleDeleteExam(exam.id)}
+                        className="absolute top-3 right-3 p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete exam entry"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    <div>
+                      <div className="flex justify-between items-start mb-2 pr-6">
+                        <div>
+                          <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                            <span className="text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded bg-primary-500/10 text-primary-400 border border-primary-500/20">
+                              {exam.subject?.department?.code || 'DEPT'}
+                            </span>
+                            <span className="text-[9px] font-extrabold px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                              Year {exam.academic_year}
+                            </span>
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-dark-900 text-dark-300 border border-dark-800">
+                              {exam.exam_type}
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-extrabold text-white leading-tight">{exam.subject?.name}</h4>
+                          <span className="text-[10px] text-dark-400 font-semibold">{exam.subject?.code}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-3">
+                        <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {exam.exam_date ? new Date(exam.exam_date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'TBA'}
+                        </span>
+                        <span className="text-[10px] font-extrabold px-2 py-1 rounded-lg bg-dark-950 text-white border border-dark-800 uppercase">
+                          Slot {exam.time_slot} ({exam.time_slot === 1 ? '09:30-11:30' : exam.time_slot === 2 ? '13:30-15:30' : '15:45-17:45'})
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex justify-between items-center border-t border-dark-850/40 pt-4 mt-4 text-xs">
+                    <div className="flex justify-between items-center border-t border-dark-850/60 pt-3 mt-4 text-xs">
                       <div className="flex items-center gap-1.5 text-dark-300">
                         <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                        <span>Invigilator: <strong>{exam.invigilator?.user?.full_name || 'Unassigned'}</strong></span>
+                        <span className="truncate max-w-[170px]">Invigilator: <strong>{exam.invigilator?.user?.full_name || 'Unassigned'}</strong></span>
                       </div>
+                      <span className="text-xs font-black text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20">
+                        Hall {exam.classroom?.room_number}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       ) : (
         /* Settings Tab */
@@ -1094,6 +1682,282 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                 className="w-full mt-4 py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-primary-600 hover:from-indigo-500 hover:to-primary-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/15 disabled:opacity-50"
               >
                 {isSolving ? 'Solving 17 B.Tech rules constraint parameters...' : 'Run Master 17-Rules AI Solver'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Mid & Semester End Exam Automated Scheduler Generator Modal */}
+      {isGenerateExamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-lg p-6 relative border border-dark-800 rounded-2xl">
+            <button
+              onClick={() => setIsGenerateExamModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-lg font-extrabold text-white mb-1 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              {genCategory === 'MID' ? `Mid Exam Generator (${genExamType})` : `Semester End Exam Generator (Sem ${genSemester})`}
+            </h3>
+            <p className="text-xs text-dark-400 mb-6">
+              {genCategory === 'MID'
+                ? 'Schedules Mid Exams: 1st Year (Slot 1), 2nd & 3rd Year (Slot 2 Concurrent), 4th Year (Slot 3).'
+                : 'Schedules Semester End Exams using Staggered 4-Day Rotation (Day 1: Yr 1, Day 2: Yr 2, Day 3: Yr 3, Day 4: Yr 4 Sem 1 only), skipping Sundays and Public Holidays.'}
+            </p>
+
+            <form onSubmit={handleGenerateExams} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Exam Category</label>
+                  <select
+                    value={genCategory}
+                    onChange={e => {
+                      const cat = e.target.value as 'MID' | 'SEM_END';
+                      setGenCategory(cat);
+                      setGenExamType(cat === 'MID' ? 'MID_1' : 'SEM_END');
+                    }}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+                  >
+                    <option value="MID">Mid Examinations</option>
+                    <option value="SEM_END">Semester End Examinations</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Exam Schedule Type</label>
+                  <select
+                    value={genExamType}
+                    onChange={e => setGenExamType(e.target.value as 'MID_1' | 'MID_2' | 'SEM_END')}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+                  >
+                    {genCategory === 'MID' ? (
+                      <>
+                        <option value="MID_1">Mid-1 Exam</option>
+                        <option value="MID_2">Mid-2 Exam</option>
+                      </>
+                    ) : (
+                      <option value="SEM_END">Semester End Exam</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Exam Start Date</label>
+                  <input
+                    type="date"
+                    value={genStartDate}
+                    onChange={e => setGenStartDate(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+                  />
+                  <p className="text-[10px] text-dark-500 mt-1">Blank = Next Monday.</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Academic Semester</label>
+                  <select
+                    value={genSemester}
+                    onChange={e => setGenSemester(parseInt(e.target.value) || 1)}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+                  >
+                    <option value={1}>Semester 1 (Odd Sem)</option>
+                    <option value={2}>Semester 2 (Even Sem)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Target Department Scope</label>
+                <select
+                  value={genTargetDeptId}
+                  onChange={e => setGenTargetDeptId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+                >
+                  <option value="ALL">All Departments & Branches</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.code} - {d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 bg-dark-950/60 border border-dark-850 rounded-xl text-xs space-y-1.5 text-dark-300">
+                <p className="font-bold text-amber-400 flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Engine Guarantee
+                </p>
+                {genCategory === 'MID' ? (
+                  <>
+                    <p>• <strong>Yr 1</strong>: Slot 1 (09:30 AM)</p>
+                    <p>• <strong>Yr 2 & 3</strong>: Slot 2 (01:30 PM) Concurrent</p>
+                    <p>• <strong>Yr 4</strong>: Slot 3 (03:45 PM)</p>
+                  </>
+                ) : (
+                  <>
+                    <p>• <strong>Rotation</strong>: Day 1 (Yr 1), Day 2 (Yr 2), Day 3 (Yr 3), Day 4 (Yr 4 Sem 1)</p>
+                    <p>• <strong>Holidays Guard</strong>: Automatically skips Sundays & Academic Holidays</p>
+                  </>
+                )}
+              </div>
+
+              {genSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{genSuccess}</span>
+                </div>
+              )}
+
+              {genError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>{genError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isGeneratingExams}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+              >
+                {isGeneratingExams ? 'Generating Clash-Free Timetable...' : 'Generate Exam Timetable'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Exam Session Modal */}
+      {isAddExamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-md p-6 relative border border-dark-800 rounded-2xl">
+            <button
+              onClick={() => setIsAddExamModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-lg font-bold text-white mb-2">Add Manual Exam Session</h3>
+            <p className="text-xs text-dark-400 mb-6">Schedule an examination session with real-time room and invigilator clash protection.</p>
+
+            <form onSubmit={handleCreateExamEntry} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Exam Type</label>
+                  <select
+                    value={newExamType}
+                    onChange={e => setNewExamType(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                  >
+                    <option value="MID_1">Mid-1 Exam</option>
+                    <option value="MID_2">Mid-2 Exam</option>
+                    <option value="SEM_END">Semester End Exam</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Academic Year</label>
+                  <select
+                    value={newAcademicYear}
+                    onChange={e => setNewAcademicYear(parseInt(e.target.value) || 1)}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                  >
+                    <option value={1}>1st Year</option>
+                    <option value={2}>2nd Year</option>
+                    <option value={3}>3rd Year</option>
+                    <option value={4}>4th Year</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Academic Semester</label>
+                <select
+                  value={newSemester}
+                  onChange={e => setNewSemester(parseInt(e.target.value) || 1)}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                >
+                  <option value={1}>Semester 1 (Odd Sem)</option>
+                  <option value={2}>Semester 2 (Even Sem)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Subject Course</label>
+                <select
+                  value={newExamSubjectId}
+                  onChange={e => setNewExamSubjectId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                >
+                  <option value="">Select Subject</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code}) - {s.subject_type}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Exam Date</label>
+                  <input
+                    type="date"
+                    value={newExamDate}
+                    onChange={e => setNewExamDate(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Time Slot</label>
+                  <select
+                    value={newExamTimeSlot}
+                    onChange={e => setNewExamTimeSlot(parseInt(e.target.value) || 1)}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                  >
+                    <option value={1}>Session 1: Morning (09:30 AM - 11:30 AM)</option>
+                    <option value={2}>Session 2: Afternoon (01:00 PM - 03:00 PM)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Exam Classroom Hall</label>
+                <select
+                  value={newExamClassroomId}
+                  onChange={e => setNewExamClassroomId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                >
+                  <option value="">Select Room</option>
+                  {classrooms.map(c => <option key={c.id} value={c.id}>{c.room_number} ({c.room_type})</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Assigned Invigilator Faculty</label>
+                <select
+                  value={newExamInvigilatorId}
+                  onChange={e => setNewExamInvigilatorId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
+                >
+                  <option value="">Unassigned / Select Faculty</option>
+                  {facultyProfiles.map(f => <option key={f.id} value={f.id}>{f.user?.full_name || f.employee_id} {f.is_hod ? '(HOD)' : ''}</option>)}
+                </select>
+              </div>
+
+              {newExamError && (
+                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 flex gap-2 text-xs text-red-400 font-semibold mt-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>{newExamError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSavingExam}
+                className="w-full mt-4 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold shadow-lg shadow-amber-500/15 disabled:opacity-50"
+              >
+                {isSavingExam ? 'Saving Exam Session...' : 'Save Exam Session'}
               </button>
             </form>
           </div>

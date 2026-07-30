@@ -85,6 +85,9 @@ class TimetableEntryResponse(BaseModel):
 
 # --- Exam Timetable Schemas ---
 class ExamTimetableEntryCreate(BaseModel):
+    exam_type: str = Field("MID_1", description="MID_1, MID_2, SEM_END")
+    academic_year: int = Field(1, ge=1, le=4)
+    semester: int = Field(1, ge=1, le=2)
     exam_date: datetime
     time_slot: int
     subject_id: str
@@ -93,6 +96,9 @@ class ExamTimetableEntryCreate(BaseModel):
 
 class ExamTimetableEntryResponse(BaseModel):
     id: str
+    exam_type: str
+    academic_year: int
+    semester: int
     exam_date: datetime
     time_slot: int
     subject_id: str
@@ -106,3 +112,12 @@ class ExamTimetableEntryResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+class GenerateExamsRequest(BaseModel):
+    category: str = Field("MID", description="MID or SEM_END")
+    exam_type: str = Field("MID_1", description="MID_1, MID_2, SEM_END")
+    start_date: Optional[datetime] = Field(None, description="Start date for the exam schedule")
+    semester: int = Field(1, ge=1, le=2, description="Target Semester (1 or 2)")
+    department_ids: Optional[List[str]] = Field(None, description="Target department IDs (null or empty for all)")
+    academic_year: Optional[int] = Field(None, description="Target academic year (1-4)")
+

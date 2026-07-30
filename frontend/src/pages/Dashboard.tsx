@@ -7,6 +7,7 @@ import { FacultyAvailabilityView } from './FacultyAvailabilityView';
 import { LeaveManagerView } from './LeaveManagerView';
 import { ClassroomManagerView } from './ClassroomManagerView';
 import { TimetableManagerView } from './TimetableManagerView';
+import { ExamTimetableManagerView } from './ExamTimetableManagerView';
 import { AIDecisionCenterView } from './AIDecisionCenterView';
 import { AcademicAnalyticsView } from './AcademicAnalyticsView';
 import { FacultyWeeklyTimetable } from './FacultyWeeklyTimetable';
@@ -18,7 +19,8 @@ import type { DailyBulletin } from '../services/leaveService';
 import { academicCalendarService } from '../services/academicCalendarService';
 import type { AcademicCalendar } from '../services/academicCalendarService';
 
-type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'ai_decision_center' | 'academic_analytics' | 'faculty_weekly_timetable' | 'faculty_analytics_records' | 'dept_data_import' | 'academic_calendar';
+type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'exam_timetable_ops' | 'ai_decision_center' | 'academic_analytics' | 'faculty_weekly_timetable' | 'faculty_analytics_records' | 'dept_data_import' | 'academic_calendar';
+
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -140,6 +142,17 @@ export const Dashboard: React.FC = () => {
       onClick: () => setActiveView('timetable_ops')
     },
     { 
+      id: 'exam_timetable_ops',
+      name: 'Exam Timetable Preparation', 
+      desc: 'Directly schedule Mid & Semester End Examinations with automatic Academic Calendar sync, holiday protection, and invigilator duty roster.', 
+      icon: Calendar, 
+      color: 'from-amber-500 to-red-500', 
+      active: true,
+      roles: ['HOD', 'ADMIN', 'DEAN'],
+      onClick: () => setActiveView('exam_timetable_ops')
+    },
+
+    { 
       id: 'ai_decision_center',
       name: 'AI Assistant', 
       desc: 'Ask questions about workload, leave substitutions, room allocations, and schedules.', 
@@ -225,6 +238,26 @@ export const Dashboard: React.FC = () => {
                   Dept & Subjects
                 </button>
                 <button
+                  onClick={() => setActiveView('timetable_ops')}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeView === 'timetable_ops' 
+                      ? 'bg-primary-500 text-white shadow-md' 
+                      : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Weekly Timetable
+                </button>
+                <button
+                  onClick={() => setActiveView('exam_timetable_ops')}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    activeView === 'exam_timetable_ops' 
+                      ? 'bg-amber-500 text-white shadow-md' 
+                      : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Exam Preparation
+                </button>
+                <button
                   onClick={() => setActiveView('academic_analytics')}
                   className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
                     activeView === 'academic_analytics' 
@@ -235,6 +268,7 @@ export const Dashboard: React.FC = () => {
                   Academic Analytics
                 </button>
               </div>
+
             )}
 
             <div className="text-right hidden sm:block">
@@ -360,6 +394,13 @@ export const Dashboard: React.FC = () => {
           onBack={() => setActiveView('dashboard')}
         />
       )}
+
+      {activeView === 'exam_timetable_ops' && user?.role !== 'FACULTY' && (
+        <ExamTimetableManagerView 
+          onBack={() => setActiveView('dashboard')}
+        />
+      )}
+
 
       {activeView === 'ai_decision_center' && (
         <AIDecisionCenterView 

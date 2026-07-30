@@ -1,9 +1,11 @@
 import logging
 import json
+import csv
+import io
 from typing import List, Optional, Dict, Any, Set
 from datetime import datetime
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -12,12 +14,11 @@ from app.core.database import get_db
 from app.models.user import User, UserRole
 from app.models.faculty import Department, Subject, FacultyProfile, FacultyAvailability, SectionConfig, section_mentors, faculty_subjects
 from app.models.classroom import Classroom
-from app.models.timetable import SchedulingRule, SubjectSchedulingRule, TimetableEntry, ExamTimetableEntry
+from app.models.timetable import SchedulingRule, SubjectSchedulingRule, TimetableEntry
 from app.schemas.timetable import (
     SchedulingRuleCreate, SchedulingRuleResponse,
     SubjectSchedulingRuleCreate, SubjectSchedulingRuleResponse,
-    TimetableEntryCreate, TimetableEntryResponse,
-    ExamTimetableEntryCreate, ExamTimetableEntryResponse
+    TimetableEntryCreate, TimetableEntryResponse
 )
 from app.api.deps import get_current_user
 
@@ -194,6 +195,38 @@ async def create_timetable_entry(
 ):
     if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized to edit timetable.")
+
+    # Section Clash Check
+    sec_stmt = select(TimetableEntry).where(
+        TimetableEntry.section == entry_in.section,
+        TimetableEntry.day_of_week == entry_in.day_of_week,
+        TimetableEntry.time_slot == entry_in.time_slot
+    )
+    sec_res = await db.execute(sec_stmt)
+    if sec_res.scalars().first():
+        raise HTTPException(status_code=400, detail="Section Clash: This section already has a class scheduled at this day and time slot.")
+
+    # Faculty Clash Check
+    if entry_in.faculty_id:
+        fac_stmt = select(TimetableEntry).where(
+            TimetableEntry.faculty_id == entry_in.faculty_id,
+            TimetableEntry.day_of_week == entry_in.day_of_week,
+            TimetableEntry.time_slot == entry_in.time_slot
+        )
+        fac_res = await db.execute(fac_stmt)
+        if fac_res.scalars().first():
+            raise HTTPException(status_code=400, detail="Faculty Clash: Faculty is already assigned to another class at this time slot.")
+
+    # Classroom Clash Check
+    if entry_in.classroom_id:
+        room_stmt = select(TimetableEntry).where(
+            TimetableEntry.classroom_id == entry_in.classroom_id,
+            TimetableEntry.day_of_week == entry_in.day_of_week,
+            TimetableEntry.time_slot == entry_in.time_slot
+        )
+        room_res = await db.execute(room_stmt)
+        if room_res.scalars().first():
+            raise HTTPException(status_code=400, detail="Classroom Clash: Classroom is already occupied at this time slot.")
 
     new_entry = TimetableEntry(
         department_id=entry_in.department_id,
@@ -429,6 +462,12 @@ async def generate_master_timetable(
                         "section": sec, "subject_id": s.id, "type": "THEORY",
                         "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
                     })
+                if (spec.labs_per_week or 0) > 0:
+                    for _ in range(spec.labs_per_week):
+                        tasks.append({
+                            "section": sec, "subject_id": s.id, "type": "LAB",
+                            "duration": spec.lab_duration or 3, "year": sec_yr, "dept_id": sec_dept_id
+                        })
 
     type_priority = {"ELECTIVE": 0, "DUAL_LAB": 1, "LAB": 2, "COUNSELLING": 3, "SPORTS_LIBRARY": 4, "THEORY": 5}
     tasks.sort(key=lambda t: (type_priority.get(t["type"], 9), t["section"]))
@@ -485,7 +524,7 @@ async def generate_master_timetable(
         subj_id = task["subject_id"]
         task_type = task["type"]
 
-        lunch_slot = 4 if year == 1 else 5
+        lunch_slot = rules_map[dept_id].lunch_slot if (dept_id in rules_map and rules_map[dept_id].lunch_slot) else (4 if year == 1 else 5)
         weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
         for day in weekdays:
@@ -498,7 +537,7 @@ async def generate_master_timetable(
             for start_slot in range(1, max_day_slots - duration + 2):
                 end_slot = start_slot + duration - 1
 
-                crosses_lunch = (start_slot <= 3 and end_slot >= 4) if year == 1 else (start_slot <= 4 and end_slot >= 5)
+                crosses_lunch = start_slot <= lunch_slot <= end_slot
                 if crosses_lunch:
                     continue
 
@@ -506,14 +545,14 @@ async def generate_master_timetable(
                 is_afternoon = start_slot > lunch_slot
 
                 if task_type in ["LAB", "DUAL_LAB"] and duration == 3:
-                    if year == 1:
-                        # 1st Year: Lunch is slot 4. Morning lab is slots 1-3. Afternoon lab is slots 5-7.
+                    if lunch_slot == 4:
+                        # Lunch is slot 4. Morning lab is strictly slots 1-3. Afternoon lab is strictly slots 5-7.
                         if is_morning and (start_slot != 1 or end_slot != 3):
                             continue
                         if is_afternoon and (start_slot != 5 or end_slot != 7):
                             continue
                     else:
-                        # 2nd, 3rd, 4th Year: Lunch is slot 5. Morning lab is strictly slots 2-4. Afternoon lab is strictly slots 5-7.
+                        # Lunch is slot 5. Morning lab is strictly slots 2-4. Afternoon lab is strictly slots 5-7.
                         if is_morning and start_slot != 2:
                             continue
                         if is_afternoon and start_slot != 5:
@@ -920,89 +959,4 @@ async def generate_master_timetable(
     res = await db.execute(stmt)
     return res.scalars().all()
 
-# ==========================================
-# 5. EXAM TIMETABLE & INVIGILATOR SHIELDS
-# ==========================================
 
-@router.get("/timetable/exams", response_model=List[ExamTimetableEntryResponse])
-async def list_exam_schedule(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    stmt = select(ExamTimetableEntry).order_by(ExamTimetableEntry.exam_date, ExamTimetableEntry.time_slot)
-    res = await db.execute(stmt)
-    return res.scalars().all()
-
-@router.post("/timetable/exams", response_model=ExamTimetableEntryResponse)
-async def create_exam_entry(
-    exam_in: ExamTimetableEntryCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Not authorized to edit exam schedules.")
-
-    if exam_in.exam_date.tzinfo:
-        exam_in.exam_date = exam_in.exam_date.replace(tzinfo=None)
-
-    room_stmt = (
-        select(ExamTimetableEntry)
-        .where(
-            ExamTimetableEntry.classroom_id == exam_in.classroom_id,
-            ExamTimetableEntry.exam_date == exam_in.exam_date,
-            ExamTimetableEntry.time_slot == exam_in.time_slot
-        )
-    )
-    room_res = await db.execute(room_stmt)
-    if room_res.scalars().first():
-        raise HTTPException(
-            status_code=400,
-            detail="Classroom is already scheduled for another exam on this date and time slot."
-        )
-
-    if exam_in.invigilator_id:
-        invig_stmt = (
-            select(ExamTimetableEntry)
-            .where(
-                ExamTimetableEntry.invigilator_id == exam_in.invigilator_id,
-                ExamTimetableEntry.exam_date == exam_in.exam_date,
-                ExamTimetableEntry.time_slot == exam_in.time_slot
-            )
-        )
-        invig_res = await db.execute(invig_stmt)
-        if invig_res.scalars().first():
-            raise HTTPException(
-                status_code=400,
-                detail="Invigilator Collision: Faculty member is already assigned to invigilate another exam hall at this slot."
-            )
-
-    new_exam = ExamTimetableEntry(
-        exam_date=exam_in.exam_date,
-        time_slot=exam_in.time_slot,
-        subject_id=exam_in.subject_id,
-        classroom_id=exam_in.classroom_id,
-        invigilator_id=exam_in.invigilator_id
-    )
-    db.add(new_exam)
-    await db.commit()
-    await db.refresh(new_exam)
-    return new_exam
-
-@router.delete("/timetable/exams/{id}")
-async def delete_exam_entry(
-    id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Not authorized to edit exam schedules.")
-
-    stmt = select(ExamTimetableEntry).where(ExamTimetableEntry.id == id)
-    res = await db.execute(stmt)
-    exam = res.scalars().first()
-    if not exam:
-        raise HTTPException(status_code=404, detail="Exam entry not found.")
-
-    await db.delete(exam)
-    await db.commit()
-    return {"message": "Exam entry deleted successfully."}

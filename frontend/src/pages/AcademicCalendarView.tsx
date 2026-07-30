@@ -235,11 +235,13 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
   };
 
   const handleDownloadEventsTemplate = () => {
-    const csvContent = "S.No,Date,Occasion / Reason for Holiday\n" +
-      "1,2026-08-15,Independence Day\n" +
-      "2,2026-10-19 to 2026-10-24,Dussehra Vacation\n" +
-      "3,13-01-2027 to 16-01-2027,Sankranti Holidays\n" +
-      "4,2027-01-26,Republic Day\n";
+    const csvContent = "Tentative List of Holidays\n" +
+      "S. No.,Date,Occasion\n" +
+      "1,16-06-2026,Moharram\n" +
+      "2,15-08-2026,Independence Day\n" +
+      "3,19-10-2026 to 21-10-2026,Dussehra Holidays\n" +
+      "4,11-01-2027 to 16-01-2027,Pongal Holidays\n" +
+      "5,26-01-2027,Republic Day\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -268,7 +270,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
     document.body.removeChild(link);
   };
 
-  const handlePreviewFile = async (fileToPreview: File, calendarId?: string, importType: string = 'CALENDAR_SCHEDULE') => {
+  const handlePreviewFile = async (fileToPreview: File, calendarId?: string, importType: string = 'HOLIDAYS_DB') => {
     setIsPreviewLoading(true);
     setImportError(null);
     setEventImportError(null);
@@ -290,11 +292,13 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
   };
 
   const handleDownloadHolidaysTemplate = () => {
-    const csvContent = "S.No,Date,Occasion / Reason for Holiday\n" +
-      "1,2026-08-15,Independence Day\n" +
-      "2,2026-10-19 to 2026-10-24,Dussehra Vacation\n" +
-      "3,13-01-2027 to 16-01-2027,Sankranti Holidays\n" +
-      "4,2027-01-26,Republic Day\n";
+    const csvContent = "Tentative List of Holidays\n" +
+      "S. No.,Date,Occasion\n" +
+      "1,16-06-2026,Moharram\n" +
+      "2,15-08-2026,Independence Day\n" +
+      "3,19-10-2026 to 21-10-2026,Dussehra Holidays\n" +
+      "4,11-01-2027 to 16-01-2027,Pongal Holidays\n" +
+      "5,26-01-2027,Republic Day\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1535,14 +1539,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                       const f = e.target.files?.[0] || null;
                       setSelectedFile(f);
                       setPreviewData(null);
-                      if (f) handlePreviewFile(f);
+                      if (f) handlePreviewFile(f, undefined, 'CALENDAR_SCHEDULE');
                     }}
                     className="w-full px-4 py-3 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-extrabold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer"
                   />
                   {selectedFile && (
                     <button
                       type="button"
-                      onClick={() => handlePreviewFile(selectedFile)}
+                      onClick={() => handlePreviewFile(selectedFile, undefined, 'CALENDAR_SCHEDULE')}
                       disabled={isPreviewLoading}
                       className="px-4 py-2.5 rounded-xl bg-dark-900 border border-dark-750 text-indigo-300 hover:text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
                     >
@@ -1820,10 +1824,12 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 </span>
               </div>
               <div className="bg-dark-950/85 p-3 rounded-lg overflow-x-auto font-mono text-[10px] text-dark-200 border border-dark-850 space-y-1">
-                <p className="text-purple-400">S.No, Date, Occasion / Reason for Holiday</p>
-                <p className="text-dark-300">1, 2026-08-15, Independence Day</p>
-                <p className="text-dark-300">2, 2026-10-19 to 2026-10-24, Dussehra Vacation</p>
-                <p className="text-dark-300">3, 13-01-2027 to 16-01-2027, Sankranti Vacation</p>
+                <p className="text-purple-400">Tentative List of Holidays</p>
+                <p className="text-purple-400">S. No., Date, Occasion</p>
+                <p className="text-dark-300">1, 16-06-2026, Moharram</p>
+                <p className="text-dark-300">2, 15-08-2026, Independence Day</p>
+                <p className="text-dark-300">3, 19-10-2026 to 21-10-2026, Dussehra Holidays</p>
+                <p className="text-dark-300">4, 11-01-2027 to 16-01-2027, Pongal Holidays</p>
               </div>
             </div>
 
@@ -1839,14 +1845,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                       const f = e.target.files?.[0] || null;
                       setSelectedEventFile(f);
                       setPreviewData(null);
-                      if (f) handlePreviewFile(f, selectedCalendarForEvent || undefined);
+                      if (f) handlePreviewFile(f, selectedCalendarForEvent || undefined, 'HOLIDAYS_DB');
                     }}
                     className="w-full px-4 py-3 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-purple-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-extrabold file:bg-purple-600 file:text-white hover:file:bg-purple-500 file:cursor-pointer"
                   />
                   {selectedEventFile && (
                     <button
                       type="button"
-                      onClick={() => handlePreviewFile(selectedEventFile, selectedCalendarForEvent || undefined)}
+                      onClick={() => handlePreviewFile(selectedEventFile, selectedCalendarForEvent || undefined, 'HOLIDAYS_DB')}
                       disabled={isPreviewLoading}
                       className="px-4 py-2.5 rounded-xl bg-dark-900 border border-dark-750 text-purple-300 hover:text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
                     >

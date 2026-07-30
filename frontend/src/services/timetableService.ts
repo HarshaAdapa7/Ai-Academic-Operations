@@ -140,6 +140,11 @@ export const timetableService = {
     mid1_start_date: string | null;
     mid2_start_date: string | null;
     end_sem_exam_start_date: string | null;
+    by_year?: Record<string, {
+      mid1_start_date: string | null;
+      mid2_start_date: string | null;
+      end_sem_exam_start_date: string | null;
+    }>;
   }> {
     const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`);
     return res.data;

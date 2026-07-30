@@ -94,8 +94,10 @@ export const facultyService = {
   },
 
   // Subjects
-  async getSubjects(departmentId?: string): Promise<Subject[]> {
-    const params = departmentId ? { department_id: departmentId } : {};
+  async getSubjects(departmentId?: string, academicYear?: number): Promise<Subject[]> {
+    const params: any = {};
+    if (departmentId) params.department_id = departmentId;
+    if (academicYear) params.academic_year = academicYear;
     const res = await axios.get(`${API_URL}/subjects`, { params });
     return res.data;
   },

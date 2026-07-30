@@ -8,10 +8,11 @@ import { importService } from '../services/importService';
 import type { Department, Subject, FacultyProfile } from '../services/facultyService';
 import type { Classroom } from '../services/classroomService';
 import type { ExamTimetableEntry } from '../services/timetableService';
+import { PrintableExamTimetableTemplate } from '../components/PrintableExamTimetableTemplate';
 import { 
   Calendar, Sparkles, ShieldCheck, FileSpreadsheet, Plus, X, 
   AlertTriangle, CheckCircle2, ArrowLeft, Upload, UploadCloud,
-  Trash2, Table, Clock, MapPin, UserCheck
+  Trash2, Table, Printer
 } from 'lucide-react';
 
 interface ExamTimetableManagerViewProps {
@@ -36,6 +37,11 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
     mid1_start_date: string | null;
     mid2_start_date: string | null;
     end_sem_exam_start_date: string | null;
+    by_year?: Record<string, {
+      mid1_start_date: string | null;
+      mid2_start_date: string | null;
+      end_sem_exam_start_date: string | null;
+    }>;
   } | null>(null);
 
   // Tabs & Modes
@@ -79,6 +85,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
   const [examFilterDeptId, setExamFilterDeptId] = useState('ALL');
   const [examFilterYear, setExamFilterYear] = useState('ALL');
   const [examFilterSearch, setExamFilterSearch] = useState('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   const handleUploadScheduleFile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,6 +146,41 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
     loadBaseData();
   }, []);
 
+  const [directStartDate, setDirectStartDate] = useState('');
+
+  const getDefaultExamDate = (type: 'MID_1' | 'MID_2' | 'SEM_END', year?: string) => {
+    if (calExamDates) {
+      if (calExamDates.by_year) {
+        const yrKey = year && year !== 'ALL' ? year : (examFilterYear !== 'ALL' ? examFilterYear : '4');
+        const yrData = calExamDates.by_year[yrKey] || calExamDates.by_year['4'] || calExamDates.by_year['3'];
+        if (yrData) {
+          if (type === 'MID_1' && yrData.mid1_start_date) return yrData.mid1_start_date.split('T')[0];
+          if (type === 'MID_2' && yrData.mid2_start_date) return yrData.mid2_start_date.split('T')[0];
+          if (type === 'SEM_END' && yrData.end_sem_exam_start_date) return yrData.end_sem_exam_start_date.split('T')[0];
+        }
+      }
+      if (type === 'MID_1' && calExamDates.mid1_start_date) return calExamDates.mid1_start_date.split('T')[0];
+      if (type === 'MID_2' && calExamDates.mid2_start_date) return calExamDates.mid2_start_date.split('T')[0];
+      if (type === 'SEM_END' && calExamDates.end_sem_exam_start_date) return calExamDates.end_sem_exam_start_date.split('T')[0];
+    }
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilNextMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+    const nextMon = new Date();
+    nextMon.setDate(today.getDate() + daysUntilNextMonday);
+    return nextMon.toISOString().split('T')[0];
+  };
+
+  useEffect(() => {
+    setDirectStartDate(getDefaultExamDate(examTabType));
+  }, [examTabType, calExamDates]);
+
+  useEffect(() => {
+    if (isGenerateExamModalOpen) {
+      setGenStartDate(getDefaultExamDate(genExamType));
+    }
+  }, [genExamType, calExamDates, isGenerateExamModalOpen]);
+
   const handleGenerateExams = async (e: React.FormEvent) => {
     e.preventDefault();
     setGenError('');
@@ -146,7 +188,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
     setIsGeneratingExams(true);
     try {
       const targetDeptIds = genTargetDeptId === 'ALL' ? undefined : [genTargetDeptId];
-      const startIso = genStartDate ? new Date(genStartDate).toISOString() : undefined;
+      const startIso = genStartDate ? `${genStartDate}T00:00:00` : undefined;
       const res = await timetableService.generateExamSchedule({
         category: genCategory,
         exam_type: genExamType,
@@ -154,9 +196,11 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
         semester: genSemester,
         department_ids: targetDeptIds
       });
+      setExamTabCategory(genCategory);
+      setExamTabType(genExamType);
       setExams(res);
-      const label = genCategory === 'MID' ? `Mid Exam (${genExamType})` : `Semester ${genSemester} End Exam`;
-      setGenSuccess(`Successfully generated ${res.length} ${label} sessions directly from uploaded subjects & calendar dates with zero clashes!`);
+      const label = genCategory === 'MID' ? `Mid Exam (${genExamType.replace('_', ' ')})` : `Semester ${genSemester} End Exam`;
+      setGenSuccess(`Successfully generated ${res.length} ${label} sessions directly from uploaded subjects & start date!`);
       setTimeout(() => {
         setIsGenerateExamModalOpen(false);
         setGenSuccess('');
@@ -171,13 +215,15 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
   const handleDirectGenerate = async () => {
     try {
       setIsLoading(true);
+      const targetDeptIds = examFilterDeptId && examFilterDeptId !== 'ALL' ? [examFilterDeptId] : undefined;
       const res = await timetableService.generateExamSchedule({
         category: examTabCategory,
         exam_type: examTabType,
-        semester: 1
+        semester: 1,
+        department_ids: targetDeptIds
       });
       setExams(res);
-      alert(`Successfully generated ${res.length} exam sessions directly from uploaded subjects and calendar dates!`);
+      alert(`Successfully generated ${res.length} exam sessions dynamically using year-specific Academic Calendar DB dates (4th Year starting Sept 1, 2nd/3rd Year starting Aug 20)!`);
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Direct exam generation failed.');
     } finally {
@@ -302,47 +348,6 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
         </div>
       </div>
 
-      {/* Direct 1-Click Auto-Generator Info Banner */}
-      <div className="glass-panel p-5 border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-dark-900 to-indigo-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-            <Sparkles className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-              Direct One-Click Exam Timetable Generator
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-bold">
-                Calendar & Subject Master Sync Active
-              </span>
-            </h4>
-            <p className="text-xs text-dark-300 mt-0.5">
-              Reads uploaded subjects across all 4 years and auto-detects examination start dates directly from the uploaded Academic Calendar.
-            </p>
-            {calExamDates && (
-              <div className="flex items-center gap-3 mt-2 text-[11px] text-amber-300/90 font-medium flex-wrap">
-                <span>📅 <strong>Mid-1 Start</strong>: {calExamDates.mid1_start_date ? new Date(calExamDates.mid1_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
-                <span>•</span>
-                <span>📅 <strong>Mid-2 Start</strong>: {calExamDates.mid2_start_date ? new Date(calExamDates.mid2_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
-                <span>•</span>
-                <span>📅 <strong>Sem End Start</strong>: {calExamDates.end_sem_exam_start_date ? new Date(calExamDates.end_sem_exam_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
-          <button
-            type="button"
-            onClick={handleDirectGenerate}
-            disabled={isLoading}
-            className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-black shadow-lg shadow-amber-500/25 transition-all shrink-0 flex items-center gap-2 disabled:opacity-50"
-          >
-            <Sparkles className="w-4 h-4" />
-            Direct Generate {examTabCategory === 'MID' ? `Mid Exam (${examTabType})` : 'Semester End Exam'}
-          </button>
-        )}
-      </div>
-
       {/* Main Examination View Content */}
       <div className="space-y-6">
         {/* Top Category Tabs: Mid Exams vs Semester End Exams */}
@@ -425,6 +430,27 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
           <div className="flex items-center gap-2.5 flex-wrap">
             {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
               <>
+                <div className="flex items-center gap-1.5 bg-dark-950 border border-amber-500/40 rounded-xl px-2.5 py-1">
+                  <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <input
+                    type="date"
+                    value={directStartDate}
+                    onChange={e => setDirectStartDate(e.target.value)}
+                    className="bg-transparent text-white text-xs outline-none font-semibold cursor-pointer"
+                    title="Exam Start Date"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleDirectGenerate}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-extrabold shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate Timetable
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setIsUploadModalOpen(true)}
@@ -432,23 +458,6 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                 >
                   <Upload className="w-4 h-4" />
                   Upload File
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGenCategory(examTabCategory);
-                    setGenExamType(examTabType);
-                    setIsGenerateExamModalOpen(true);
-                  }}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-lg transition-all ${
-                    examTabCategory === 'MID'
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-500/20'
-                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/20'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Wizard Generator
                 </button>
 
                 <button
@@ -466,9 +475,11 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                 <button
                   type="button"
                   onClick={handleClearExams}
-                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-400 text-xs font-bold transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-white text-xs font-bold transition-all"
+                  title="Clear entries for current active type"
                 >
-                  Clear Current
+                  <Trash2 className="w-4 h-4 text-amber-400" />
+                  Clear Type
                 </button>
 
                 <button
@@ -490,6 +501,15 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
               Export CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsPrintModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-500/20 transition-all"
+            >
+              <Printer className="w-4 h-4" />
+              Print {examTabCategory === 'MID' ? 'Mid Exam' : 'Sem End Exam'} Table
             </button>
           </div>
         </div>
@@ -607,7 +627,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
 
           if (examViewMode === 'table') {
             const sorted = [...filtered].sort((a, b) => {
-              const yearDiff = (a.academic_year || 1) - (b.academic_year || 1);
+              const yearDiff = (b.academic_year || 1) - (a.academic_year || 1);
               if (yearDiff !== 0) return yearDiff;
               const dateA = a.exam_date ? new Date(a.exam_date).getTime() : 0;
               const dateB = b.exam_date ? new Date(b.exam_date).getTime() : 0;
@@ -700,7 +720,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                                     <tr key={ex.id} className="hover:bg-dark-850/40 transition-colors">
                                       <td className="py-3 px-4 whitespace-nowrap">
                                         <span className="font-extrabold text-amber-400 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px]">
-                                          Slot {ex.time_slot} ({ex.time_slot === 1 ? '09:30 AM - 11:30 AM' : ex.time_slot === 2 ? '01:00 PM - 03:00 PM' : '03:45 PM - 05:45 PM'})
+                                          Slot {ex.time_slot} ({examTabCategory === 'SEM_END' ? (ex.time_slot === 1 ? '09:30 AM - 12:30 PM (3 Hours)' : '01:30 PM - 04:30 PM (3 Hours)') : (ex.time_slot === 1 ? '09:30 AM - 11:30 AM' : '01:00 PM - 03:00 PM')})
                                         </span>
                                       </td>
                                       <td className="py-3 px-4 whitespace-nowrap">
@@ -891,11 +911,40 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
               <Sparkles className="w-5 h-5 text-amber-400" />
               {genCategory === 'MID' ? `Mid Exam Generator (${genExamType})` : `Semester End Exam Generator (Sem ${genSemester})`}
             </h3>
-            <p className="text-xs text-dark-400 mb-6">
+            <p className="text-xs text-dark-400 mb-4">
               {genCategory === 'MID'
-                ? 'Schedules Mid Exams: 1st Year (Slot 1), 2nd & 3rd Year (Slot 2 Concurrent), 4th Year (Slot 3).'
-                : 'Schedules Semester End Exams using Staggered 4-Day Rotation (Day 1: Yr 1, Day 2: Yr 2, Day 3: Yr 3, Day 4: Yr 4 Sem 1 only), skipping Sundays and Public Holidays.'}
+                ? 'Schedules Mid Exams starting on exact year-specific dates from Academic Calendar DB (e.g. 4th Year: Sep 1, 2nd/3rd Year: Aug 20).'
+                : 'Schedules Semester End Exams: 4th Year completes first, 3rd & 2nd Year run on consecutive days, 1st Year finishes last.'}
             </p>
+
+            {calExamDates?.by_year && (
+              <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200 space-y-1">
+                <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                  <Calendar className="w-3.5 h-3.5" />
+                  Academic Calendar DB Start Dates:
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[11px] font-semibold pt-1">
+                  <div className="bg-dark-950/60 p-1.5 rounded-lg border border-dark-800">
+                    <span className="text-amber-400 block font-bold">4th Year:</span>
+                    {genExamType === 'MID_1' ? calExamDates.by_year['4']?.mid1_start_date || 'Sep 01, 2026' :
+                     genExamType === 'MID_2' ? calExamDates.by_year['4']?.mid2_start_date || 'Nov 16, 2026' :
+                     calExamDates.by_year['4']?.end_sem_exam_start_date || 'Nov 24, 2026'}
+                  </div>
+                  <div className="bg-dark-950/60 p-1.5 rounded-lg border border-dark-800">
+                    <span className="text-amber-400 block font-bold">3rd & 2nd Year:</span>
+                    {genExamType === 'MID_1' ? calExamDates.by_year['3']?.mid1_start_date || 'Aug 20, 2026' :
+                     genExamType === 'MID_2' ? calExamDates.by_year['3']?.mid2_start_date || 'Oct 15, 2026' :
+                     calExamDates.by_year['3']?.end_sem_exam_start_date || 'Oct 28, 2026'}
+                  </div>
+                  <div className="bg-dark-950/60 p-1.5 rounded-lg border border-dark-800">
+                    <span className="text-amber-400 block font-bold">1st Year:</span>
+                    {genExamType === 'MID_1' ? calExamDates.by_year['1']?.mid1_start_date || 'Sep 01, 2026' :
+                     genExamType === 'MID_2' ? calExamDates.by_year['1']?.mid2_start_date || 'Nov 16, 2026' :
+                     calExamDates.by_year['1']?.end_sem_exam_start_date || 'Nov 24, 2026'}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleGenerateExams} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -936,14 +985,18 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Exam Start Date</label>
+                  <label className="text-xs font-semibold text-amber-400 block mb-1.5 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Exam Start Date
+                  </label>
                   <input
                     type="date"
+                    required
                     value={genStartDate}
                     onChange={e => setGenStartDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-amber-500/40 rounded-xl text-white text-xs outline-none focus:border-amber-400 font-semibold"
                   />
-                  <p className="text-[10px] text-dark-500 mt-1">Blank = Auto-detect from Calendar.</p>
+                  <p className="text-[10px] text-dark-400 mt-1">Pick start date (Pre-filled from Academic Calendar if available).</p>
                 </div>
 
                 <div>
@@ -1080,8 +1133,12 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                   onChange={e => setNewExamSubjectId(e.target.value)}
                   className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs focus:border-amber-500/50 outline-none"
                 >
-                  <option value="">Select Subject</option>
-                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code}) - {s.subject_type}</option>)}
+                  <option value="">Select Subject ({subjects.length} available in DB)</option>
+                  {subjects.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.code}) — Year {s.academic_year || 1} [{s.subject_type}]
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1240,6 +1297,17 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
             </form>
           </div>
         </div>
+      )}
+
+      {isPrintModalOpen && (
+        <PrintableExamTimetableTemplate
+          category={examTabCategory}
+          examType={examTabType}
+          exams={exams}
+          departments={departments}
+          activeDeptId={examFilterDeptId}
+          onClose={() => setIsPrintModalOpen(false)}
+        />
       )}
     </div>
   );

@@ -13,9 +13,10 @@ from app.schemas.timetable import (
     SchedulingRuleCreate, TimetableEntryCreate, ExamTimetableEntryCreate
 )
 from app.api.timetable import (
-    save_scheduling_rule, create_timetable_entry, create_exam_entry,
+    save_scheduling_rule, create_timetable_entry,
     generate_master_timetable, MasterGenerateInput
 )
+from app.api.exam_timetable import create_exam_entry
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

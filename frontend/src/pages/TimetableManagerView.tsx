@@ -59,7 +59,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [isSolverModalOpen, setIsSolverModalOpen] = useState(false);
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const [solverDeptIds, setSolverDeptIds] = useState<string[]>([]);
-  const [solverSectionsText, setSolverSectionsText] = useState('CSE 1-A, CSE 3-A, ECE 2-A');
+  const [selectedSolverSections, setSelectedSolverSections] = useState<string[]>([]);
   const [solverError, setSolverError] = useState('');
   const [isSolving, setIsSolving] = useState(false);
 
@@ -251,9 +251,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     setSolverError('');
     setIsSolving(true);
 
-    const parsedSections = solverSectionsText.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    if (parsedSections.length === 0) {
-      setSolverError('Please enter at least one target section.');
+    if (selectedSolverSections.length === 0) {
+      setSolverError('Please select at least one target section.');
       setIsSolving(false);
       return;
     }
@@ -261,7 +260,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
     try {
       await timetableService.generateMasterTimetable({
         department_ids: solverDeptIds.length > 0 ? solverDeptIds : undefined,
-        sections: parsedSections
+        sections: selectedSolverSections
       });
       setIsSolverModalOpen(false);
       loadTimetableAndRules();
@@ -275,6 +274,11 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const toggleSolverDept = (id: string) => {
     if (solverDeptIds.includes(id)) {
       setSolverDeptIds(solverDeptIds.filter(d => d !== id));
+      // Remove any selected sections belonging to the deselected department
+      const deselectedSections = sectionConfigs
+        .filter(s => s.department_id === id)
+        .map(s => s.name);
+      setSelectedSolverSections(prev => prev.filter(name => !deselectedSections.includes(name)));
     } else {
       setSolverDeptIds([...solverDeptIds, id]);
     }
@@ -953,14 +957,40 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Target Sections across Years (Comma-separated)</label>
-                <input
-                  type="text"
-                  value={solverSectionsText}
-                  onChange={e => setSolverSectionsText(e.target.value)}
-                  placeholder="e.g. CSE 1-A, CSE 1-B, CSE 3-A, ECE 2-A"
-                  className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none"
-                />
+                <label className="text-xs font-semibold text-dark-300 block mb-2">Target Sections across Years (Multi-select)</label>
+                {solverDeptIds.length === 0 ? (
+                  <div className="text-xs text-dark-500 italic p-3.5 bg-dark-950/30 border border-dark-850 rounded-xl text-center">
+                    Please select a branch first to load its sections.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 bg-dark-950/50 border border-dark-850 rounded-xl">
+                    {sectionConfigs
+                      .filter(s => solverDeptIds.includes(s.department_id))
+                      .map(s => {
+                        const isChecked = selectedSolverSections.includes(s.name);
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              setSelectedSolverSections(prev =>
+                                prev.includes(s.name)
+                                  ? prev.filter(name => name !== s.name)
+                                  : [...prev, s.name]
+                              );
+                            }}
+                            className={`p-2 rounded-lg border cursor-pointer select-none text-[11px] font-extrabold flex items-center gap-2 transition-all ${
+                              isChecked ? 'bg-indigo-500/20 border-indigo-500 text-white' : 'bg-dark-900 border-dark-800 text-dark-400 hover:text-white hover:bg-dark-850'
+                            }`}
+                          >
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${isChecked ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-dark-700'}`}>
+                              {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                            <span>{s.name}</span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
 
               {solverError && (

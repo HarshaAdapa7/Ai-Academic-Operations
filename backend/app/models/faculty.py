@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Boolean, Integer, ForeignKey, Table, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from app.core.database import Base
 from app.models.user import User
 
@@ -75,7 +75,7 @@ class FacultyProfile(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    user = relationship("User", lazy="selectin")
+    user = relationship("User", backref=backref("faculty_profile", uselist=False), lazy="selectin")
     department = relationship("Department", back_populates="faculty_members", lazy="selectin")
     subjects = relationship("Subject", secondary=faculty_subjects, backref="faculty", lazy="selectin")
     availabilities = relationship("FacultyAvailability", back_populates="faculty", cascade="all, delete-orphan", lazy="selectin")

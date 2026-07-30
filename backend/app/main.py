@@ -56,6 +56,10 @@ app.include_router(exam_timetable_router, prefix=settings.API_V1_STR, tags=["Exa
 app.include_router(faculty_router, prefix=settings.API_V1_STR, tags=["Faculty Management"])
 app.include_router(leave_router, prefix=settings.API_V1_STR, tags=["Leave & Substitutions"])
 app.include_router(classroom_router, prefix=settings.API_V1_STR, tags=["Classrooms & Seating"])
+<<<<<<< HEAD
+=======
+app.include_router(exam_timetable_router, prefix=settings.API_V1_STR, tags=["Exam Timetable Operations"])
+>>>>>>> a46b43307927cd91bdb3dcc58fc95a9f68db6946
 app.include_router(timetable_router, prefix=settings.API_V1_STR, tags=["Timetable Operations"])
 app.include_router(ai_router, prefix=settings.API_V1_STR, tags=["AI Decision Center"])
 app.include_router(import_router, prefix=f"{settings.API_V1_STR}/import", tags=["Department Import Portal"])
@@ -169,10 +173,17 @@ async def on_startup():
                 "ALTER TABLE faculty_profiles ADD COLUMN is_dean BOOLEAN DEFAULT FALSE;",
                 "ALTER TABLE timetable_entries ADD COLUMN academic_year INTEGER DEFAULT 1;",
                 "ALTER TABLE timetable_entries ADD COLUMN lab_batch VARCHAR(50) DEFAULT 'ALL';",
+<<<<<<< HEAD
                 "ALTER TABLE timetable_entries ADD COLUMN is_permanent BOOLEAN DEFAULT TRUE;",
                 "ALTER TABLE exam_timetable_entries ADD COLUMN exam_type VARCHAR(50) DEFAULT 'MID_1';",
                 "ALTER TABLE exam_timetable_entries ADD COLUMN academic_year INTEGER DEFAULT 1;",
                 "ALTER TABLE exam_timetable_entries ADD COLUMN semester INTEGER DEFAULT 1;",
+=======
+                "ALTER TABLE exam_timetable_entries ADD COLUMN exam_type VARCHAR(50) DEFAULT 'MID_1';",
+                "ALTER TABLE exam_timetable_entries ADD COLUMN academic_year INTEGER DEFAULT 1;",
+                "ALTER TABLE exam_timetable_entries ADD COLUMN semester INTEGER DEFAULT 1;",
+                "ALTER TABLE timetable_entries ADD COLUMN is_permanent BOOLEAN DEFAULT TRUE;",
+>>>>>>> a46b43307927cd91bdb3dcc58fc95a9f68db6946
                 "ALTER TABLE scheduling_rules ADD COLUMN lunch_slot INTEGER DEFAULT 5;",
                 "ALTER TABLE scheduling_rules ADD COLUMN activity_blocks VARCHAR(500) DEFAULT 'Saturday-5,Saturday-6';",
                 "ALTER TABLE academic_calendars ADD COLUMN working_days_count INTEGER DEFAULT 90;"

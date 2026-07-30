@@ -262,9 +262,22 @@ async def create_timetable_entry(
 @router.delete("/timetable/{id}")
 async def delete_timetable_entry(
     id: str,
+    exam_type: Optional[str] = None,
+    department_id: Optional[str] = None,
+    purge_all: Optional[bool] = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    if id == "exams-clear":
+        from app.api.exam_timetable import clear_exam_schedule
+        return await clear_exam_schedule(
+            exam_type=exam_type,
+            department_id=department_id,
+            purge_all=purge_all,
+            current_user=current_user,
+            db=db
+        )
+
     if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized to edit timetable.")
 

@@ -17,7 +17,7 @@ from app.schemas.timetable import (
     ExamTimetableEntryCreate, ExamTimetableEntryResponse,
     GenerateExamsRequest
 )
-from app.api.deps import get_current_user, get_optional_current_user
+from app.api.deps import get_current_user, get_optional_current_user, get_user_department_id
 
 logger = logging.getLogger("exam-timetable-api")
 
@@ -81,36 +81,81 @@ async def list_exam_schedule(
     if academic_year:
         stmt = stmt.where(ExamTimetableEntry.academic_year == academic_year)
 
-    if department_id:
+    if department_id and department_id != "ALL":
         stmt = stmt.join(Subject, ExamTimetableEntry.subject_id == Subject.id).where(Subject.department_id == department_id)
         
     res = await db.execute(stmt)
     return res.scalars().all()
 
 
-@router.api_route("/timetable/exams/calendar-dates", methods=["GET", "POST", "OPTIONS"])
-@router.api_route("/timetable/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
-@router.api_route("/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
+def get_calendar_date_for_year(all_cals: List[AcademicCalendar], year: int, exam_type: str, category: str, sem_num: int) -> Optional[Any]:
+    """Helper to fetch year-specific exam start date from Academic Calendar DB."""
+    yr_str = "4th Year" if year == 4 else "3rd Year" if year == 3 else "2nd Year" if year == 2 else "1st Year"
+    sem_str = f"Sem {sem_num}"
+
+    matching = [c for c in all_cals if yr_str.lower() in str(c.semester).lower() and sem_str.lower() in str(c.semester).lower()]
+    if not matching:
+        matching = [c for c in all_cals if yr_str.lower() in str(c.semester).lower()]
+    if not matching:
+        matching = [c for c in all_cals if sem_str.lower() in str(c.semester).lower()]
+    if not matching:
+        matching = all_cals
+
+    for c in matching:
+        if exam_type == "MID_1" and c.mid1_start_date:
+            return c.mid1_start_date
+        elif exam_type == "MID_2" and c.mid2_start_date:
+            return c.mid2_start_date
+        elif (category.upper() in ["SEM_END", "SEM"] or exam_type == "SEM_END") and c.end_sem_exam_start_date:
+            return c.end_sem_exam_start_date
+    return None
+
+
+@router.get("/timetable/exam-calendar-dates")
 async def get_exam_calendar_dates(
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    semester: Optional[int] = 1,
+    current_user: User = Depends(get_current_user),
+
     db: AsyncSession = Depends(get_db)
 ):
     stmt = select(AcademicCalendar).order_by(AcademicCalendar.is_active.desc(), AcademicCalendar.updated_at.desc())
     res = await db.execute(stmt)
-    cal = res.scalars().first()
-    if not cal:
+    cals = res.scalars().all()
+    if not cals:
         return {
             "academic_year": None,
+            "semester": None,
             "mid1_start_date": None,
             "mid2_start_date": None,
-            "end_sem_exam_start_date": None
+            "end_sem_exam_start_date": None,
+            "by_year": {}
         }
+
+    target_cal = cals[0]
+    sem_num = semester or 1
+
+    by_year_dates = {}
+    for y in [4, 3, 2, 1]:
+        d_m1 = get_calendar_date_for_year(cals, y, "MID_1", "MID", sem_num)
+        d_m2 = get_calendar_date_for_year(cals, y, "MID_2", "MID", sem_num)
+        d_se = get_calendar_date_for_year(cals, y, "SEM_END", "SEM_END", sem_num)
+        by_year_dates[str(y)] = {
+            "mid1_start_date": d_m1.isoformat() if d_m1 else None,
+            "mid2_start_date": d_m2.isoformat() if d_m2 else None,
+            "end_sem_exam_start_date": d_se.isoformat() if d_se else None
+        }
+
+    m1_top = get_calendar_date_for_year(cals, 3, "MID_1", "MID", sem_num) or target_cal.mid1_start_date
+    m2_top = get_calendar_date_for_year(cals, 3, "MID_2", "MID", sem_num) or target_cal.mid2_start_date
+    se_top = get_calendar_date_for_year(cals, 3, "SEM_END", "SEM_END", sem_num) or target_cal.end_sem_exam_start_date
+
     return {
-        "academic_year": cal.academic_year,
-        "semester": cal.semester,
-        "mid1_start_date": cal.mid1_start_date.isoformat() if cal.mid1_start_date else None,
-        "mid2_start_date": cal.mid2_start_date.isoformat() if cal.mid2_start_date else None,
-        "end_sem_exam_start_date": cal.end_sem_exam_start_date.isoformat() if cal.end_sem_exam_start_date else None
+        "academic_year": target_cal.academic_year,
+        "semester": target_cal.semester,
+        "mid1_start_date": m1_top.isoformat() if m1_top else None,
+        "mid2_start_date": m2_top.isoformat() if m2_top else None,
+        "end_sem_exam_start_date": se_top.isoformat() if se_top else None,
+        "by_year": by_year_dates
     }
 
 
@@ -120,54 +165,81 @@ async def generate_exam_timetable_endpoint(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
+    if current_user.role not in [UserRole.HOD, UserRole.ADMIN, "DEAN"]:
         raise HTTPException(status_code=403, detail="Not authorized to generate exam schedules.")
 
     # 1. Fetch public & academic holidays to skip
     holidays_res = await db.execute(select(AcademicHoliday.date).where(AcademicHoliday.is_holiday == True))
     holiday_dates = set(holidays_res.scalars().all())
 
-    # 2. Determine initial start date
+    # Fetch all AcademicCalendar records for per-year date resolution
+    cal_stmt = select(AcademicCalendar).order_by(AcademicCalendar.is_active.desc(), AcademicCalendar.updated_at.desc())
+    cal_res = await db.execute(cal_stmt)
+    all_cals = list(cal_res.scalars().all())
+
+    # 2. Determine default start date fallback
     today = datetime.utcnow().date()
     start_date_val = None
 
     if req_in.start_date:
         start_date_val = req_in.start_date.replace(tzinfo=None).date()
     else:
-        # Check active AcademicCalendar for uploaded/configured exam start date
-        cal_stmt = select(AcademicCalendar).order_by(AcademicCalendar.is_active.desc(), AcademicCalendar.updated_at.desc())
-        cal_res = await db.execute(cal_stmt)
-        active_cal = cal_res.scalars().first()
+        candidate_dates = []
+        for c in all_cals:
+            if req_in.exam_type == "MID_1" and c.mid1_start_date:
+                candidate_dates.append(c.mid1_start_date)
+            elif req_in.exam_type == "MID_2" and c.mid2_start_date:
+                candidate_dates.append(c.mid2_start_date)
+            elif (req_in.category.upper() in ["SEM_END", "SEM"] or req_in.exam_type == "SEM_END") and c.end_sem_exam_start_date:
+                candidate_dates.append(c.end_sem_exam_start_date)
 
-        if active_cal:
-            if req_in.exam_type == "MID_1" and active_cal.mid1_start_date:
-                start_date_val = active_cal.mid1_start_date
-            elif req_in.exam_type == "MID_2" and active_cal.mid2_start_date:
-                start_date_val = active_cal.mid2_start_date
-            elif req_in.category.upper() == "SEM_END" and active_cal.end_sem_exam_start_date:
-                start_date_val = active_cal.end_sem_exam_start_date
+        if candidate_dates:
+            start_date_val = min(candidate_dates)
 
     if not start_date_val:
-        # Fallback to next Monday
         days_ahead = 7 - today.weekday() if today.weekday() < 5 else (7 - today.weekday() + 7)
         start_date_val = today + timedelta(days=days_ahead)
 
     base_start_datetime = datetime.combine(start_date_val, datetime.min.time())
     base_start_datetime = get_valid_date_on_or_after(base_start_datetime, holiday_dates)
 
-    # 3. Determine target departments
-    if current_user.role == UserRole.HOD and current_user.department_id:
-        target_dept_ids = [current_user.department_id]
-    elif req_in.department_ids and len(req_in.department_ids) > 0:
+    # 3. Determine target departments and fetch subjects from DB
+    user_dept_id = await get_user_department_id(current_user, db)
+    if req_in.department_ids and len(req_in.department_ids) > 0 and "ALL" not in req_in.department_ids:
         target_dept_ids = req_in.department_ids
+    elif current_user.role == UserRole.HOD and user_dept_id:
+        has_subjs = (await db.execute(select(Subject.id).where(Subject.department_id == user_dept_id))).scalars().first()
+        if has_subjs:
+            target_dept_ids = [user_dept_id]
+        else:
+            dept_res = await db.execute(select(Department.id))
+            target_dept_ids = list(dept_res.scalars().all())
     else:
         dept_res = await db.execute(select(Department.id))
         target_dept_ids = list(dept_res.scalars().all())
 
-    if not target_dept_ids:
-        raise HTTPException(status_code=400, detail="No departments found for exam generation.")
+    # Query subjects in DB matching target_dept_ids and academic_year filter if passed
+    subj_query = select(Subject).where(Subject.department_id.in_(target_dept_ids))
+    if req_in.academic_year and req_in.academic_year in [1, 2, 3, 4]:
+        subj_query = subj_query.where(Subject.academic_year == req_in.academic_year)
+    subjs_res = await db.execute(subj_query)
+    available_subjs = list(subjs_res.scalars().all())
+
+    # Fallback: If no subjects found for specified criteria/departments, fetch ALL subjects in the 'subjects' table
+    if not available_subjs:
+        all_subj_query = select(Subject)
+        if req_in.academic_year and req_in.academic_year in [1, 2, 3, 4]:
+            all_subj_query = all_subj_query.where(Subject.academic_year == req_in.academic_year)
+        all_subjs_res = await db.execute(all_subj_query)
+        available_subjs = list(all_subjs_res.scalars().all())
+        if available_subjs:
+            target_dept_ids = list(set(s.department_id for s in available_subjs if s.department_id))
+
+    if not available_subjs:
+        raise HTTPException(status_code=400, detail="No subjects found in database for exam generation.")
 
     depts = (await db.execute(select(Department).where(Department.id.in_(target_dept_ids)).order_by(Department.code.asc()))).scalars().all()
+    subj_ids = [s.id for s in available_subjs]
 
     # 4. Fetch lecture rooms & faculty profiles
     classrooms = (await db.execute(select(Classroom).order_by(Classroom.room_number.asc()))).scalars().all()
@@ -182,8 +254,7 @@ async def generate_exam_timetable_endpoint(
     if not faculty_list:
         raise HTTPException(status_code=400, detail="No faculty members found for invigilation assignment.")
 
-    # 5. Purge old exam entries for this exam_type and targeted departments
-    subj_ids = list((await db.execute(select(Subject.id).where(Subject.department_id.in_(target_dept_ids)))).scalars().all())
+    # 5. Purge old exam entries for this exam_type and targeted departments/subjects
     if subj_ids:
         purge_stmt = delete(ExamTimetableEntry).where(
             ExamTimetableEntry.exam_type == req_in.exam_type,
@@ -214,23 +285,30 @@ async def generate_exam_timetable_endpoint(
         # MID EXAM RULES (2 Sessions Per Day):
         # 1) Session 1 (Slot 1): Morning (09:30 AM - 11:30 AM)
         # 2) Session 2 (Slot 2): Afternoon (01:00 PM - 03:00 PM)
-        # 3) 2nd & 3rd Years are scheduled on the SAME DAYS together for both sessions!
-        # 4) 1st Year and 4th Year also write 2 sessions per exam day (Morning & Afternoon).
+        # 3) Each Academic Year (4th, 3rd, 2nd, 1st) starts on its EXACT start date from Academic Calendar DB!
+        #    (e.g., 4th Year Mid-1 starts Sep 1, 2nd/3rd Year Mid-1 starts Aug 20).
         # ==========================================
         
         theory_by_year: Dict[int, List[Subject]] = {1: [], 2: [], 3: [], 4: []}
-        for dept in depts:
-            subjs = (await db.execute(select(Subject).where(Subject.department_id == dept.id))).scalars().all()
-            for s in subjs:
-                if str(s.subject_type).upper() != "LAB":
-                    yr = s.academic_year if hasattr(s, "academic_year") and s.academic_year in [1, 2, 3, 4] else 1
-                    theory_by_year[yr].append(s)
+        for s in available_subjs:
+            if str(s.subject_type).upper() not in ["LAB", "PRACTICAL"]:
+                yr = s.academic_year if hasattr(s, "academic_year") and s.academic_year in [1, 2, 3, 4] else 1
+                theory_by_year[yr].append(s)
 
         target_years = [req_in.academic_year] if req_in.academic_year in [1, 2, 3, 4] else [1, 2, 3, 4]
         for yr in target_years:
             subjs_list = theory_by_year[yr]
             if not subjs_list:
                 continue
+
+            if req_in.start_date:
+                yr_start_date_val = req_in.start_date.replace(tzinfo=None).date()
+            else:
+                cal_yr_date = get_calendar_date_for_year(all_cals, yr, req_in.exam_type, req_in.category, req_in.semester)
+                yr_start_date_val = cal_yr_date if cal_yr_date else start_date_val
+
+            yr_base_start_datetime = datetime.combine(yr_start_date_val, datetime.min.time())
+            yr_base_start_datetime = get_valid_date_on_or_after(yr_base_start_datetime, holiday_dates)
 
             dept_subjs_map: Dict[str, List[Subject]] = {}
             for s in subjs_list:
@@ -241,7 +319,7 @@ async def generate_exam_timetable_endpoint(
                     day_offset = s_idx // 2
                     time_slot = 1 if (s_idx % 2 == 0) else 2
 
-                    exam_dt = base_start_datetime if day_offset == 0 else get_next_valid_exam_date(base_start_datetime, day_offset, holiday_dates)
+                    exam_dt = yr_base_start_datetime if day_offset == 0 else get_next_valid_exam_date(yr_base_start_datetime, day_offset, holiday_dates)
                     ex_date_val = exam_dt.date()
 
                     assigned_room = None
@@ -279,47 +357,29 @@ async def generate_exam_timetable_endpoint(
 
     elif category == "SEM_END":
         # ==========================================
-        # SEMESTER END EXAM RULES:
-        # Staggered 4-Day Rotation:
-        # Day 1: 1st Year (all depts)
-        # Day 2: 2nd Year (all depts)
-        # Day 3: 3rd Year (all depts)
-        # Day 4: 4th Year (all depts - Sem 1 ONLY)
-        # Cycle repeats for subject #2, #3, etc.
-        # Skips Sundays AND Academic Holidays!
+        # SEMESTER END EXAM SEQUENCING RULES:
+        # 1) Phase 1: 4th Year Sem Exams complete FIRST.
+        # 2) Phase 2: 3rd & 2nd Year Sem Exams start AFTER 4th year completes and run on CONSECUTIVE DAYS.
+        # 3) Phase 3: 1st Year Sem Exams start AFTER ALL remaining years (4th, 3rd, 2nd) are completely finished!
+        # Skips Sundays AND Academic Holidays automatically.
         # ==========================================
 
-        active_years = [req_in.academic_year] if req_in.academic_year in [1, 2, 3, 4] else ([1, 2, 3, 4] if req_in.semester == 1 else [1, 2, 3])
+        if req_in.academic_year in [1, 2, 3, 4]:
+            target_years = [req_in.academic_year]
+            theory_by_year_dept: Dict[int, Dict[str, List[Subject]]] = {req_in.academic_year: {}}
+            for s in available_subjs:
+                if str(s.subject_type).upper() not in ["LAB", "PRACTICAL"] and s.academic_year == req_in.academic_year:
+                    theory_by_year_dept[req_in.academic_year].setdefault(s.department_id, []).append(s)
 
-        theory_by_year_dept: Dict[int, Dict[str, List[Subject]]] = {yr: {} for yr in active_years}
+            max_paper_count = max([len(subjs) for subjs in theory_by_year_dept[req_in.academic_year].values()], default=0)
+            current_exam_dt = base_start_datetime
 
-        for dept in depts:
-            subjs = (await db.execute(select(Subject).where(Subject.department_id == dept.id))).scalars().all()
-            for s in subjs:
-                if str(s.subject_type).upper() != "LAB":
-                    yr = s.academic_year if hasattr(s, "academic_year") and s.academic_year in active_years else 1
-                    if yr in active_years:
-                        theory_by_year_dept[yr].setdefault(dept.id, []).append(s)
-
-        max_subjs_per_year = {
-            yr: max([len(subjs) for subjs in theory_by_year_dept[yr].values()], default=0)
-            for yr in active_years
-        }
-        max_paper_count = max(max_subjs_per_year.values(), default=0)
-
-        time_slot = 1
-
-        day_counter = 0
-        for p_idx in range(max_paper_count):
-            for yr_offset, yr in enumerate(active_years):
-                exam_dt = base_start_datetime if day_counter == 0 else get_next_valid_exam_date(base_start_datetime, day_counter, holiday_dates)
-                ex_date_val = exam_dt.date()
-                day_counter += 1
-
-                for d_id, d_subjs in theory_by_year_dept[yr].items():
+            for p_idx in range(max_paper_count):
+                ex_date_val = current_exam_dt.date()
+                time_slot = 1
+                for d_id, d_subjs in theory_by_year_dept[req_in.academic_year].items():
                     if p_idx < len(d_subjs):
                         subj = d_subjs[p_idx]
-
                         assigned_room = None
                         for _ in range(len(lecture_rooms)):
                             candidate_room = lecture_rooms[room_idx % len(lecture_rooms)]
@@ -328,7 +388,6 @@ async def generate_exam_timetable_endpoint(
                                 assigned_room = candidate_room
                                 room_schedule.add((ex_date_val, time_slot, candidate_room.id))
                                 break
-
                         if not assigned_room:
                             assigned_room = lecture_rooms[0]
 
@@ -343,15 +402,200 @@ async def generate_exam_timetable_endpoint(
 
                         new_exam = ExamTimetableEntry(
                             exam_type=req_in.exam_type,
-                            academic_year=yr,
+                            academic_year=req_in.academic_year,
                             semester=req_in.semester,
-                            exam_date=exam_dt,
+                            exam_date=current_exam_dt,
                             time_slot=time_slot,
                             subject_id=subj.id,
                             classroom_id=assigned_room.id,
                             invigilator_id=assigned_fac.id if assigned_fac else None
                         )
                         db.add(new_exam)
+
+                current_exam_dt = get_next_valid_exam_date(current_exam_dt, 1, holiday_dates)
+        else:
+            # Full 3-Phase Staggered Sequence across all 4 Years
+            theory_by_year_dept: Dict[int, Dict[str, List[Subject]]] = {1: {}, 2: {}, 3: {}, 4: {}}
+            for s in available_subjs:
+                if str(s.subject_type).upper() not in ["LAB", "PRACTICAL"]:
+                    yr = s.academic_year if hasattr(s, "academic_year") and s.academic_year in [1, 2, 3, 4] else 1
+                    theory_by_year_dept[yr].setdefault(s.department_id, []).append(s)
+
+            if req_in.start_date:
+                p1_start_val = req_in.start_date.replace(tzinfo=None).date()
+            else:
+                cal_y4_date = get_calendar_date_for_year(all_cals, 4, req_in.exam_type, req_in.category, req_in.semester)
+                p1_start_val = cal_y4_date if cal_y4_date else start_date_val
+
+            current_exam_dt = get_valid_date_on_or_after(datetime.combine(p1_start_val, datetime.min.time()), holiday_dates)
+
+            # --- PHASE 1: 4th Year Semester End Exams (First) ---
+            max_p_y4 = max([len(subjs) for subjs in theory_by_year_dept[4].values()], default=0)
+            for p_idx in range(max_p_y4):
+                ex_date_val = current_exam_dt.date()
+                time_slot = 1
+                for d_id, d_subjs in theory_by_year_dept[4].items():
+                    if p_idx < len(d_subjs):
+                        subj = d_subjs[p_idx]
+                        assigned_room = None
+                        for _ in range(len(lecture_rooms)):
+                            candidate_room = lecture_rooms[room_idx % len(lecture_rooms)]
+                            room_idx += 1
+                            if (ex_date_val, time_slot, candidate_room.id) not in room_schedule:
+                                assigned_room = candidate_room
+                                room_schedule.add((ex_date_val, time_slot, candidate_room.id))
+                                break
+                        if not assigned_room:
+                            assigned_room = lecture_rooms[0]
+
+                        assigned_fac = None
+                        for _ in range(len(faculty_list)):
+                            candidate_fac = faculty_list[fac_idx % len(faculty_list)]
+                            fac_idx += 1
+                            if (ex_date_val, time_slot, candidate_fac.id) not in invigilator_schedule:
+                                assigned_fac = candidate_fac
+                                invigilator_schedule.add((ex_date_val, time_slot, candidate_fac.id))
+                                break
+
+                        new_exam = ExamTimetableEntry(
+                            exam_type=req_in.exam_type,
+                            academic_year=4,
+                            semester=req_in.semester,
+                            exam_date=current_exam_dt,
+                            time_slot=time_slot,
+                            subject_id=subj.id,
+                            classroom_id=assigned_room.id,
+                            invigilator_id=assigned_fac.id if assigned_fac else None
+                        )
+                        db.add(new_exam)
+                current_exam_dt = get_next_valid_exam_date(current_exam_dt, 1, holiday_dates)
+
+            # --- PHASE 2: 3rd & 2nd Year Semester End Exams (Consecutive Days) ---
+            max_p_y3 = max([len(subjs) for subjs in theory_by_year_dept[3].values()], default=0)
+            max_p_y2 = max([len(subjs) for subjs in theory_by_year_dept[2].values()], default=0)
+            max_p_phase2 = max(max_p_y3, max_p_y2)
+
+            for p_idx in range(max_p_phase2):
+                # Day A of paper cycle: 3rd Year
+                if p_idx < max_p_y3:
+                    ex_date_val = current_exam_dt.date()
+                    time_slot = 1
+                    for d_id, d_subjs in theory_by_year_dept[3].items():
+                        if p_idx < len(d_subjs):
+                            subj = d_subjs[p_idx]
+                            assigned_room = None
+                            for _ in range(len(lecture_rooms)):
+                                candidate_room = lecture_rooms[room_idx % len(lecture_rooms)]
+                                room_idx += 1
+                                if (ex_date_val, time_slot, candidate_room.id) not in room_schedule:
+                                    assigned_room = candidate_room
+                                    room_schedule.add((ex_date_val, time_slot, candidate_room.id))
+                                    break
+                            if not assigned_room:
+                                assigned_room = lecture_rooms[0]
+
+                            assigned_fac = None
+                            for _ in range(len(faculty_list)):
+                                candidate_fac = faculty_list[fac_idx % len(faculty_list)]
+                                fac_idx += 1
+                                if (ex_date_val, time_slot, candidate_fac.id) not in invigilator_schedule:
+                                    assigned_fac = candidate_fac
+                                    invigilator_schedule.add((ex_date_val, time_slot, candidate_fac.id))
+                                    break
+
+                            new_exam = ExamTimetableEntry(
+                                exam_type=req_in.exam_type,
+                                academic_year=3,
+                                semester=req_in.semester,
+                                exam_date=current_exam_dt,
+                                time_slot=time_slot,
+                                subject_id=subj.id,
+                                classroom_id=assigned_room.id,
+                                invigilator_id=assigned_fac.id if assigned_fac else None
+                            )
+                            db.add(new_exam)
+                    current_exam_dt = get_next_valid_exam_date(current_exam_dt, 1, holiday_dates)
+
+                # Day B of paper cycle: 2nd Year
+                if p_idx < max_p_y2:
+                    ex_date_val = current_exam_dt.date()
+                    time_slot = 1
+                    for d_id, d_subjs in theory_by_year_dept[2].items():
+                        if p_idx < len(d_subjs):
+                            subj = d_subjs[p_idx]
+                            assigned_room = None
+                            for _ in range(len(lecture_rooms)):
+                                candidate_room = lecture_rooms[room_idx % len(lecture_rooms)]
+                                room_idx += 1
+                                if (ex_date_val, time_slot, candidate_room.id) not in room_schedule:
+                                    assigned_room = candidate_room
+                                    room_schedule.add((ex_date_val, time_slot, candidate_room.id))
+                                    break
+                            if not assigned_room:
+                                assigned_room = lecture_rooms[0]
+
+                            assigned_fac = None
+                            for _ in range(len(faculty_list)):
+                                candidate_fac = faculty_list[fac_idx % len(faculty_list)]
+                                fac_idx += 1
+                                if (ex_date_val, time_slot, candidate_fac.id) not in invigilator_schedule:
+                                    assigned_fac = candidate_fac
+                                    invigilator_schedule.add((ex_date_val, time_slot, candidate_fac.id))
+                                    break
+
+                            new_exam = ExamTimetableEntry(
+                                exam_type=req_in.exam_type,
+                                academic_year=2,
+                                semester=req_in.semester,
+                                exam_date=current_exam_dt,
+                                time_slot=time_slot,
+                                subject_id=subj.id,
+                                classroom_id=assigned_room.id,
+                                invigilator_id=assigned_fac.id if assigned_fac else None
+                            )
+                            db.add(new_exam)
+                    current_exam_dt = get_next_valid_exam_date(current_exam_dt, 1, holiday_dates)
+
+            # --- PHASE 3: 1st Year Semester End Exams (After all remaining years finish) ---
+            max_p_y1 = max([len(subjs) for subjs in theory_by_year_dept[1].values()], default=0)
+            for p_idx in range(max_p_y1):
+                ex_date_val = current_exam_dt.date()
+                time_slot = 1
+                for d_id, d_subjs in theory_by_year_dept[1].items():
+                    if p_idx < len(d_subjs):
+                        subj = d_subjs[p_idx]
+                        assigned_room = None
+                        for _ in range(len(lecture_rooms)):
+                            candidate_room = lecture_rooms[room_idx % len(lecture_rooms)]
+                            room_idx += 1
+                            if (ex_date_val, time_slot, candidate_room.id) not in room_schedule:
+                                assigned_room = candidate_room
+                                room_schedule.add((ex_date_val, time_slot, candidate_room.id))
+                                break
+                        if not assigned_room:
+                            assigned_room = lecture_rooms[0]
+
+                        assigned_fac = None
+                        for _ in range(len(faculty_list)):
+                            candidate_fac = faculty_list[fac_idx % len(faculty_list)]
+                            fac_idx += 1
+                            if (ex_date_val, time_slot, candidate_fac.id) not in invigilator_schedule:
+                                assigned_fac = candidate_fac
+                                invigilator_schedule.add((ex_date_val, time_slot, candidate_fac.id))
+                                break
+
+                        new_exam = ExamTimetableEntry(
+                            exam_type=req_in.exam_type,
+                            academic_year=1,
+                            semester=req_in.semester,
+                            exam_date=current_exam_dt,
+                            time_slot=time_slot,
+                            subject_id=subj.id,
+                            classroom_id=assigned_room.id,
+                            invigilator_id=assigned_fac.id if assigned_fac else None
+                        )
+                        db.add(new_exam)
+                current_exam_dt = get_next_valid_exam_date(current_exam_dt, 1, holiday_dates)
 
     await db.commit()
 
@@ -451,11 +695,13 @@ async def clear_exam_schedule(
     if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
         raise HTTPException(status_code=403, detail="Not authorized to clear exam schedules.")
 
-    if current_user.role == UserRole.HOD and current_user.department_id:
-        department_id = current_user.department_id
+    is_purge = bool(purge_all) and str(purge_all).lower() not in ("false", "0", "")
 
     stmt = delete(ExamTimetableEntry)
-    if not purge_all:
+    if not is_purge:
+        user_dept_id = await get_user_department_id(current_user, db)
+        if current_user.role == UserRole.HOD and user_dept_id:
+            department_id = user_dept_id
         if exam_type:
             stmt = stmt.where(ExamTimetableEntry.exam_type == exam_type)
         if department_id:

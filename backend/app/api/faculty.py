@@ -244,20 +244,35 @@ from app.api.deps import get_current_user, get_user_department_id
 
 @router.get("/subjects", response_model=List[SubjectResponse])
 async def list_subjects(
-    department_id: str = None, 
+    department_id: Optional[str] = None, 
+    academic_year: Optional[int] = None,
     current_user: Optional[User] = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     query = select(Subject).options(selectinload(Subject.department), selectinload(Subject.parallel_subject))
     
+<<<<<<< HEAD
     if current_user and current_user.role not in [UserRole.ADMIN, "DEAN", UserRole.HOD, "HOD"]:
+=======
+    if department_id and department_id.upper() == "ALL":
+        department_id = None
+
+    if not department_id and current_user and current_user.role not in [UserRole.ADMIN, "DEAN"]:
+>>>>>>> a46b43307927cd91bdb3dcc58fc95a9f68db6946
         user_dept_id = await get_user_department_id(current_user, db)
         if user_dept_id:
-            department_id = user_dept_id
+            # Only restrict to user_dept_id if that department actually has subjects in the database
+            has_subjs = (await db.execute(select(Subject.id).where(Subject.department_id == user_dept_id))).scalars().first()
+            if has_subjs:
+                department_id = user_dept_id
 
     if department_id:
         query = query.where(Subject.department_id == department_id)
-    query = query.order_by(Subject.code.asc())
+
+    if academic_year and academic_year in [1, 2, 3, 4]:
+        query = query.where(Subject.academic_year == academic_year)
+
+    query = query.order_by(Subject.academic_year.asc(), Subject.code.asc())
     result = await db.execute(query)
     return result.scalars().all()
 

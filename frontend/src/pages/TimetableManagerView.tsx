@@ -68,6 +68,40 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [genTargetDeptId, setGenTargetDeptId] = useState('ALL');
   const [genError, setGenError] = useState('');
   const [genSuccess, setGenSuccess] = useState('');
+  const [directStartDate, setDirectStartDate] = useState('');
+
+  // Academic Calendar Exam Dates
+  const [calExamDates, setCalExamDates] = useState<{
+    academic_year: string | null;
+    semester: string | null;
+    mid1_start_date: string | null;
+    mid2_start_date: string | null;
+    end_sem_exam_start_date: string | null;
+  } | null>(null);
+
+  const getDefaultExamDate = (type: 'MID_1' | 'MID_2' | 'SEM_END') => {
+    if (calExamDates) {
+      if (type === 'MID_1' && calExamDates.mid1_start_date) return calExamDates.mid1_start_date.split('T')[0];
+      if (type === 'MID_2' && calExamDates.mid2_start_date) return calExamDates.mid2_start_date.split('T')[0];
+      if (type === 'SEM_END' && calExamDates.end_sem_exam_start_date) return calExamDates.end_sem_exam_start_date.split('T')[0];
+    }
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilNextMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+    const nextMon = new Date();
+    nextMon.setDate(today.getDate() + daysUntilNextMonday);
+    return nextMon.toISOString().split('T')[0];
+  };
+
+  useEffect(() => {
+    setDirectStartDate(getDefaultExamDate(examTabType));
+  }, [examTabType, calExamDates]);
+
+  useEffect(() => {
+    if (isGenerateExamModalOpen) {
+      setGenStartDate(getDefaultExamDate(genExamType));
+    }
+  }, [genExamType, calExamDates, isGenerateExamModalOpen]);
 
   // Manual Exam Add Modal states
   const [isAddExamModalOpen, setIsAddExamModalOpen] = useState(false);
@@ -95,16 +129,6 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [selectedSolverSections, setSelectedSolverSections] = useState<string[]>([]);
   const [solverError, setSolverError] = useState('');
   const [isSolving, setIsSolving] = useState(false);
-
-
-  // Academic Calendar Exam Dates
-  const [calExamDates, setCalExamDates] = useState<{
-    academic_year: string | null;
-    semester: string | null;
-    mid1_start_date: string | null;
-    mid2_start_date: string | null;
-    end_sem_exam_start_date: string | null;
-  } | null>(null);
 
   // Dynamic Rule 0 & Lunch calculation
   const sectionYear = parseInt(selectedSection.replace(/\D/g, '')) || 1;
@@ -975,42 +999,51 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                 <p className="text-xs text-dark-300 mt-0.5">
                   Reads uploaded subjects across all 4 years and auto-detects examination start dates directly from the uploaded Academic Calendar.
                 </p>
-                {calExamDates && (
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-amber-300/90 font-medium flex-wrap">
-                    <span>📅 <strong>Mid-1 Start</strong>: {calExamDates.mid1_start_date ? new Date(calExamDates.mid1_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
-                    <span>•</span>
-                    <span>📅 <strong>Mid-2 Start</strong>: {calExamDates.mid2_start_date ? new Date(calExamDates.mid2_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
-                    <span>•</span>
-                    <span>📅 <strong>Sem End Start</strong>: {calExamDates.end_sem_exam_start_date ? new Date(calExamDates.end_sem_exam_start_date).toLocaleDateString() : 'Auto-detecting...'}</span>
-                  </div>
-                )}
               </div>
             </div>
 
             {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    setIsLoading(true);
-                    const res = await timetableService.generateExamSchedule({
-                      category: examTabCategory,
-                      exam_type: examTabType,
-                      semester: 1
-                    });
-                    setExams(res);
-                    alert(`Successfully generated ${res.length} exam sessions directly from uploaded subjects & calendar dates!`);
-                  } catch (err: any) {
-                    alert(err.response?.data?.detail || 'Direct generation failed.');
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-black shadow-lg shadow-amber-500/25 transition-all shrink-0 flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                Direct Generate {examTabCategory === 'MID' ? `Mid Exam (${examTabType})` : 'Semester End Exam'}
-              </button>
+              <div className="flex items-center gap-3 bg-dark-900/80 p-2.5 border border-dark-800 rounded-2xl shrink-0">
+                <div className="flex flex-col">
+                  <label className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    Exam Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={directStartDate}
+                    onChange={e => setDirectStartDate(e.target.value)}
+                    className="px-3 py-1.5 bg-dark-950 border border-amber-500/40 rounded-xl text-white text-xs outline-none focus:border-amber-400 font-semibold"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      setIsLoading(true);
+                      const startIso = directStartDate ? `${directStartDate}T00:00:00` : undefined;
+                      const targetDeptIds = selectedDeptId ? [selectedDeptId] : undefined;
+                      const res = await timetableService.generateExamSchedule({
+                        category: examTabCategory,
+                        exam_type: examTabType,
+                        start_date: startIso,
+                        semester: 1,
+                        department_ids: targetDeptIds
+                      });
+                      setExams(res);
+                      alert(`Successfully generated ${res.length} exam sessions starting from ${directStartDate || 'calendar start date'}!`);
+                    } catch (err: any) {
+                      alert(err.response?.data?.detail || 'Direct generation failed.');
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  className="mt-3.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-black shadow-lg shadow-amber-500/25 transition-all shrink-0 flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Direct Generate {examTabCategory === 'MID' ? `Mid Exam (${examTabType})` : 'Semester End Exam'}
+                </button>
+              </div>
             )}
           </div>
 

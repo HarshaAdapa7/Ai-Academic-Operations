@@ -420,6 +420,7 @@ async def upload_academic_calendar_csv(
 # ==========================================
 
 @router.get("/holidays/list", response_model=List[AcademicHolidayResponse])
+@router.get("/academic-calendar/holidays/list", response_model=List[AcademicHolidayResponse])
 async def list_academic_holidays(
     academic_year: Optional[str] = None,
     calendar_id: Optional[str] = None,
@@ -444,6 +445,7 @@ async def list_academic_holidays(
     return result.scalars().all()
 
 @router.post("/holidays", response_model=AcademicHolidayResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/academic-calendar/holidays", response_model=AcademicHolidayResponse, status_code=status.HTTP_201_CREATED)
 async def create_academic_holiday(
     holiday_in: AcademicHolidayCreate,
     db: AsyncSession = Depends(get_db),
@@ -463,6 +465,7 @@ async def create_academic_holiday(
     return new_holiday
 
 @router.put("/holidays/{holiday_id}", response_model=AcademicHolidayResponse)
+@router.put("/academic-calendar/holidays/{holiday_id}", response_model=AcademicHolidayResponse)
 async def update_academic_holiday(
     holiday_id: str,
     holiday_in: AcademicHolidayUpdate,
@@ -492,6 +495,7 @@ async def update_academic_holiday(
     return holiday_obj
 
 @router.delete("/holidays/clear-all")
+@router.delete("/academic-calendar/holidays/clear-all")
 async def clear_all_academic_holidays(
     academic_year: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -538,6 +542,7 @@ async def clear_all_academic_holidays(
     return {"message": f"Successfully deleted {count} holiday record(s) from database.", "deleted_count": count}
 
 @router.delete("/holidays/{holiday_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/academic-calendar/holidays/{holiday_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_academic_holiday(
     holiday_id: str,
     db: AsyncSession = Depends(get_db),
@@ -562,6 +567,7 @@ async def delete_academic_holiday(
     return None
 
 @router.post("/holidays/upload")
+@router.post("/academic-calendar/holidays/upload")
 async def upload_holidays_csv(
     file: UploadFile = File(...),
     calendar_id: Optional[str] = Query(None),

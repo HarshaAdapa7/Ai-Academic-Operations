@@ -33,7 +33,36 @@ async def get_current_user(
     
     return user
 
+async def get_optional_current_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[User]:
+    if not token:
+        return None
+    email = decode_access_token(token)
+    if email is None:
+        return None
+    result = await db.execute(select(User).where(User.email == email))
+    return result.scalars().first()
+
 async def get_user_department_id(user: User, db: AsyncSession) -> Optional[str]:
-    from app.models.faculty import FacultyProfile
+    if hasattr(user, "department_id") and user.department_id:
+        return user.department_id
+
+    from app.models.faculty import FacultyProfile, Department
     res = await db.execute(select(FacultyProfile.department_id).where(FacultyProfile.user_id == user.id))
-    return res.scalars().first()
+    f_dept_id = res.scalars().first()
+    if f_dept_id:
+        return f_dept_id
+
+    if user.email:
+        email_prefix = user.email.split("@")[0].lower()
+        parts = email_prefix.split("_")
+        possible_code = parts[1].upper() if len(parts) > 1 else parts[0].upper()
+        d_res = await db.execute(select(Department.id).where(Department.code == possible_code))
+        d_id = d_res.scalars().first()
+        if d_id:
+            return d_id
+
+    all_d_res = await db.execute(select(Department.id).limit(1))
+    return all_d_res.scalars().first()

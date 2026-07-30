@@ -211,17 +211,27 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
   };
 
   // Download Sample Template CSV helper
-  const handleDownloadSampleTemplate = (type: 'faculty' | 'subject' | 'section' | 'classroom' | 'master') => {
+  const handleDownloadSampleTemplate = async (type: 'faculty' | 'subject' | 'section' | 'classroom' | 'master') => {
+    if (type === 'master') {
+      try {
+        const blob = await importService.exportDepartmentData(selectedDeptId || undefined);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'csd_master_department_export.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err: any) {
+        alert(err.response?.data?.detail || 'Failed to export department data.');
+      }
+      return;
+    }
+
     let csvContent = "";
     let fileName = "";
 
-    if (type === 'master') {
-      fileName = "csd_master_import.csv";
-      csvContent = "Department,DepartmentName,AcademicYear,SectionName,SubjectCode,SubjectName,SubjectType,FacultyEmail,FacultyName,Designation,IsHOD,IsDean,IsClassTeacher,MentorEmail,RoomNumber,Capacity,RoomType,Lectures per week,Labs per week,Lab duration\n" +
-                 "CSD,Computer Science & Data Science,2,CSD 2-A,23CD4111,DATA STRUCTURES(DS),THEORY,y.satish.kumar@anits.edu.in,Mr. Y Satish Kumar,Assistant Professor,FALSE,FALSE,FALSE,,I-503,60,THEORY,4,0,1\n" +
-                 "CSD,Computer Science & Data Science,2,CSD 2-A,23CD4211,CN & OS LAB,LAB,y.satish.kumar@anits.edu.in,Mr. Y Satish Kumar,Assistant Professor,FALSE,FALSE,FALSE,,I-508,60,LAB,0,1,3\n" +
-                 "CSD,Computer Science & Data Science,3,CSD 3-A,23CD9204,R PROGRAMMING,THEORY,s.aruna.jyothi@anits.edu.in,Mrs. S Aruna Jyothi,Assistant Professor,FALSE,FALSE,FALSE,,I-506,60,THEORY,4,0,1\n";
-    } else if (type === 'faculty') {
+    if (type === 'faculty') {
       fileName = "sample_faculty_import.csv";
       csvContent = "full_name,email,designation,max_weekly_workload\n" +
                  "Dr. A. Srinivas Rao,srinivas_cse@anits.edu.in,Professor,16\n" +

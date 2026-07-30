@@ -96,5 +96,24 @@ export const importService = {
   async clearDepartmentData(departmentId?: string): Promise<{ message: string; deleted_sections: number; deleted_subjects: number; deleted_faculty_users: number }> {
     const res = await axios.post(`${API_URL}/import/clear-department-data`, { department_id: departmentId }, getAuthHeaders());
     return res.data;
+  },
+
+  async exportDepartmentData(departmentId?: string): Promise<Blob> {
+    const params = departmentId ? { department_id: departmentId } : {};
+    try {
+      const res = await axios.get(`${API_URL}/import/export-department-data`, {
+        params,
+        responseType: 'blob',
+        ...getAuthHeaders()
+      });
+      return res.data;
+    } catch (err) {
+      const res = await axios.get(`${API_URL}/export-department-data`, {
+        params,
+        responseType: 'blob',
+        ...getAuthHeaders()
+      });
+      return res.data;
+    }
   }
 };

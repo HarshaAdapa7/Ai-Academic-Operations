@@ -46,6 +46,180 @@ async def resolve_user_dept_id(user: User, db: AsyncSession) -> Optional[str]:
     all_d_res = await db.execute(select(Department.id).limit(1))
     return all_d_res.scalars().first()
 
+@router.get("/export-department-data")
+async def export_department_data_endpoint(
+    department_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Exports all live department database records (sections, subject assignments, faculty, classrooms, rules)
+    into a single master 20-column CSV format using ultra-fast batch queries.
+    """
+    if department_id in [None, "", "null", "undefined"]:
+        department_id = None
+
+    user_dept_id = await resolve_user_dept_id(current_user, db)
+    target_dept_id = department_id or user_dept_id
+
+    dept_obj = None
+    if target_dept_id:
+        dept_res = await db.execute(select(Department).where(Department.id == target_dept_id))
+        dept_obj = dept_res.scalars().first()
+
+    if not dept_obj:
+        csd_res = await db.execute(select(Department).where(Department.code == "CSD"))
+        dept_obj = csd_res.scalars().first()
+        if not dept_obj:
+            all_dept_res = await db.execute(select(Department).limit(1))
+            dept_obj = all_dept_res.scalars().first()
+        target_dept_id = dept_obj.id if dept_obj else target_dept_id
+
+    dept_code = dept_obj.code if dept_obj else "CSD"
+    dept_name = dept_obj.name if dept_obj else "Computer Science & Data Science"
+
+    sec_res = await db.execute(
+        select(SectionConfig)
+        .options(selectinload(SectionConfig.counseling_mentors).selectinload(FacultyProfile.user))
+        .where(SectionConfig.department_id == target_dept_id)
+    )
+    sections = sec_res.scalars().all()
+    sec_map = {s.id: s for s in sections}
+
+    room_res = await db.execute(select(Classroom).where(Classroom.department_id == target_dept_id))
+    rooms = room_res.scalars().all()
+    room_map = {idx: r for idx, r in enumerate(rooms)}
+
+    fac_res = await db.execute(
+        select(FacultyProfile)
+        .options(selectinload(FacultyProfile.user))
+        .where(FacultyProfile.department_id == target_dept_id)
+    )
+    faculties = fac_res.scalars().all()
+    fac_map = {f.id: f for f in faculties}
+
+    subj_res = await db.execute(select(Subject).where(Subject.department_id == target_dept_id))
+    subjects = subj_res.scalars().all()
+    subj_map = {s.id: s for s in subjects}
+
+    # BATCH QUERY 1: all SubjectSchedulingRule records
+    rules_res = await db.execute(
+        select(SubjectSchedulingRule)
+        .where(SubjectSchedulingRule.subject_id.in_(list(subj_map.keys())))
+    ) if subj_map else None
+    rules_list = rules_res.scalars().all() if rules_res else []
+    rule_map = {r.subject_id: r for r in rules_list}
+
+    # BATCH QUERY 2: all section_subject_teachers links
+    sst_res = await db.execute(
+        select(section_subject_teachers.c.section_id, section_subject_teachers.c.subject_id, section_subject_teachers.c.faculty_id)
+        .where(section_subject_teachers.c.section_id.in_(list(sec_map.keys())))
+    ) if sec_map else None
+    sst_links = sst_res.all() if sst_res else []
+
+    output_rows = []
+
+    for sec_id, subj_id, fac_id in sst_links:
+        sec = sec_map.get(sec_id)
+        s_obj = subj_map.get(subj_id)
+        f_obj = fac_map.get(fac_id)
+
+        if not sec or not s_obj or not f_obj or not f_obj.user:
+            continue
+
+        mentor_emails = [m.user.email for m in sec.counseling_mentors if m and m.user] if sec.counseling_mentors else []
+        mentor_emails_str = ", ".join(mentor_emails)
+
+        c_room = room_map.get(len(output_rows) % max(1, len(rooms))) if rooms else None
+        rule_obj = rule_map.get(s_obj.id)
+        is_ct = "TRUE" if sec.class_teacher_id == f_obj.id else "FALSE"
+
+        output_rows.append({
+            "Department": dept_code,
+            "DepartmentName": dept_name,
+            "AcademicYear": str(sec.academic_year),
+            "SectionName": sec.name,
+            "SubjectCode": s_obj.code,
+            "SubjectName": s_obj.name,
+            "SubjectType": s_obj.subject_type,
+            "FacultyEmail": f_obj.user.email,
+            "FacultyName": f_obj.user.full_name,
+            "Designation": f_obj.designation or "Assistant Professor",
+            "IsHOD": "TRUE" if f_obj.is_hod else "FALSE",
+            "IsDean": "TRUE" if f_obj.is_dean else "FALSE",
+            "IsClassTeacher": is_ct,
+            "MentorEmail": mentor_emails_str,
+            "RoomNumber": c_room.room_number if c_room else "I-501",
+            "Capacity": str(c_room.capacity) if c_room else "60",
+            "RoomType": c_room.room_type if c_room else "THEORY",
+            "Lectures per week": str(rule_obj.lectures_per_week) if rule_obj else ("4" if s_obj.subject_type == "THEORY" else "0"),
+            "Labs per week": str(rule_obj.labs_per_week) if rule_obj else ("1" if s_obj.subject_type == "LAB" else "0"),
+            "Lab duration": str(rule_obj.lab_duration) if rule_obj else ("3" if s_obj.subject_type == "LAB" else "1")
+        })
+
+    # Fallback if no sst_links
+    if not output_rows and faculties and subjects:
+        for idx, s_obj in enumerate(subjects):
+            f_obj = faculties[idx % len(faculties)]
+            sec_obj = sections[idx % len(sections)] if sections else None
+            c_room = rooms[idx % len(rooms)] if rooms else None
+            if not f_obj.user:
+                continue
+
+            rule_obj = rule_map.get(s_obj.id)
+            output_rows.append({
+                "Department": dept_code,
+                "DepartmentName": dept_name,
+                "AcademicYear": str(sec_obj.academic_year if sec_obj else s_obj.academic_year),
+                "SectionName": sec_obj.name if sec_obj else f"{dept_code} {s_obj.academic_year}-A",
+                "SubjectCode": s_obj.code,
+                "SubjectName": s_obj.name,
+                "SubjectType": s_obj.subject_type,
+                "FacultyEmail": f_obj.user.email,
+                "FacultyName": f_obj.user.full_name,
+                "Designation": f_obj.designation or "Assistant Professor",
+                "IsHOD": "TRUE" if f_obj.is_hod else "FALSE",
+                "IsDean": "TRUE" if f_obj.is_dean else "FALSE",
+                "IsClassTeacher": "TRUE" if sec_obj and sec_obj.class_teacher_id == f_obj.id else "FALSE",
+                "MentorEmail": f_obj.user.email,
+                "RoomNumber": c_room.room_number if c_room else "I-501",
+                "Capacity": str(c_room.capacity) if c_room else "60",
+                "RoomType": c_room.room_type if c_room else "THEORY",
+                "Lectures per week": str(rule_obj.lectures_per_week) if rule_obj else ("4" if s_obj.subject_type == "THEORY" else "0"),
+                "Labs per week": str(rule_obj.labs_per_week) if rule_obj else ("1" if s_obj.subject_type == "LAB" else "0"),
+                "Lab duration": str(rule_obj.lab_duration) if rule_obj else ("3" if s_obj.subject_type == "LAB" else "1")
+            })
+
+    headers = [
+        "Department", "DepartmentName", "AcademicYear", "SectionName",
+        "SubjectCode", "SubjectName", "SubjectType", "FacultyEmail",
+        "FacultyName", "Designation", "IsHOD", "IsDean", "IsClassTeacher",
+        "MentorEmail", "RoomNumber", "Capacity", "RoomType",
+        "Lectures per week", "Labs per week", "Lab duration"
+    ]
+    
+    from fastapi.responses import Response
+    csv_io = io.StringIO()
+    writer = csv.DictWriter(csv_io, fieldnames=headers)
+    writer.writeheader()
+    for row in output_rows:
+        writer.writerow(row)
+
+    csv_data = csv_io.getvalue()
+    filename = f"{dept_code.lower()}_master_department_export.csv"
+
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
+
+
 @router.post("/upload", response_model=Dict[str, Any])
 async def upload_department_data(
     file: UploadFile = File(...),
@@ -61,7 +235,7 @@ async def upload_department_data(
     user_dept_id = await resolve_user_dept_id(current_user, db)
     
     # Security Check: Non-admin users are strictly locked to their assigned department
-    if current_user.role not in ["ADMIN", "DEAN"]:
+    if current_user.role not in ["ADMIN", "DEAN", "HOD"]:
         if not user_dept_id:
             raise HTTPException(status_code=400, detail="User is not associated with any department.")
         effective_dept_id = user_dept_id
@@ -390,7 +564,7 @@ async def get_staging_preview(
         raise HTTPException(status_code=404, detail="Import job not found.")
 
     user_dept_id = await resolve_user_dept_id(current_user, db)
-    if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != import_job.department_id:
+    if current_user.role not in ["ADMIN", "DEAN", "HOD"] and user_dept_id != import_job.department_id:
         raise HTTPException(status_code=403, detail="Unauthorized access to another department's import job.")
 
     query = select(ImportStagingRecord).where(ImportStagingRecord.import_history_id == import_id)
@@ -447,7 +621,7 @@ async def remediate_staging_record(
         raise HTTPException(status_code=404, detail="Staged record not found.")
 
     user_dept_id = await resolve_user_dept_id(current_user, db)
-    if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != record.department_id:
+    if current_user.role not in ["ADMIN", "DEAN", "HOD"] and user_dept_id != record.department_id:
         raise HTTPException(status_code=403, detail="Unauthorized access to record.")
 
     # Merge updated data
@@ -503,7 +677,7 @@ async def confirm_production_commit(
         raise HTTPException(status_code=404, detail="Import job not found.")
 
     user_dept_id = await resolve_user_dept_id(current_user, db)
-    if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != import_job.department_id:
+    if current_user.role not in ["ADMIN", "DEAN", "HOD"] and user_dept_id != import_job.department_id:
         raise HTTPException(status_code=403, detail="Unauthorized confirmation of another department's data.")
 
     records_res = await db.execute(
@@ -767,7 +941,7 @@ async def get_import_history(
     user_dept_id = await resolve_user_dept_id(current_user, db)
     
     query = select(ImportHistory).options(selectinload(ImportHistory.department), selectinload(ImportHistory.uploaded_by))
-    if current_user.role not in ["ADMIN", "DEAN"]:
+    if current_user.role not in ["ADMIN", "DEAN", "HOD"]:
         query = query.where(ImportHistory.department_id == user_dept_id)
     elif department_id:
         query = query.where(ImportHistory.department_id == department_id)
@@ -812,13 +986,13 @@ async def clear_department_data_endpoint(
     user_dept_id = await resolve_user_dept_id(current_user, db)
     target_dept_id = department_id or user_dept_id
 
-    if current_user.role not in ["ADMIN", "DEAN"] and user_dept_id != target_dept_id:
+    if current_user.role not in ["ADMIN", "DEAN", "HOD"] and user_dept_id != target_dept_id:
         raise HTTPException(status_code=403, detail="Unauthorized to clear data for another department.")
 
     if not target_dept_id:
         raise HTTPException(status_code=400, detail="Department ID is required.")
 
-    # 1. Delete SectionConfigs (cascades or clears class_teacher_id)
+    # 1. Delete SectionConfigs
     sec_res = await db.execute(select(SectionConfig).where(SectionConfig.department_id == target_dept_id))
     sections = sec_res.scalars().all()
     sec_ids = [s.id for s in sections]

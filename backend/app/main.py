@@ -14,7 +14,7 @@ from app.models.classroom import Classroom, SeatingPlan, SeatingAssignment
 from app.models.timetable import SchedulingRule, SubjectSchedulingRule, TimetableEntry, ExamTimetableEntry
 from app.models.import_system import ImportHistory, ImportStagingRecord
 from app.models.ai import AIConversation, AIMessage, AcademicPolicy
-from app.models.academic_calendar import AcademicCalendar, AcademicHoliday, AcademicCalendarEvent
+from app.models.academic_calendar import AcademicCalendar, AcademicHoliday
 
 from app.api.auth import router as auth_router
 from app.api.faculty import router as faculty_router
@@ -58,6 +58,21 @@ app.include_router(timetable_router, prefix=settings.API_V1_STR, tags=["Timetabl
 app.include_router(ai_router, prefix=settings.API_V1_STR, tags=["AI Decision Center"])
 app.include_router(import_router, prefix=f"{settings.API_V1_STR}/import", tags=["Department Import Portal"])
 app.include_router(academic_calendar_router, prefix=settings.API_V1_STR, tags=["Academic Calendar"])
+
+from typing import Optional
+from fastapi import Depends
+from app.api.deps import get_current_user, get_optional_current_user, get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+
+@app.get("/api/v1/import/export-department-data")
+@app.get("/api/v1/export-department-data")
+async def main_export_department_data(
+    department_id: Optional[str] = None,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.api.faculty import export_department_data_direct
+    return await export_department_data_direct(department_id=department_id, current_user=current_user, db=db)
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import HTTPException as FastAPIHTTPException

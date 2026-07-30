@@ -14,7 +14,7 @@ from app.models.classroom import Classroom, SeatingPlan, SeatingAssignment
 from app.models.timetable import SchedulingRule, SubjectSchedulingRule, TimetableEntry, ExamTimetableEntry
 from app.models.import_system import ImportHistory, ImportStagingRecord
 from app.models.ai import AIConversation, AIMessage, AcademicPolicy
-from app.models.academic_calendar import AcademicCalendar, AcademicHoliday
+from app.models.academic_calendar import AcademicCalendar, AcademicHoliday, AcademicCalendarEvent
 
 from app.api.auth import router as auth_router
 from app.api.faculty import router as faculty_router

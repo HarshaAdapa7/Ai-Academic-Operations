@@ -26,7 +26,8 @@ class AcademicCalendarBase(BaseModel):
     end_sem_exam_end_date: Optional[date] = None
     
     result_declaration_date: Optional[date] = None
-    semester_closing_date: date
+    semester_closing_date: Optional[date] = None
+    working_days_count: Optional[int] = None
     
     is_active: bool = False
 
@@ -58,29 +59,33 @@ class AcademicCalendarUpdate(BaseModel):
     
     result_declaration_date: Optional[date] = None
     semester_closing_date: Optional[date] = None
+    working_days_count: Optional[int] = None
     
     is_active: Optional[bool] = None
 
-class AcademicCalendarEventBase(BaseModel):
+class AcademicHolidayBase(BaseModel):
+    calendar_id: Optional[str] = None
+    academic_year: Optional[str] = None
     date: date
-    name: str = Field(..., description="e.g. Independence Day, Annual Tech Fest")
+    name: str = Field(..., description="e.g. Independence Day, Diwali Break")
     description: Optional[str] = None
-    is_holiday: bool = Field(True, description="True for no-class holidays, False for campus events/occasions")
+    is_holiday: bool = Field(True, description="True for no-class holidays, False for campus events")
 
-class AcademicCalendarEventCreate(AcademicCalendarEventBase):
+class AcademicHolidayCreate(AcademicHolidayBase):
     pass
 
-class AcademicCalendarEventUpdate(BaseModel):
+class AcademicHolidayUpdate(BaseModel):
+    calendar_id: Optional[str] = None
+    academic_year: Optional[str] = None
     date: Optional[date] = None
     name: Optional[str] = None
     description: Optional[str] = None
     is_holiday: Optional[bool] = None
 
-class AcademicCalendarEventResponse(AcademicCalendarEventBase):
+class AcademicHolidayResponse(AcademicHolidayBase):
     id: str
-    calendar_id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = {
         "from_attributes": True
@@ -88,9 +93,9 @@ class AcademicCalendarEventResponse(AcademicCalendarEventBase):
 
 class AcademicCalendarResponse(AcademicCalendarBase):
     id: str
-    created_at: datetime
-    updated_at: datetime
-    events: List[AcademicCalendarEventResponse] = []
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    holidays: List[AcademicHolidayResponse] = []
 
     model_config = {
         "from_attributes": True

@@ -108,76 +108,75 @@ async def test_upload_academic_calendar_csv(db_session):
     assert even_sem.is_active is True
 
 @pytest.mark.asyncio
-async def test_academic_calendar_event_operations(db_session):
-    from app.api.academic_calendar import create_calendar_event, list_calendar_events, upload_calendar_events_csv, delete_calendar_event
-    from app.schemas.academic_calendar import AcademicCalendarEventCreate
+async def test_academic_holiday_operations(db_session):
+    from app.api.academic_calendar import create_academic_holiday, list_academic_holidays, delete_academic_holiday
+    from app.schemas.academic_calendar import AcademicHolidayCreate
     from datetime import date
 
     admin_user = User(
-        email="admin_event@test.com",
+        email="admin_holiday@test.com",
         password_hash="pwd",
-        full_name="Admin Event User",
+        full_name="Admin Holiday User",
         role="ADMIN"
     )
     db_session.add(admin_user)
-
-    cal = AcademicCalendar(
-        academic_year="2026–2027",
-        semester="Odd Semester",
-        semester_start_date=date(2026, 6, 15),
-        semester_end_date=date(2026, 10, 31),
-        class_commencement_date=date(2026, 6, 18),
-        semester_closing_date=date(2026, 10, 31),
-        is_active=True
-    )
-    db_session.add(cal)
     await db_session.commit()
-    await db_session.refresh(cal)
 
-    # 1. Test manual creation of Holiday & Campus Event
-    event1_in = AcademicCalendarEventCreate(
+    # 1. Test manual creation of Holiday
+    holiday1_in = AcademicHolidayCreate(
         date=date(2026, 8, 15),
         name="Independence Day",
         description="National Holiday - No classes",
-        is_holiday=True
+        is_holiday=True,
+        academic_year="2026–2027"
     )
-    ev1 = await create_calendar_event(cal.id, event1_in, db_session, admin_user)
-    assert ev1.name == "Independence Day"
-    assert ev1.is_holiday is True
+    h1 = await create_academic_holiday(holiday1_in, db_session, admin_user)
+    assert h1.name == "Independence Day"
+    assert h1.is_holiday is True
 
-    event2_in = AcademicCalendarEventCreate(
-        date=date(2026, 9, 25),
-        name="Annual Tech Fest",
-        description="Student workshops & competitions",
-        is_holiday=False
+    # 2. Test list holidays
+    holidays = await list_academic_holidays("2026–2027", None, db_session, admin_user)
+    assert len(holidays) == 1
+
+    # 3. Test delete holiday
+    await delete_academic_holiday(h1.id, db_session, admin_user)
+    holidays_after_delete = await list_academic_holidays("2026–2027", None, db_session, admin_user)
+    assert len(holidays_after_delete) == 0
+
+@pytest.mark.asyncio
+async def test_clear_all_academic_holidays(db_session):
+    from app.api.academic_calendar import create_academic_holiday, list_academic_holidays, clear_all_academic_holidays
+    from app.schemas.academic_calendar import AcademicHolidayCreate
+    from datetime import date
+
+    admin_user = User(
+        email="admin_clear@test.com",
+        password_hash="pwd",
+        full_name="Admin Clear User",
+        role="ADMIN"
     )
-    ev2 = await create_calendar_event(cal.id, event2_in, db_session, admin_user)
-    assert ev2.name == "Annual Tech Fest"
-    assert ev2.is_holiday is False
+    db_session.add(admin_user)
+    await db_session.commit()
 
-    # 2. Test list events
-    events = await list_calendar_events(cal.id, db_session, admin_user)
-    assert len(events) == 2
+    # Create multiple holidays across years
+    await create_academic_holiday(AcademicHolidayCreate(date=date(2026, 8, 15), name="Independence Day", academic_year="2026–2027", is_holiday=True), db_session, admin_user)
+    await create_academic_holiday(AcademicHolidayCreate(date=date(2026, 10, 2), name="Gandhi Jayanti", academic_year="2026–2027", is_holiday=True), db_session, admin_user)
+    await create_academic_holiday(AcademicHolidayCreate(date=date(2027, 8, 15), name="Independence Day Next", academic_year="2027–2028", is_holiday=True), db_session, admin_user)
 
-    # 3. Test Event CSV upload
-    csv_events = (
-        "date,name,description,is_holiday\n"
-        "2026-10-02,Gandhi Jayanti,Public Holiday,true\n"
-        "2026-10-15,Cultural Evening,Campus Showcase,false\n"
-    )
-    upload_file = UploadFile(
-        file=io.BytesIO(csv_events.encode("utf-8")),
-        filename="events.csv"
-    )
-    csv_res = await upload_calendar_events_csv(cal.id, upload_file, db_session, admin_user)
-    assert csv_res["imported_count"] == 2
+    # 1. Clear holidays for 2026–2027
+    res = await clear_all_academic_holidays("2026–2027", db_session, admin_user)
+    assert res["deleted_count"] == 2
 
-    # Verify total events after CSV upload
-    events_after_csv = await list_calendar_events(cal.id, db_session, admin_user)
-    assert len(events_after_csv) == 4
+    holidays_remaining = await list_academic_holidays(None, None, db_session, admin_user)
+    assert len(holidays_remaining) == 1
+    assert holidays_remaining[0].name == "Independence Day Next"
 
-    # 4. Test delete event
-    await delete_calendar_event(ev1.id, db_session, admin_user)
-    events_after_delete = await list_calendar_events(cal.id, db_session, admin_user)
-    assert len(events_after_delete) == 3
+    # 2. Clear all remaining holidays without filter
+    res_all = await clear_all_academic_holidays(None, db_session, admin_user)
+    assert res_all["deleted_count"] == 1
+
+    holidays_final = await list_academic_holidays(None, None, db_session, admin_user)
+    assert len(holidays_final) == 0
+
+
 

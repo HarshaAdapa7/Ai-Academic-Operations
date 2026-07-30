@@ -14,6 +14,8 @@ interface PrintableTimetableTemplateProps {
   sectionConfig?: SectionConfig | null;
   ruleSlotsPerDay?: number;
   ruleLunchSlot?: number | null;
+  availableSections?: string[];
+  onSectionChange?: (section: string) => void;
   onClose: () => void;
 }
 
@@ -27,6 +29,8 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
   sectionConfig,
   ruleSlotsPerDay = 7,
   ruleLunchSlot = null,
+  availableSections = [],
+  onSectionChange,
   onClose
 }) => {
   // Extract Section details
@@ -85,12 +89,27 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/85 backdrop-blur-md overflow-y-auto print:p-0 print:bg-white print:static print:inset-auto">
       {/* Modal Toolbar (Hidden on Print) */}
       <div className="fixed top-4 right-6 flex items-center gap-3 z-50 print:hidden">
+        {availableSections.length > 0 && onSectionChange && (
+          <div className="flex items-center gap-2 bg-dark-900 border border-dark-800 px-3 py-1.5 rounded-xl shadow-xl">
+            <span className="text-xs text-dark-400 font-semibold">Select Section:</span>
+            <select
+              value={selectedSection}
+              onChange={e => onSectionChange(e.target.value)}
+              className="bg-dark-950 text-white font-bold text-xs py-1 px-2.5 rounded-lg border border-dark-750 outline-none"
+            >
+              {availableSections.map(sec => (
+                <option key={sec} value={sec}>{sec}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <button
           onClick={handlePrint}
           className="flex items-center gap-2 py-2.5 px-5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold shadow-xl transition-all"
         >
           <Printer className="w-4 h-4" />
-          Print / Save PDF
+          Print / Save PDF ({selectedSection})
         </button>
         <button
           onClick={onClose}

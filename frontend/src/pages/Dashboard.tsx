@@ -25,7 +25,7 @@ export const Dashboard: React.FC = () => {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   
   // Active Academic Calendar state for home page banner
-  const [activeCalendar, setActiveCalendar] = useState<AcademicCalendar | null>(null);
+  const [, setActiveCalendar] = useState<AcademicCalendar | null>(null);
 
   // States to pass to availability sub-view
   const [editFacultyId, setEditFacultyId] = useState<string | undefined>(undefined);
@@ -274,46 +274,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Active Institutional Academic Calendar Banner for Everyone */}
-          {activeCalendar && (
-            <div className="glass-panel p-6 md:p-7 relative overflow-hidden mb-10 border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-dark-900 to-purple-950/40 shadow-xl">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 font-extrabold text-xs border border-indigo-500/30 uppercase tracking-wider flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-                      Active Academic Calendar • A.Y. {activeCalendar.academic_year}
-                    </span>
-                    <span className="text-xs font-semibold text-dark-300">
-                      {activeCalendar.semester}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-extrabold text-white">
-                    Current Semester Timeline ({new Date(activeCalendar.semester_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(activeCalendar.semester_end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-dark-200">
-                    <div>📚 Class Commencement: <strong className="text-white">{new Date(activeCalendar.class_commencement_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong></div>
-                    {activeCalendar.mid1_start_date && (
-                      <div>📝 Mid-I Exams: <strong className="text-amber-300">{new Date(activeCalendar.mid1_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(activeCalendar.mid1_end_date || activeCalendar.mid1_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong></div>
-                    )}
-                    {activeCalendar.end_sem_exam_start_date && (
-                      <div>🎓 End Sem Exams: <strong className="text-rose-300">{new Date(activeCalendar.end_sem_exam_start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong></div>
-                    )}
-                    {activeCalendar.result_declaration_date && (
-                      <div>📊 Result Declaration: <strong className="text-cyan-300">{new Date(activeCalendar.result_declaration_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong></div>
-                    )}
-                  </div>
-                </div>
 
-                <button
-                  onClick={() => setActiveView('academic_calendar')}
-                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 whitespace-nowrap transition-all self-start lg:self-center"
-                >
-                  View Full Academic Calendar →
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Modules Grid */}
           <h3 className="text-xs font-bold text-dark-400 uppercase tracking-widest mb-6">Platform Modules</h3>

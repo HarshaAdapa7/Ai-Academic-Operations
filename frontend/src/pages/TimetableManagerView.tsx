@@ -26,6 +26,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('CSE 1-A');
+  const [selectedYearTab, setSelectedYearTab] = useState<'1' | '2' | '3' | '4'>('1');
   const [isCustomSection, setIsCustomSection] = useState(false);
   const [customSectionInput, setCustomSectionInput] = useState('');
   const [activeTab, setActiveTab] = useState<'class' | 'exam' | 'settings'>('class');
@@ -492,6 +493,62 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       ) : activeTab === 'class' ? (
         /* Dynamic Timetable Grid Tab */
         <div className="space-y-6">
+          {/* Academic Year Tabs for Separate Timetables per Year */}
+          <div className="flex items-center gap-2 bg-dark-900/60 p-2 border border-dark-800 rounded-2xl overflow-x-auto">
+            <span className="text-xs text-dark-400 font-bold px-2 whitespace-nowrap">Academic Year:</span>
+            {[
+              { key: '1', label: '1st Year (Sem 1 & Sem 2)' },
+              { key: '2', label: '2nd Year (Sem 1 & Sem 2)' },
+              { key: '3', label: '3rd Year (Sem 1 & Sem 2)' },
+              { key: '4', label: '4th Year (Sem 1 & Sem 2)' },
+            ].map(yr => (
+              <button
+                key={yr.key}
+                type="button"
+                onClick={() => {
+                  const keyVal = yr.key as '1' | '2' | '3' | '4';
+                  setSelectedYearTab(keyVal);
+                  const matchingSec = getAvailableSections().find(s => s.includes(`${keyVal}-`));
+                  if (matchingSec) {
+                    setSelectedSection(matchingSec);
+                    setIsCustomSection(false);
+                  }
+                }}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+                  selectedYearTab === yr.key
+                    ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-md shadow-primary-500/20'
+                    : 'bg-dark-950/60 text-dark-300 hover:text-white hover:bg-dark-850'
+                }`}
+              >
+                {yr.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Section Pills for Dedicated Section Timetables */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="text-xs text-dark-400 font-semibold whitespace-nowrap">Section Timetables:</span>
+            {getAvailableSections()
+              .filter(sec => sec.includes(`${selectedYearTab}-`))
+              .map(sec => (
+                <button
+                  key={sec}
+                  type="button"
+                  onClick={() => {
+                    setSelectedSection(sec);
+                    setIsCustomSection(false);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border ${
+                    selectedSection === sec && !isCustomSection
+                      ? 'bg-primary-500 text-white border-primary-400 shadow-md shadow-primary-500/20'
+                      : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+                  }`}
+                >
+                  {sec} Timetable
+                </button>
+              ))}
+          </div>
+
           <div className="flex justify-between items-center gap-4 bg-dark-900/30 p-4 border border-dark-800 rounded-xl">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
@@ -1024,6 +1081,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
           sectionConfig={sectionConfigs.find(s => s.name?.toUpperCase() === selectedSection.toUpperCase()) || null}
           ruleSlotsPerDay={ruleSlotsPerDay}
           ruleLunchSlot={ruleLunchSlot}
+          availableSections={getAvailableSections()}
+          onSectionChange={(sec) => setSelectedSection(sec)}
           onClose={() => setIsPrintModalOpen(false)}
         />
       )}

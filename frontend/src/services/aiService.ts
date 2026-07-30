@@ -78,14 +78,14 @@ export const aiService = {
     let convId: string | null = null;
     let deptId: string | null = null;
 
-    if (typeof promptOrParams === 'object' && promptOrParams !== null) {
-      prompt = promptOrParams.prompt;
-      convId = promptOrParams.conversation_id || null;
-      deptId = promptOrParams.department_id || null;
-    } else {
+    if (typeof promptOrParams === 'string') {
       prompt = promptOrParams;
       convId = conversationId || null;
       deptId = departmentId || null;
+    } else {
+      prompt = promptOrParams.prompt;
+      convId = promptOrParams.conversation_id || null;
+      deptId = promptOrParams.department_id || null;
     }
 
     const res = await axios.post(`${API_URL}/ai/chat`, {

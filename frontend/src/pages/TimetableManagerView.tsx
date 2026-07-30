@@ -50,6 +50,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [selectedFacultyId, setSelectedFacultyId] = useState('');
   const [selectedClassroomId, setSelectedClassroomId] = useState('');
   const [slotError, setSlotError] = useState('');
+  const [viewMode, setViewMode] = useState<'present' | 'permanent'>('present');
 
   // Exam Timetable states
   const [exams, setExams] = useState<ExamTimetableEntry[]>([]);
@@ -116,7 +117,10 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         if (rule.activity_blocks) setRuleActivityBlocks(rule.activity_blocks);
       }
 
-      const entries = await timetableService.getTimetable({ section: selectedSection });
+      const entries = await timetableService.getTimetable({ 
+        section: selectedSection, 
+        is_permanent: viewMode === 'permanent' 
+      });
       setTimetableEntries(entries);
     } catch (err) {
       console.error('Failed to load timetable rules/slots:', err);
@@ -127,7 +131,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
 
   useEffect(() => {
     loadTimetableAndRules();
-  }, [selectedDeptId, selectedSection]);
+  }, [selectedDeptId, selectedSection, viewMode]);
 
   // Filter departments based on user role (HOD locked to their department, Admin sees all)
   const availableDepartments = (user?.role === 'HOD' && user?.department_id)
@@ -220,7 +224,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       time_slot: targetSlot,
       subject_id: selectedSubjectId,
       faculty_id: selectedFacultyId,
-      classroom_id: selectedClassroomId
+      classroom_id: selectedClassroomId,
+      is_permanent: viewMode === 'permanent'
     };
 
     try {
@@ -527,6 +532,32 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                     className="w-28 px-3 py-1.5 bg-dark-950 border border-primary-500/50 rounded-lg text-white text-xs outline-none"
                   />
                 )}
+              </div>
+
+              {/* Permanent / Present View Toggle */}
+              <div className="flex items-center gap-1 p-0.5 bg-dark-950 border border-dark-800 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('present')}
+                  className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wider font-extrabold transition-all duration-300 ${
+                    viewMode === 'present'
+                      ? 'bg-primary-500 text-white shadow-md'
+                      : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Present Timetable
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('permanent')}
+                  className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wider font-extrabold transition-all duration-300 ${
+                    viewMode === 'permanent'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  Permanent Timetable
+                </button>
               </div>
 
               <span className="text-xs px-2.5 py-1 rounded bg-primary-500/10 text-primary-400 border border-primary-500/20 font-bold">

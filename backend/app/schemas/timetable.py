@@ -61,6 +61,7 @@ class TimetableEntryCreate(BaseModel):
     faculty_id: str
     classroom_id: str
     lab_batch: str = Field("ALL", description="ALL, BATCH_A, BATCH_B")
+    is_permanent: bool = Field(True, description="Whether this is a permanent slot")
 
 class TimetableEntryResponse(BaseModel):
     id: str
@@ -73,6 +74,7 @@ class TimetableEntryResponse(BaseModel):
     faculty_id: str
     classroom_id: str
     lab_batch: str
+    is_permanent: bool
     created_at: datetime
     department: Optional[DepartmentResponse] = None
     subject: Optional[SubjectResponse] = None

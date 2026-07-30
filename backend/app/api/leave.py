@@ -314,6 +314,21 @@ async def update_sub_status(
         raise HTTPException(status_code=403, detail="Not authorized to respond to this proposal.")
 
     proposal.status = status_update.upper()
+    
+    if proposal.status == "ACCEPTED":
+        from app.models.timetable import TimetableEntry
+        tt_stmt = select(TimetableEntry).where(
+            TimetableEntry.day_of_week == proposal.day_of_week,
+            TimetableEntry.time_slot == proposal.time_slot,
+            TimetableEntry.subject_id == proposal.subject_id,
+            TimetableEntry.faculty_id == proposal.original_faculty_id,
+            TimetableEntry.is_permanent == False
+        )
+        tt_res = await db.execute(tt_stmt)
+        entries = tt_res.scalars().all()
+        for entry in entries:
+            entry.faculty_id = proposal.substitute_faculty_id
+            
     await db.commit()
     return {"message": f"Proposal status updated to {proposal.status} successfully."}
 

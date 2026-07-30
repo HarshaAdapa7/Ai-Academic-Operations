@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.user import User, UserRole
-from app.models.faculty import Department, Subject, FacultyProfile, FacultyAvailability, SectionConfig, section_mentors, faculty_subjects
+from app.models.faculty import Department, Subject, FacultyProfile, FacultyAvailability, SectionConfig, section_mentors, faculty_subjects, section_subject_teachers
 from app.models.classroom import Classroom
 from app.models.timetable import SchedulingRule, SubjectSchedulingRule, TimetableEntry, ExamTimetableEntry
 from app.schemas.timetable import (
@@ -159,6 +159,7 @@ async def list_timetable(
     academic_year: Optional[int] = None,
     faculty_id: Optional[str] = None,
     classroom_id: Optional[str] = None,
+    is_permanent: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -181,6 +182,8 @@ async def list_timetable(
         stmt = stmt.where(TimetableEntry.faculty_id == faculty_id)
     if classroom_id:
         stmt = stmt.where(TimetableEntry.classroom_id == classroom_id)
+    
+    stmt = stmt.where(TimetableEntry.is_permanent == is_permanent)
 
     stmt = stmt.order_by(TimetableEntry.day_of_week, TimetableEntry.time_slot)
     res = await db.execute(stmt)
@@ -204,12 +207,22 @@ async def create_timetable_entry(
         subject_id=entry_in.subject_id,
         faculty_id=entry_in.faculty_id,
         classroom_id=entry_in.classroom_id,
-        lab_batch=entry_in.lab_batch
+        lab_batch=entry_in.lab_batch,
+        is_permanent=entry_in.is_permanent
     )
     db.add(new_entry)
     await db.commit()
-    await db.refresh(new_entry)
-    return new_entry
+    
+    # Reload relation fields for response validation
+    stmt = select(TimetableEntry).where(TimetableEntry.id == new_entry.id).options(
+        selectinload(TimetableEntry.department),
+        selectinload(TimetableEntry.subject),
+        selectinload(TimetableEntry.faculty).selectinload(FacultyProfile.user),
+        selectinload(TimetableEntry.classroom)
+    )
+    res = await db.execute(stmt)
+    refreshed = res.scalars().first()
+    return refreshed
 
 @router.delete("/timetable/{id}")
 async def delete_timetable_entry(
@@ -301,6 +314,24 @@ async def generate_master_timetable(
     rules_res = await db.execute(rules_stmt)
     rules_map = {r.department_id: r for r in rules_res.scalars().all()}
 
+    # Load all section-subject-teacher assignments from database
+    sst_stmt = select(
+        SectionConfig.name.label("section_name"),
+        Subject.id.label("subject_id"),
+        FacultyProfile.id.label("faculty_id")
+    ).select_from(section_subject_teachers)\
+     .join(SectionConfig, section_subject_teachers.c.section_id == SectionConfig.id)\
+     .join(Subject, section_subject_teachers.c.subject_id == Subject.id)\
+     .join(FacultyProfile, section_subject_teachers.c.faculty_id == FacultyProfile.id)
+     
+    sst_res = await db.execute(sst_stmt)
+    assigned_section_subject_teachers = {}
+    for row in sst_res.fetchall():
+        key = (row.section_name, row.subject_id)
+        if key not in assigned_section_subject_teachers:
+            assigned_section_subject_teachers[key] = []
+        assigned_section_subject_teachers[key].append(row.faculty_id)
+
     # 5. Load ALL Faculty Profiles for Rule 19 Cross-Branch protection
     fac_stmt = (
         select(FacultyProfile)
@@ -375,6 +406,7 @@ async def generate_master_timetable(
 
     # 7. Build Sessions to Schedule
     tasks = []
+    faculty_map = {p.id: p for p in faculty_profiles}
 
     for sec in input_data.sections:
         sec_yr = section_year_map[sec]
@@ -387,47 +419,62 @@ async def generate_master_timetable(
         for s in sec_subjs:
             spec = subjs_rules[s.id]
 
+            # Determine assigned teachers for this specific section and subject
+            assigned_ids = assigned_section_subject_teachers.get((sec, s.id), [])
+            task_teachers = [faculty_map[fid] for fid in assigned_ids if fid in faculty_map]
+            if not task_teachers:
+                task_teachers = subject_teachers.get(s.id, [])
+            if not task_teachers:
+                task_teachers = [p for p in faculty_profiles if p.department_id == sec_dept_id]
+
             if s.subject_type == "ELECTIVE":
-                for _ in range(spec.lectures_per_week):
+                periods_count = max(4, spec.lectures_per_week)
+                for _ in range(periods_count):
                     tasks.append({
                         "section": sec, "subject_id": s.id, "type": "ELECTIVE",
-                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
+                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
+                        "teachers": task_teachers
                     })
             elif s.subject_type == "LAB":
                 if s.is_parallel_lab and s.parallel_subject_id:
                     tasks.append({
                         "section": sec, "subject_id": s.id, "parallel_id": s.parallel_subject_id,
                         "type": "DUAL_LAB", "session_num": 1, "duration": spec.lab_duration,
-                        "year": sec_yr, "dept_id": sec_dept_id
+                        "year": sec_yr, "dept_id": sec_dept_id, "teachers": task_teachers
                     })
                     tasks.append({
                         "section": sec, "subject_id": s.id, "parallel_id": s.parallel_subject_id,
                         "type": "DUAL_LAB", "session_num": 2, "duration": spec.lab_duration,
-                        "year": sec_yr, "dept_id": sec_dept_id
+                        "year": sec_yr, "dept_id": sec_dept_id, "teachers": task_teachers
                     })
                 else:
                     for _ in range(spec.labs_per_week):
                         tasks.append({
                             "section": sec, "subject_id": s.id, "type": "LAB",
-                            "duration": spec.lab_duration, "year": sec_yr, "dept_id": sec_dept_id
+                            "duration": spec.lab_duration, "year": sec_yr, "dept_id": sec_dept_id,
+                            "teachers": task_teachers
                         })
             elif s.subject_type == "COUNSELLING":
                 for _ in range(max(1, spec.lectures_per_week)):
                     tasks.append({
                         "section": sec, "subject_id": s.id, "type": "COUNSELLING",
-                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
+                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
+                        "teachers": task_teachers
                     })
             elif s.subject_type == "SPORTS_LIBRARY":
                 for _ in range(max(1, spec.lectures_per_week)):
                     tasks.append({
                         "section": sec, "subject_id": s.id, "type": "SPORTS_LIBRARY",
-                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
+                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
+                        "teachers": task_teachers
                     })
             else:
-                for _ in range(spec.lectures_per_week):
+                periods_count = max(4, spec.lectures_per_week)
+                for _ in range(periods_count):
                     tasks.append({
                         "section": sec, "subject_id": s.id, "type": "THEORY",
-                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id
+                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
+                        "teachers": task_teachers
                     })
 
     type_priority = {"ELECTIVE": 0, "DUAL_LAB": 1, "LAB": 2, "COUNSELLING": 3, "SPORTS_LIBRARY": 4, "THEORY": 5}
@@ -462,6 +509,8 @@ async def generate_master_timetable(
     elective_sync_slots: Dict[tuple, tuple] = {}
     dual_lab_first_session: Dict[tuple, tuple] = {}
     section_daily_subjects: Set[tuple] = set() # (sec, day, subj_id)
+    section_daily_has_lab: Dict[tuple, bool] = {} # (sec, day) -> bool
+    section_slot_subject: Dict[tuple, str] = {} # (day, slot, sec) -> subj_id
 
     for p in faculty_profiles:
         teacher_p1_count[p.id] = 0
@@ -526,6 +575,22 @@ async def generate_master_timetable(
                     if start_slot not in [7, pre_lunch_slot]:
                         continue
 
+                # Enforce at most 1 lab session (LAB or DUAL_LAB) per section per day
+                if task_type in ["LAB", "DUAL_LAB"]:
+                    if section_daily_has_lab.get((sec, day), False):
+                        continue
+
+                # Avoid scheduling the same subject at the same slot on consecutive days
+                prev_day = "Friday" if day == "Saturday" else ("Thursday" if day == "Friday" else ("Wednesday" if day == "Thursday" else ("Tuesday" if day == "Wednesday" else ("Monday" if day == "Tuesday" else None))))
+                if prev_day:
+                    same_slot_prev = False
+                    for slot in range(start_slot, end_slot + 1):
+                        if section_slot_subject.get((prev_day, slot, sec)) == subj_id:
+                            same_slot_prev = True
+                            break
+                    if same_slot_prev:
+                        continue
+
                 # Enforce at most 1 theory/elective period of the same subject per section per day
                 if task_type in ["THEORY", "ELECTIVE"]:
                     if (sec, day, subj_id) in section_daily_subjects:
@@ -568,7 +633,7 @@ async def generate_master_timetable(
                     if not mentors_free:
                         continue
 
-                teachers = subject_teachers.get(subj_id, [])[:3]
+                teachers = task.get("teachers", [])[:3]
                 if task_type == "COUNSELLING" and sec_mentors:
                     teachers = [sec_mentors[0]]
 
@@ -700,6 +765,7 @@ async def generate_master_timetable(
                             busy_teachers.add((day, slot, str(teacher.id)))
                             busy_rooms.add((day, slot, str(room.id)))
                             teacher_slot_dept[(str(teacher.id), day, slot)] = dept_id
+                            section_slot_subject[(day, slot, sec)] = subj_id
 
                         # Rule 18: Lock ALL assigned counseling mentors for Section
                         locked_mentors = []
@@ -714,6 +780,7 @@ async def generate_master_timetable(
                         if task_type in ["LAB", "DUAL_LAB"]:
                             teacher_daily_has_lab[(teacher.id, day)] = True
                             teacher_weekly_labs[teacher.id] += 1
+                            section_daily_has_lab[(sec, day)] = True
                         if start_slot == 1:
                             teacher_p1_count[teacher.id] += 1
                         if task_type == "ELECTIVE":
@@ -731,6 +798,8 @@ async def generate_master_timetable(
                         # ---- BACKTRACK ----
                         if task_type in ["THEORY", "ELECTIVE"]:
                             section_daily_subjects.remove((sec, day, subj_id))
+                        if task_type in ["LAB", "DUAL_LAB"]:
+                            section_daily_has_lab.pop((sec, day), None)
                         if task_type != "COUNSELLING":
                             teacher_daily_periods[(teacher.id, day)] = curr_daily
                         if task_type in ["LAB", "DUAL_LAB"]:
@@ -749,6 +818,7 @@ async def generate_master_timetable(
                             busy_teachers.remove((day, slot, teacher.id))
                             busy_rooms.remove((day, slot, room.id))
                             teacher_slot_dept.pop((teacher.id, day, slot), None)
+                            section_slot_subject.pop((day, slot, sec), None)
 
         return False
 
@@ -760,6 +830,8 @@ async def generate_master_timetable(
         fallback_section_daily_subjects = set()
         fallback_dual_lab_first_session = {}
         fallback_teacher_daily_has_lab = {}
+        fallback_section_daily_has_lab = {}
+        fallback_section_slot_subject = {}
 
         # Greedy Fallback to complete any remaining tasks while strictly preventing collisions
         for task_idx, task in enumerate(tasks):
@@ -772,7 +844,7 @@ async def generate_master_timetable(
             lunch_slot = 4 if year == 1 else 5
             weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-            teachers = subject_teachers.get(subj_id, [])
+            teachers = task.get("teachers", [])
             if not teachers:
                 teachers = [p for p in faculty_profiles if p.department_id == dept_id]
             if not teachers:
@@ -814,6 +886,22 @@ async def generate_master_timetable(
                             if is_afternoon and start_slot != 5:
                                 continue
 
+                    # Enforce at most 1 lab session (LAB or DUAL_LAB) per section per day
+                    if task_type in ["LAB", "DUAL_LAB"]:
+                        if fallback_section_daily_has_lab.get((sec, day), False):
+                            continue
+
+                    # Avoid scheduling the same subject at the same slot on consecutive days
+                    prev_day = "Friday" if day == "Saturday" else ("Thursday" if day == "Friday" else ("Wednesday" if day == "Friday" else ("Tuesday" if day == "Wednesday" else ("Monday" if day == "Tuesday" else None))))
+                    if prev_day:
+                        same_slot_prev = False
+                        for slot in range(start_slot, end_slot + 1):
+                            if fallback_section_slot_subject.get((prev_day, slot, sec)) == subj_id:
+                                same_slot_prev = True
+                                break
+                        if same_slot_prev:
+                            continue
+
                     # Daily Subject Spreading check
                     if task_type in ["THEORY", "ELECTIVE"]:
                         if (sec, day, subj_id) in fallback_section_daily_subjects:
@@ -832,8 +920,7 @@ async def generate_master_timetable(
                     if sec_busy:
                         continue
 
-                    all_candidates = teachers + [p for p in faculty_profiles if p.department_id == dept_id and p.id not in [t.id for t in teachers]]
-                    for teacher in all_candidates[:5]:
+                    for teacher in teachers:
                         # HOD Exclusions
                         if teacher.is_hod or teacher.designation.upper() == "HOD":
                             if start_slot == 1 or end_slot == 7 or (start_slot <= 1 <= end_slot) or (start_slot <= 7 <= end_slot):
@@ -888,6 +975,7 @@ async def generate_master_timetable(
                                 busy_sections.add((day, slot, str(sec)))
                                 busy_teachers.add((day, slot, str(teacher.id)))
                                 busy_rooms.add((day, slot, str(room.id)))
+                                fallback_section_slot_subject[(day, slot, sec)] = subj_id
                             
                             # Bookkeeping
                             if task_type in ["THEORY", "ELECTIVE"]:
@@ -896,6 +984,7 @@ async def generate_master_timetable(
                                 fallback_dual_lab_first_session[(sec, subj_id)] = (day, is_morning)
                             if task_type in ["LAB", "DUAL_LAB"]:
                                 fallback_teacher_daily_has_lab[(teacher.id, day)] = True
+                                fallback_section_daily_has_lab[(sec, day)] = True
 
                             assigned = True
                             break
@@ -903,7 +992,23 @@ async def generate_master_timetable(
                             break
 
     for entry in schedule_state:
+        entry.is_permanent = True
         db.add(entry)
+        
+        present_entry = TimetableEntry(
+            department_id=entry.department_id,
+            section=entry.section,
+            academic_year=entry.academic_year,
+            day_of_week=entry.day_of_week,
+            time_slot=entry.time_slot,
+            subject_id=entry.subject_id,
+            faculty_id=entry.faculty_id,
+            classroom_id=entry.classroom_id,
+            lab_batch=entry.lab_batch,
+            is_permanent=False
+        )
+        db.add(present_entry)
+
     await db.commit()
 
     stmt = (
@@ -915,6 +1020,7 @@ async def generate_master_timetable(
             selectinload(TimetableEntry.classroom)
         )
         .where(TimetableEntry.section.in_(input_data.sections))
+        .where(TimetableEntry.is_permanent == False)
         .order_by(TimetableEntry.day_of_week, TimetableEntry.time_slot)
     )
     res = await db.execute(stmt)

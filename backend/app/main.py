@@ -143,6 +143,7 @@ async def on_startup():
                 "ALTER TABLE faculty_profiles ADD COLUMN is_dean BOOLEAN DEFAULT FALSE;",
                 "ALTER TABLE timetable_entries ADD COLUMN academic_year INTEGER DEFAULT 1;",
                 "ALTER TABLE timetable_entries ADD COLUMN lab_batch VARCHAR(50) DEFAULT 'ALL';",
+                "ALTER TABLE timetable_entries ADD COLUMN is_permanent BOOLEAN DEFAULT TRUE;",
                 "ALTER TABLE scheduling_rules ADD COLUMN lunch_slot INTEGER DEFAULT 5;",
                 "ALTER TABLE scheduling_rules ADD COLUMN activity_blocks VARCHAR(500) DEFAULT 'Saturday-5,Saturday-6';",
                 "ALTER TABLE academic_calendars ADD COLUMN working_days_count INTEGER DEFAULT 90;"

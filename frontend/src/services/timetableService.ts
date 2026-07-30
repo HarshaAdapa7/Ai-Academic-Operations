@@ -106,6 +106,7 @@ export const timetableService = {
     academic_year?: number;
     faculty_id?: string;
     classroom_id?: string;
+    is_permanent?: boolean;
   }): Promise<TimetableEntry[]> {
     const res = await axios.get(`${API_URL}/timetable`, { params: filters });
     return res.data;
@@ -121,6 +122,7 @@ export const timetableService = {
     faculty_id: string;
     classroom_id: string;
     lab_batch?: string;
+    is_permanent?: boolean;
   }): Promise<TimetableEntry> {
     const res = await axios.post(`${API_URL}/timetable`, data);
     return res.data;

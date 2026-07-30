@@ -17,7 +17,7 @@ from app.schemas.timetable import (
     ExamTimetableEntryCreate, ExamTimetableEntryResponse,
     GenerateExamsRequest
 )
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_current_user
 
 logger = logging.getLogger("exam-timetable-api")
 
@@ -88,9 +88,11 @@ async def list_exam_schedule(
     return res.scalars().all()
 
 
-@router.get("/timetable/exam-calendar-dates")
+@router.api_route("/timetable/exams/calendar-dates", methods=["GET", "POST", "OPTIONS"])
+@router.api_route("/timetable/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
+@router.api_route("/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
 async def get_exam_calendar_dates(
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     stmt = select(AcademicCalendar).order_by(AcademicCalendar.is_active.desc(), AcademicCalendar.updated_at.desc())

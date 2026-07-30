@@ -143,8 +143,13 @@ export const timetableService = {
     mid2_start_date: string | null;
     end_sem_exam_start_date: string | null;
   }> {
-    const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`);
-    return res.data;
+    try {
+      const res = await axios.get(`${API_URL}/timetable/exams/calendar-dates`);
+      return res.data;
+    } catch (err) {
+      const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`);
+      return res.data;
+    }
   },
 
   async getExamSchedule(filters?: {

@@ -257,6 +257,8 @@ async def create_timetable_entry(
     refreshed = res.scalars().first()
     return refreshed
 
+@router.delete("/timetable/entry/{id}")
+@router.delete("/timetable/{id:uuid}")
 @router.delete("/timetable/{id}")
 async def delete_timetable_entry(
     id: str,

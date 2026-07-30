@@ -52,11 +52,11 @@ app.add_middleware(
 
 # Include Routers
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
+app.include_router(exam_timetable_router, prefix=settings.API_V1_STR, tags=["Exam Timetable Operations"])
 app.include_router(faculty_router, prefix=settings.API_V1_STR, tags=["Faculty Management"])
 app.include_router(leave_router, prefix=settings.API_V1_STR, tags=["Leave & Substitutions"])
 app.include_router(classroom_router, prefix=settings.API_V1_STR, tags=["Classrooms & Seating"])
 app.include_router(timetable_router, prefix=settings.API_V1_STR, tags=["Timetable Operations"])
-app.include_router(exam_timetable_router, prefix=settings.API_V1_STR, tags=["Exam Timetable Operations"])
 app.include_router(ai_router, prefix=settings.API_V1_STR, tags=["AI Decision Center"])
 app.include_router(import_router, prefix=f"{settings.API_V1_STR}/import", tags=["Department Import Portal"])
 app.include_router(academic_calendar_router, prefix=settings.API_V1_STR, tags=["Academic Calendar"])
@@ -75,6 +75,15 @@ async def main_export_department_data(
 ):
     from app.api.faculty import export_department_data_direct
     return await export_department_data_direct(department_id=department_id, current_user=current_user, db=db)
+
+@app.api_route("/api/v1/timetable/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
+@app.api_route("/api/v1/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
+async def main_exam_calendar_dates(
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.api.exam_timetable import get_exam_calendar_dates
+    return await get_exam_calendar_dates(current_user=current_user, db=db)
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import HTTPException as FastAPIHTTPException

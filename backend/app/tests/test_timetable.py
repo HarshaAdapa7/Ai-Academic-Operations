@@ -13,9 +13,10 @@ from app.schemas.timetable import (
     SchedulingRuleCreate, TimetableEntryCreate, ExamTimetableEntryCreate
 )
 from app.api.timetable import (
-    save_scheduling_rule, create_timetable_entry, create_exam_entry,
+    save_scheduling_rule, create_timetable_entry,
     generate_master_timetable, MasterGenerateInput
 )
+from app.api.exam_timetable import create_exam_entry
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -210,7 +211,7 @@ async def test_ai_master_timetable_solver(db_session):
     await db_session.commit()
 
     # Subjects rules: Algo needs 3 lectures, 1 lab (consecutive 3 slots)
-    subj_algo = Subject(name="Algorithms", code="CS301", department_id=dept.id, credits=4)
+    subj_algo = Subject(name="Algorithms", code="CS301", department_id=dept.id, credits=4, subject_type="THEORY")
     db_session.add(subj_algo)
     await db_session.commit()
     await db_session.refresh(subj_algo)
@@ -245,7 +246,7 @@ async def test_ai_master_timetable_solver(db_session):
 
     # Generate timetable for 1 section "CSE-3A"
     generate_input = MasterGenerateInput(
-        department_id=dept.id,
+        department_ids=[dept.id],
         sections=["CSE-3A"]
     )
 

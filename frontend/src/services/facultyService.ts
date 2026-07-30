@@ -20,6 +20,7 @@ export interface Subject {
   academic_year: number;
   created_at: string;
   parallel_subject?: Subject | null;
+  department?: Department | null;
 }
 
 export interface UserMini {
@@ -33,6 +34,7 @@ export interface FacultyProfile {
   id: string;
   user_id: string;
   department_id: string | null;
+  employee_id?: string;
   designation: string;
   is_hod: boolean;
   is_dean: boolean;
@@ -92,8 +94,10 @@ export const facultyService = {
   },
 
   // Subjects
-  async getSubjects(departmentId?: string): Promise<Subject[]> {
-    const params = departmentId ? { department_id: departmentId } : {};
+  async getSubjects(departmentId?: string, academicYear?: number): Promise<Subject[]> {
+    const params: any = {};
+    if (departmentId) params.department_id = departmentId;
+    if (academicYear) params.academic_year = academicYear;
     const res = await axios.get(`${API_URL}/subjects`, { params });
     return res.data;
   },

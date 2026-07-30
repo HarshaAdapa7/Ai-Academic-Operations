@@ -61,6 +61,9 @@ class ExamTimetableEntry(Base):
     __tablename__ = "exam_timetable_entries"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    exam_type = Column(String(50), nullable=False, default="MID_1") # MID_1, MID_2, SEM_END
+    academic_year = Column(Integer, nullable=False, default=1) # 1, 2, 3, 4
+    semester = Column(Integer, nullable=False, default=1) # 1, 2
     exam_date = Column(DateTime, nullable=False)
     time_slot = Column(Integer, nullable=False) # Slot 1, 2 etc.
     subject_id = Column(String(36), ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False)
@@ -72,3 +75,4 @@ class ExamTimetableEntry(Base):
     subject = relationship("Subject", lazy="selectin")
     classroom = relationship("Classroom", lazy="selectin")
     invigilator = relationship("FacultyProfile", lazy="selectin")
+

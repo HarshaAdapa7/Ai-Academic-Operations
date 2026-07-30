@@ -20,6 +20,12 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    @property
+    def department_id(self):
+        if hasattr(self, "faculty_profile") and self.faculty_profile:
+            return self.faculty_profile.department_id
+        return None
+
 class PasswordReset(Base):
     __tablename__ = "password_resets"
 

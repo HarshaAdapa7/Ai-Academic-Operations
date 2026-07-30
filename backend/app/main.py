@@ -14,7 +14,7 @@ from app.models.classroom import Classroom, SeatingPlan, SeatingAssignment
 from app.models.timetable import SchedulingRule, SubjectSchedulingRule, TimetableEntry, ExamTimetableEntry
 from app.models.import_system import ImportHistory, ImportStagingRecord
 from app.models.ai import AIConversation, AIMessage, AcademicPolicy
-from app.models.academic_calendar import AcademicCalendar
+from app.models.academic_calendar import AcademicCalendar, AcademicHoliday
 
 from app.api.auth import router as auth_router
 from app.api.faculty import router as faculty_router
@@ -142,7 +142,8 @@ async def on_startup():
                 "ALTER TABLE timetable_entries ADD COLUMN academic_year INTEGER DEFAULT 1;",
                 "ALTER TABLE timetable_entries ADD COLUMN lab_batch VARCHAR(50) DEFAULT 'ALL';",
                 "ALTER TABLE scheduling_rules ADD COLUMN lunch_slot INTEGER DEFAULT 5;",
-                "ALTER TABLE scheduling_rules ADD COLUMN activity_blocks VARCHAR(500) DEFAULT 'Saturday-5,Saturday-6';"
+                "ALTER TABLE scheduling_rules ADD COLUMN activity_blocks VARCHAR(500) DEFAULT 'Saturday-5,Saturday-6';",
+                "ALTER TABLE academic_calendars ADD COLUMN working_days_count INTEGER DEFAULT 90;"
             ]
             for stmt in alter_statements:
                 try:

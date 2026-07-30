@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { API_URL } from '../context/AuthContext';
 
-export interface AcademicCalendarEvent {
+export interface AcademicHoliday {
   id: string;
-  calendar_id: string;
+  calendar_id?: string | null;
+  academic_year?: string | null;
   date: string;
   name: string;
   description?: string | null;
@@ -12,11 +13,43 @@ export interface AcademicCalendarEvent {
   updated_at?: string;
 }
 
-export interface AcademicCalendarEventInput {
+export interface AcademicHolidayInput {
+  calendar_id?: string;
+  academic_year?: string;
   date: string;
   name: string;
   description?: string;
   is_holiday: boolean;
+}
+
+export type AcademicCalendarEvent = AcademicHoliday;
+export type AcademicCalendarEventInput = AcademicHolidayInput;
+
+export interface ExaminationSchedule {
+  id: string;
+  calendar_id?: string | null;
+  academic_year?: string | null;
+  semester?: string | null;
+  exam_type: string;
+  exam_name: string;
+  start_date: string;
+  end_date: string;
+  session_timing?: string | null;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ExaminationScheduleInput {
+  calendar_id?: string;
+  academic_year?: string;
+  semester?: string;
+  exam_type: string;
+  exam_name: string;
+  start_date: string;
+  end_date: string;
+  session_timing?: string;
+  description?: string;
 }
 
 export interface AcademicCalendar {
@@ -38,10 +71,12 @@ export interface AcademicCalendar {
   end_sem_exam_end_date?: string | null;
   result_declaration_date?: string | null;
   semester_closing_date: string;
+  working_days_count?: number | null;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
-  events?: AcademicCalendarEvent[];
+  holidays?: AcademicHoliday[];
+  events?: AcademicHoliday[];
 }
 
 export interface AcademicCalendarInput {
@@ -62,7 +97,18 @@ export interface AcademicCalendarInput {
   end_sem_exam_end_date?: string;
   result_declaration_date?: string;
   semester_closing_date: string;
+  working_days_count?: number;
   is_active: boolean;
+}
+
+export interface ImportPreviewResponse {
+  import_type: string;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  field_mapping: Record<string, string>;
+  sample_parsed_data: any[];
+  errors: string[];
 }
 
 export const academicCalendarService = {
@@ -97,10 +143,22 @@ export const academicCalendarService = {
     await axios.delete(`${API_URL}/academic-calendar/${id}`);
   },
 
-  async uploadAcademicCalendarCsv(file: File): Promise<{ message: string; imported_count: number }> {
+  async clearAllAcademicCalendars(academicYear?: string): Promise<{ message: string; deleted_count: number }> {
+    const res = await axios.delete(`${API_URL}/academic-calendar/clear-all`, {
+      params: academicYear ? { academic_year: academicYear } : {}
+    });
+    return res.data;
+  },
+
+  async runImportEngine(file: File, preview: boolean = false, calendarId?: string, importType?: string): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await axios.post(`${API_URL}/academic-calendar/upload`, formData, {
+    const params = new URLSearchParams();
+    if (preview) params.append('preview', 'true');
+    if (calendarId) params.append('calendar_id', calendarId);
+    if (importType) params.append('import_type', importType);
+
+    const res = await axios.post(`${API_URL}/academic-calendar/import-engine?${params.toString()}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -108,33 +166,68 @@ export const academicCalendarService = {
     return res.data;
   },
 
-  async getCalendarEvents(calendarId: string): Promise<AcademicCalendarEvent[]> {
-    const res = await axios.get(`${API_URL}/academic-calendar/${calendarId}/events`);
+  async uploadAcademicCalendarCsv(file: File): Promise<{ message: string; imported_count: number }> {
+    return this.runImportEngine(file, false);
+  },
+
+  // Dedicated Holidays Database APIs
+  async getHolidays(academicYear?: string): Promise<AcademicHoliday[]> {
+    const res = await axios.get(`${API_URL}/academic-calendar/holidays/list`, {
+      params: academicYear ? { academic_year: academicYear } : {}
+    });
     return res.data;
   },
 
-  async createEvent(calendarId: string, event: AcademicCalendarEventInput): Promise<AcademicCalendarEvent> {
-    const res = await axios.post(`${API_URL}/academic-calendar/${calendarId}/events`, event);
+  async createHoliday(holiday: AcademicHolidayInput): Promise<AcademicHoliday> {
+    const res = await axios.post(`${API_URL}/academic-calendar/holidays`, holiday);
     return res.data;
   },
 
-  async updateEvent(eventId: string, event: Partial<AcademicCalendarEventInput>): Promise<AcademicCalendarEvent> {
-    const res = await axios.put(`${API_URL}/academic-calendar/events/${eventId}`, event);
+  async updateHoliday(id: string, holiday: Partial<AcademicHolidayInput>): Promise<AcademicHoliday> {
+    const res = await axios.put(`${API_URL}/academic-calendar/holidays/${id}`, holiday);
     return res.data;
   },
 
-  async deleteEvent(eventId: string): Promise<void> {
-    await axios.delete(`${API_URL}/academic-calendar/events/${eventId}`);
+  async deleteHoliday(id: string): Promise<void> {
+    await axios.delete(`${API_URL}/academic-calendar/holidays/${id}`);
+  },
+
+  async uploadHolidaysCsv(file: File, calendarId?: string): Promise<{ message: string; imported_count: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams();
+    if (calendarId) params.append('calendar_id', calendarId);
+
+    const res = await axios.post(`${API_URL}/academic-calendar/holidays/upload?${params.toString()}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  },
+
+  // Event Aliases for backward compatibility
+  async createEvent(calendarId: string, event: AcademicHolidayInput): Promise<AcademicHoliday> {
+    return this.createHoliday({ ...event, calendar_id: calendarId });
+  },
+
+  async updateEvent(id: string, event: Partial<AcademicHolidayInput>): Promise<AcademicHoliday> {
+    return this.updateHoliday(id, event);
+  },
+
+  async deleteEvent(id: string): Promise<void> {
+    return this.deleteHoliday(id);
   },
 
   async uploadEventsCsv(calendarId: string, file: File): Promise<{ message: string; imported_count: number }> {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await axios.post(`${API_URL}/academic-calendar/${calendarId}/events/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
+    return this.uploadHolidaysCsv(file, calendarId);
+  },
+
+  async clearAllHolidays(academicYear?: string): Promise<{ message: string; deleted_count: number }> {
+    const params = new URLSearchParams();
+    if (academicYear) params.append('academic_year', academicYear);
+    const res = await axios.delete(`${API_URL}/academic-calendar/holidays/clear-all?${params.toString()}`);
     return res.data;
   }
 };
+
+
+

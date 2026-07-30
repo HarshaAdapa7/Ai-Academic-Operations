@@ -5,7 +5,10 @@ import type {
   AcademicCalendar, 
   AcademicCalendarInput, 
   AcademicCalendarEvent, 
-  AcademicCalendarEventInput 
+  AcademicCalendarEventInput,
+  AcademicHoliday,
+  AcademicHolidayInput,
+  ImportPreviewResponse
 } from '../services/academicCalendarService';
 import { 
   ChevronLeft, 
@@ -20,22 +23,115 @@ import {
   Trash2, 
   X, 
   AlertCircle,
-  Flag,
   Check,
   Upload,
   FileSpreadsheet,
   PartyPopper,
-  CalendarOff,
-  Filter
+  Download,
+  Eye,
+  Table,
+  ArrowRight,
+  CalendarOff
 } from 'lucide-react';
 
 interface AcademicCalendarViewProps {
   onBack: () => void;
 }
 
+export interface GroupedHoliday {
+  startDate: string;
+  endDate: string;
+  name: string;
+  description?: string;
+  is_holiday?: boolean;
+  ids: string[];
+  sampleHoliday: AcademicHoliday;
+}
+
+const formatHolidayDateRange = (startStr: string, endStr: string) => {
+  if (!startStr) return '';
+  const formatSingle = (dateStr: string) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  if (!endStr || startStr === endStr) return formatSingle(startStr);
+
+  try {
+    const pStart = startStr.split('-').map(Number);
+    const pEnd = endStr.split('-').map(Number);
+    const dStart = new Date(pStart[0], pStart[1] - 1, pStart[2]);
+    const dEnd = new Date(pEnd[0], pEnd[1] - 1, pEnd[2]);
+
+    const startM = dStart.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = dStart.getDate();
+    const startYr = dStart.getFullYear();
+
+    const endM = dEnd.toLocaleDateString('en-US', { month: 'short' });
+    const endDay = dEnd.getDate();
+    const endYr = dEnd.getFullYear();
+
+    if (startYr === endYr) {
+      if (startM === endM) {
+        return `${startM} ${startDay} – ${endDay}, ${startYr}`;
+      }
+      return `${startM} ${startDay} – ${endM} ${endDay}, ${startYr}`;
+    }
+    return `${startM} ${startDay}, ${startYr} – ${endM} ${endDay}, ${endYr}`;
+  } catch {
+    return `${formatSingle(startStr)} – ${formatSingle(endStr)}`;
+  }
+};
+
+const groupConsecutiveHolidays = (list: AcademicHoliday[]): GroupedHoliday[] => {
+  if (!list || list.length === 0) return [];
+
+  const sorted = [...list].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const grouped: GroupedHoliday[] = [];
+
+  for (const item of sorted) {
+    const lastGroup = grouped[grouped.length - 1];
+    if (lastGroup && lastGroup.name.trim().toLowerCase() === item.name.trim().toLowerCase()) {
+      const prevParts = lastGroup.endDate.split('-').map(Number);
+      const currParts = item.date.split('-').map(Number);
+      const prevDate = new Date(prevParts[0], prevParts[1] - 1, prevParts[2]);
+      const currDate = new Date(currParts[0], currParts[1] - 1, currParts[2]);
+      const diffDays = Math.round((currDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24));
+      if (diffDays === 1) {
+        lastGroup.endDate = item.date;
+        lastGroup.ids.push(item.id);
+        continue;
+      }
+    }
+    grouped.push({
+      startDate: item.date,
+      endDate: item.date,
+      name: item.name,
+      description: item.description || undefined,
+      is_holiday: item.is_holiday,
+      ids: [item.id],
+      sampleHoliday: item
+    });
+  }
+
+  return grouped;
+};
+
 export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBack }) => {
   const { user } = useAuth();
   const isAdminOrHod = user?.role === 'ADMIN' || user?.role === 'HOD';
+
+  // Main Active Tab State: 'SCHEDULES' | 'HOLIDAYS_DB'
+  const [activeMainTab, setActiveMainTab] = useState<'SCHEDULES' | 'HOLIDAYS_DB'>('SCHEDULES');
 
   // Calculate current running year and next year dynamically
   const today = new Date();
@@ -50,6 +146,20 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Dedicated Holidays Database State
+  const [holidaysList, setHolidaysList] = useState<AcademicHoliday[]>([]);
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState<boolean>(false);
+  const [editingHoliday, setEditingHoliday] = useState<AcademicHoliday | null>(null);
+  const [holidayEndDate, setHolidayEndDate] = useState<string>('');
+  const [holidayFormData, setHolidayFormData] = useState<AcademicHolidayInput>({
+    date: new Date().toISOString().split('T')[0],
+    name: '',
+    description: '',
+    is_holiday: true,
+    academic_year: currentAY
+  });
+  const [_holidayFilter, _setHolidayFilter] = useState<'ALL' | 'HOLIDAY' | 'OCCASION'>('ALL');
+
   // Calendar Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingCalendar, setEditingCalendar] = useState<AcademicCalendar | null>(null);
@@ -61,10 +171,12 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
   const [importError, setImportError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<{ message: string; imported_count: number } | null>(null);
 
+  const [selectedYearCohort, setSelectedYearCohort] = useState<'ALL' | '1ST_YEAR' | '2ND_YEAR' | '3RD_YEAR' | '4TH_YEAR'>('ALL');
+
   // Calendar Form State
   const [formData, setFormData] = useState<AcademicCalendarInput>({
     academic_year: '2026–2027',
-    semester: 'Odd Semester (Sem I / III / V / VII)',
+    semester: '1st Year - Odd Semester (Sem I)',
     semester_start_date: '2026-06-15',
     semester_end_date: '2026-10-31',
     orientation_start_date: '2026-06-15',
@@ -74,19 +186,19 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
     mid1_end_date: '2026-08-14',
     mid2_start_date: '2026-10-05',
     mid2_end_date: '2026-10-09',
-    practical_exam_start_date: '2026-10-12',
-    practical_exam_end_date: '2026-10-16',
-    end_sem_exam_start_date: '2026-10-19',
-    end_sem_exam_end_date: '2026-10-30',
-    result_declaration_date: '2026-11-20',
-    semester_closing_date: '2026-10-31',
+    end_sem_exam_start_date: '2026-10-12',
+    end_sem_exam_end_date: '2026-10-23',
+    practical_exam_start_date: '2026-10-26',
+    practical_exam_end_date: '2026-10-31',
+    result_declaration_date: '',
+    semester_closing_date: '',
     is_active: true
   });
 
   // Event Modal & Upload State
   const [isEventModalOpen, setIsEventModalOpen] = useState<boolean>(false);
-  const [selectedCalendarForEvent, setSelectedCalendarForEvent] = useState<string | null>(null);
-  const [editingEvent, setEditingEvent] = useState<AcademicCalendarEvent | null>(null);
+  const [selectedCalendarForEvent, _setSelectedCalendarForEvent] = useState<string | null>(null);
+  const [editingEvent, _setEditingEvent] = useState<AcademicCalendarEvent | null>(null);
   const [eventFormData, setEventFormData] = useState<AcademicCalendarEventInput>({
     date: '',
     name: '',
@@ -100,8 +212,113 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
   const [eventImportError, setEventImportError] = useState<string | null>(null);
   const [eventImportResult, setEventImportResult] = useState<{ message: string; imported_count: number } | null>(null);
 
-  // Event Filter per calendar Tab: 'ALL' | 'HOLIDAY' | 'OCCASION'
-  const [eventFilterMap, setEventFilterMap] = useState<Record<string, 'ALL' | 'HOLIDAY' | 'OCCASION'>>({});
+
+  // Live Import Preview Engine State
+  const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
+
+
+  const handleDownloadScheduleTemplate = () => {
+    const csvContent = "academic_year,semester,semester_start_date,semester_end_date,orientation_start_date,orientation_end_date,class_commencement_date,mid1_start_date,mid1_end_date,mid2_start_date,mid2_end_date,end_sem_exam_start_date,end_sem_exam_end_date,external_exam_start_date,external_exam_end_date,is_active\n" +
+      "2026–2027,1st Year - Odd Semester (Sem I),2026-06-15,2026-10-31,2026-06-15,2026-06-17,2026-06-18,2026-08-10,2026-08-14,2026-10-05,2026-10-09,2026-10-12,2026-10-23,2026-10-26,2026-10-31,true\n" +
+      "2026–2027,2nd Year - Odd Semester (Sem III),2026-06-15,2026-10-31,2026-06-15,2026-06-17,2026-06-18,2026-08-10,2026-08-14,2026-10-05,2026-10-09,2026-10-12,2026-10-23,2026-10-26,2026-10-31,true\n" +
+      "2026–2027,3rd Year - Odd Semester (Sem V),2026-06-15,2026-10-31,2026-06-15,2026-06-17,2026-06-18,2026-08-10,2026-08-14,2026-10-05,2026-10-09,2026-10-12,2026-10-23,2026-10-26,2026-10-31,true\n" +
+      "2026–2027,4th Year - Odd Semester (Sem VII),2026-06-15,2026-10-31,2026-06-15,2026-06-17,2026-06-18,2026-08-10,2026-08-14,2026-10-05,2026-10-09,2026-10-12,2026-10-23,2026-10-26,2026-10-31,true\n";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'academic_calendar_schedule_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadEventsTemplate = () => {
+    const csvContent = "S.No,Date,Occasion / Reason for Holiday\n" +
+      "1,2026-08-15,Independence Day\n" +
+      "2,2026-10-19 to 2026-10-24,Dussehra Vacation\n" +
+      "3,13-01-2027 to 16-01-2027,Sankranti Holidays\n" +
+      "4,2027-01-26,Republic Day\n";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'academic_holidays_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportCalendarToCsv = (cal: AcademicCalendar) => {
+    let csvContent = `academic_year,semester,semester_start_date,semester_end_date,class_commencement_date,semester_closing_date,is_active\n`;
+    csvContent += `"${cal.academic_year}","${cal.semester}","${cal.semester_start_date}","${cal.semester_end_date}","${cal.class_commencement_date}","${cal.semester_closing_date}",${cal.is_active}\n\n`;
+    csvContent += `date,reason\n`;
+    (cal.events || []).forEach(ev => {
+      csvContent += `"${ev.date}","${ev.name}"\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `academic_calendar_${cal.academic_year.replace(/\s+/g, '_')}_${cal.semester.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePreviewFile = async (fileToPreview: File, calendarId?: string, importType: string = 'CALENDAR_SCHEDULE') => {
+    setIsPreviewLoading(true);
+    setImportError(null);
+    setEventImportError(null);
+    setPreviewData(null);
+    try {
+      const res = await academicCalendarService.runImportEngine(fileToPreview, true, calendarId, importType);
+      setPreviewData(res);
+    } catch (err: any) {
+      console.error('Preview failed:', err);
+      const errMsg = err.response?.data?.detail || 'Failed to preview file.';
+      if (calendarId || isEventImportModalOpen) {
+        setEventImportError(errMsg);
+      } else {
+        setImportError(errMsg);
+      }
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const handleDownloadHolidaysTemplate = () => {
+    const csvContent = "S.No,Date,Occasion / Reason for Holiday\n" +
+      "1,2026-08-15,Independence Day\n" +
+      "2,2026-10-19 to 2026-10-24,Dussehra Vacation\n" +
+      "3,13-01-2027 to 16-01-2027,Sankranti Holidays\n" +
+      "4,2027-01-26,Republic Day\n";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'academic_holidays_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportHolidaysCsv = () => {
+    let csvContent = "date,reason\n";
+    holidaysList.forEach(h => {
+      csvContent += `"${h.date}","${h.name}"\n`;
+    });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `academic_holidays_${selectedYear.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const loadCalendars = async () => {
     try {
@@ -111,23 +328,173 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
       setCalendars(data);
     } catch (err: any) {
       console.error('Failed to load academic calendars:', err);
-      setError('Failed to load academic calendar configurations.');
+      const detailMsg = typeof err.response?.data?.detail === 'string' 
+        ? err.response.data.detail 
+        : (err.message || '');
+      setError(`Failed to load academic calendar configurations. ${detailMsg ? `(${detailMsg})` : 'Please check connection or backend state.'}`);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const loadHolidays = async () => {
+    try {
+      const data = await academicCalendarService.getHolidays(selectedYear);
+      setHolidaysList(data);
+    } catch (err: any) {
+      console.error('Failed to load holidays database:', err);
+    }
+  };
+
   useEffect(() => {
     loadCalendars();
-  }, []);
+    loadHolidays();
+  }, [selectedYear]);
+
+  // Holiday DB Handlers
+  const handleOpenHolidayModal = (holidayToEdit?: AcademicHoliday) => {
+    setHolidayEndDate('');
+    if (holidayToEdit) {
+      setEditingHoliday(holidayToEdit);
+      setHolidayFormData({
+        date: holidayToEdit.date,
+        name: holidayToEdit.name,
+        description: holidayToEdit.description || '',
+        is_holiday: holidayToEdit.is_holiday,
+        academic_year: holidayToEdit.academic_year || selectedYear
+      });
+    } else {
+      setEditingHoliday(null);
+      setHolidayFormData({
+        date: new Date().toISOString().split('T')[0],
+        name: '',
+        description: '',
+        is_holiday: true,
+        academic_year: selectedYear
+      });
+    }
+    setIsHolidayModalOpen(true);
+  };
+
+  const handleSaveHoliday = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingHoliday) {
+        await academicCalendarService.updateHoliday(editingHoliday.id, holidayFormData);
+      } else {
+        if (holidayEndDate && holidayEndDate > holidayFormData.date) {
+          const st = new Date(holidayFormData.date);
+          const en = new Date(holidayEndDate);
+          const curr = new Date(st);
+          while (curr <= en) {
+            const dateStr = curr.toISOString().split('T')[0];
+            await academicCalendarService.createHoliday({
+              ...holidayFormData,
+              date: dateStr
+            });
+            curr.setDate(curr.getDate() + 1);
+          }
+        } else {
+          await academicCalendarService.createHoliday(holidayFormData);
+        }
+      }
+      setIsHolidayModalOpen(false);
+      setHolidayEndDate('');
+      loadHolidays();
+      loadCalendars();
+    } catch (err: any) {
+      console.error('Failed to save holiday:', err);
+      alert(err.response?.data?.detail || 'Failed to save holiday.');
+    }
+  };
+
+  const handleEditGroupedHoliday = (group: GroupedHoliday) => {
+    setEditingHoliday(group.sampleHoliday);
+    setHolidayFormData({
+      date: group.startDate,
+      name: group.name,
+      description: group.description || '',
+      is_holiday: group.is_holiday ?? true,
+      academic_year: group.sampleHoliday.academic_year || selectedYear
+    });
+    setHolidayEndDate(group.startDate !== group.endDate ? group.endDate : '');
+    setIsHolidayModalOpen(true);
+  };
+
+  const handleDeleteGroupedHoliday = async (group: GroupedHoliday) => {
+    const rangeLabel = formatHolidayDateRange(group.startDate, group.endDate);
+    if (!window.confirm(`Are you sure you want to delete "${group.name}" (${rangeLabel}) from the database?`)) return;
+    try {
+      for (const id of group.ids) {
+        await academicCalendarService.deleteHoliday(id);
+      }
+      loadHolidays();
+      loadCalendars();
+    } catch (err: any) {
+      console.error('Failed to delete holiday group:', err);
+      alert('Failed to delete holiday.');
+    }
+  };
+
+  const handleClearAllHolidays = async () => {
+    if (!window.confirm(`Are you sure you want to delete ALL ${holidaysList.length} holiday record(s) for A.Y. ${selectedYear} from the database? This action cannot be undone.`)) return;
+    try {
+      const res = await academicCalendarService.clearAllHolidays(selectedYear);
+      alert(res.message || 'Successfully cleared all holiday records.');
+      loadHolidays();
+      loadCalendars();
+    } catch (err: any) {
+      console.error('Failed to clear holidays:', err);
+      alert(err.response?.data?.detail || 'Failed to clear holidays.');
+    }
+  };
+
+  const handleClearAllCalendars = async (clearOverall: boolean = false) => {
+    const yrLabel = clearOverall ? 'ALL Academic Years' : `A.Y. ${selectedYear}`;
+    if (!window.confirm(`Are you sure you want to delete ALL academic calendar schedule entries for ${yrLabel} from the database? This action cannot be undone.`)) return;
+    try {
+      const res = await academicCalendarService.clearAllAcademicCalendars(clearOverall ? 'ALL' : selectedYear);
+      alert(res.message || 'Successfully cleared schedule entries.');
+      loadCalendars();
+    } catch (err: any) {
+      console.error('Failed to clear academic calendars:', err);
+      alert(err.response?.data?.detail || 'Failed to clear academic calendars.');
+    }
+  };
 
   // Limit to current running year and next year
   const availableYears = [currentAY, nextAY];
 
   const filteredCalendars = calendars.filter(c => {
-    const norm = (s: string) => s.replace(/–/g, '-').trim();
+    const norm = (s: string) => {
+      if (!s) return '';
+      const digits = s.match(/\d{4}|\d{2}/g);
+      if (digits && digits.length >= 2) {
+        const y1 = digits[0].length === 2 ? `20${digits[0]}` : digits[0];
+        const y2 = digits[1].length === 2 ? `20${digits[1]}` : digits[1];
+        return `${y1}-${y2}`;
+      }
+      return s.replace(/–/g, '-').replace(/—/g, '-').trim();
+    };
     return norm(c.academic_year) === norm(selectedYear);
+  }).filter((cal, index, self) => {
+    const normAY = (s: string) => (s || '').replace(/–/g, '-').replace(/—/g, '-').trim();
+    return index === self.findIndex((t) => normAY(t.academic_year) === normAY(cal.academic_year) && t.semester.trim().toLowerCase() === cal.semester.trim().toLowerCase());
+  }).sort((a, b) => {
+    return a.semester.localeCompare(b.semester, undefined, { numeric: true, sensitivity: 'base' });
   });
+
+  const cohortCalendars = filteredCalendars.filter(cal => {
+    if (selectedYearCohort === 'ALL') return true;
+    const semLower = cal.semester.toLowerCase();
+    if (selectedYearCohort === '1ST_YEAR') return semLower.includes('1st') || semLower.includes('i/iv') || semLower.includes('i b.tech') || semLower.includes('1 year');
+    if (selectedYearCohort === '2ND_YEAR') return semLower.includes('2nd') || semLower.includes('ii/iv') || semLower.includes('ii b.tech') || semLower.includes('2 year');
+    if (selectedYearCohort === '3RD_YEAR') return semLower.includes('3rd') || semLower.includes('iii/iv') || semLower.includes('iii b.tech') || semLower.includes('3 year');
+    if (selectedYearCohort === '4TH_YEAR') return semLower.includes('4th') || semLower.includes('iv/iv') || semLower.includes('iv/i') || semLower.includes('iv b.tech') || semLower.includes('4 year');
+    return true;
+  });
+
+
 
   const handleOpenModal = (calendarToEdit?: AcademicCalendar) => {
     if (calendarToEdit) {
@@ -149,14 +516,15 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
         end_sem_exam_start_date: calendarToEdit.end_sem_exam_start_date || '',
         end_sem_exam_end_date: calendarToEdit.end_sem_exam_end_date || '',
         result_declaration_date: calendarToEdit.result_declaration_date || '',
-        semester_closing_date: calendarToEdit.semester_closing_date,
+        semester_closing_date: calendarToEdit.semester_closing_date || '',
+        working_days_count: calendarToEdit.working_days_count || 90,
         is_active: calendarToEdit.is_active
       });
     } else {
       setEditingCalendar(null);
       setFormData({
         academic_year: selectedYear || currentAY,
-        semester: 'Odd Semester (Sem I / III / V / VII)',
+        semester: '1st Year - Sem 1',
         semester_start_date: '2026-06-15',
         semester_end_date: '2026-10-31',
         orientation_start_date: '2026-06-15',
@@ -166,12 +534,13 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
         mid1_end_date: '2026-08-14',
         mid2_start_date: '2026-10-05',
         mid2_end_date: '2026-10-09',
-        practical_exam_start_date: '2026-10-12',
-        practical_exam_end_date: '2026-10-16',
-        end_sem_exam_start_date: '2026-10-19',
-        end_sem_exam_end_date: '2026-10-30',
-        result_declaration_date: '2026-11-20',
-        semester_closing_date: '2026-10-31',
+        end_sem_exam_start_date: '2026-10-12',
+        end_sem_exam_end_date: '2026-10-23',
+        practical_exam_start_date: '2026-10-26',
+        practical_exam_end_date: '2026-10-31',
+        result_declaration_date: '',
+        semester_closing_date: '2026-10-10',
+        working_days_count: 90,
         is_active: false
       });
     }
@@ -181,7 +550,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
   const handleImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      setImportError('Please select a CSV file first.');
+      setImportError('Please select a CSV or Excel file first.');
       return;
     }
     
@@ -190,7 +559,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
     setImportResult(null);
     
     try {
-      const result = await academicCalendarService.uploadAcademicCalendarCsv(selectedFile);
+      const result = await academicCalendarService.runImportEngine(selectedFile, false, undefined, 'CALENDAR_SCHEDULE');
       setImportResult(result);
       loadCalendars();
       setTimeout(() => {
@@ -199,8 +568,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
         setImportResult(null);
       }, 3000);
     } catch (err: any) {
-      console.error('CSV import failed:', err);
-      setImportError(err.response?.data?.detail || 'Failed to import CSV file. Please check format.');
+      console.error('CSV/Excel import failed:', err);
+      setImportError(err.response?.data?.detail || 'Failed to import CSV/Excel file. Please check format.');
     } finally {
       setIsUploading(false);
     }
@@ -228,44 +597,33 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
       loadCalendars();
     } catch (err: any) {
       console.error('Failed to set active calendar:', err);
-      alert('Failed to set active calendar.');
+      if (err.response?.status === 404) {
+        alert('This calendar record was not found in the database (or was recently cleared). Refreshing calendar list...');
+      } else {
+        alert(err.response?.data?.detail || 'Failed to set active calendar.');
+      }
+      loadCalendars();
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this academic calendar entry?')) return;
+  const handleDelete = async (id: string, semesterName?: string) => {
+    const label = semesterName ? `for "${semesterName}"` : 'configuration';
+    if (!window.confirm(`Are you sure you want to clear/delete the academic calendar DB schedule entry ${label}? This action cannot be undone.`)) return;
     try {
       await academicCalendarService.deleteAcademicCalendar(id);
       loadCalendars();
     } catch (err: any) {
       console.error('Failed to delete calendar:', err);
-      alert('Failed to delete calendar.');
+      if (err.response?.status === 404) {
+        alert('This calendar record was not found in the database. Refreshing calendar list...');
+      } else {
+        alert(err.response?.data?.detail || 'Failed to delete calendar.');
+      }
+      loadCalendars();
     }
   };
 
   // Event Handlers
-  const handleOpenEventModal = (calendarId: string, eventToEdit?: AcademicCalendarEvent) => {
-    setSelectedCalendarForEvent(calendarId);
-    if (eventToEdit) {
-      setEditingEvent(eventToEdit);
-      setEventFormData({
-        date: eventToEdit.date,
-        name: eventToEdit.name,
-        description: eventToEdit.description || '',
-        is_holiday: eventToEdit.is_holiday
-      });
-    } else {
-      setEditingEvent(null);
-      setEventFormData({
-        date: new Date().toISOString().split('T')[0],
-        name: '',
-        description: '',
-        is_holiday: true
-      });
-    }
-    setIsEventModalOpen(true);
-  };
-
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCalendarForEvent && !editingEvent) return;
@@ -284,29 +642,10 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!window.confirm('Are you sure you want to delete this event/holiday?')) return;
-    try {
-      await academicCalendarService.deleteEvent(eventId);
-      loadCalendars();
-    } catch (err: any) {
-      console.error('Failed to delete event:', err);
-      alert('Failed to delete event/holiday.');
-    }
-  };
-
-  const handleOpenEventImportModal = (calendarId: string) => {
-    setSelectedCalendarForEvent(calendarId);
-    setSelectedEventFile(null);
-    setEventImportError(null);
-    setEventImportResult(null);
-    setIsEventImportModalOpen(true);
-  };
-
   const handleEventImportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCalendarForEvent || !selectedEventFile) {
-      setEventImportError('Please select a CSV file first.');
+    if (!selectedEventFile) {
+      setEventImportError('Please select a CSV or Excel file first.');
       return;
     }
 
@@ -315,9 +654,10 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
     setEventImportResult(null);
 
     try {
-      const result = await academicCalendarService.uploadEventsCsv(selectedCalendarForEvent, selectedEventFile);
+      const result = await academicCalendarService.uploadHolidaysCsv(selectedEventFile, selectedCalendarForEvent || undefined);
       setEventImportResult(result);
       loadCalendars();
+      loadHolidays();
       setTimeout(() => {
         setIsEventImportModalOpen(false);
         setSelectedEventFile(null);
@@ -348,7 +688,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
@@ -362,33 +702,132 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 <CalendarIcon className="w-5 h-5" />
               </div>
               <h2 className="text-2xl font-extrabold text-white tracking-tight">
-                Academic Calendar Module
+                Academic Calendar & Databases
               </h2>
             </div>
             <p className="text-dark-400 text-xs mt-1">
-              Centralized academic timeline manager for multi-year semester schedules, holidays, and campus occasions
+              Centralized academic management for semester schedules, dedicated holidays database, and examination dates
             </p>
           </div>
         </div>
 
         {isAdminOrHod && (
           <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-900 border border-dark-750 hover:border-indigo-500/40 text-dark-200 hover:text-white font-bold text-xs transition-all shadow-md"
-            >
-              <Upload className="w-4 h-4 text-indigo-400" />
-              Import Calendar CSV
-            </button>
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              Configure Academic Calendar
-            </button>
+            {activeMainTab === 'SCHEDULES' && (
+              <>
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-900 border border-dark-750 hover:border-indigo-500/40 text-dark-200 hover:text-white font-bold text-xs transition-all shadow-md"
+                >
+                  <Upload className="w-4 h-4 text-indigo-400" />
+                  Import Schedule (CSV / Excel)
+                </button>
+                {calendars.length > 0 && (
+                  <>
+                    {selectedYearCohort === 'ALL' ? (
+                      <button
+                        onClick={() => handleClearAllCalendars(true)}
+                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-600/25 border border-rose-500/50 text-rose-200 hover:text-white hover:bg-rose-600/40 font-extrabold text-xs transition-all shadow-md"
+                        title="Clear ALL academic calendar schedule DB entries across ALL years at once"
+                      >
+                        <CalendarOff className="w-3.5 h-3.5 text-rose-300" />
+                        Clear Overall DB ({calendars.length})
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleClearAllCalendars(false)}
+                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-600/30 font-bold text-xs transition-all shadow-md"
+                        title={`Clear academic calendar schedule DB entries for A.Y. ${selectedYear}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                        Clear Schedules DB ({cohortCalendars.length})
+                      </button>
+                    )}
+                  </>
+                )}
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  Configure Academic Calendar
+                </button>
+              </>
+            )}
+
+            {activeMainTab === 'HOLIDAYS_DB' && (
+              <>
+                <button
+                  onClick={handleDownloadHolidaysTemplate}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white text-xs font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5 text-rose-400" />
+                  CSV Template
+                </button>
+                <button
+                  onClick={() => setIsEventImportModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white text-xs font-semibold"
+                >
+                  <Upload className="w-3.5 h-3.5 text-purple-400" />
+                  Import Holidays (CSV / Excel)
+                </button>
+                <button
+                  onClick={handleExportHolidaysCsv}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white text-xs font-semibold"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  Export CSV
+                </button>
+                {holidaysList.length > 0 && (
+                  <button
+                    onClick={handleClearAllHolidays}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-600/30 text-xs font-semibold transition-all"
+                    title="Clear all holiday records for selected Academic Year"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                    Clear All ({holidaysList.length})
+                  </button>
+                )}
+                <button
+                  onClick={() => handleOpenHolidayModal()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-purple-600 text-white font-bold text-xs shadow-lg shadow-rose-600/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Holiday Entry
+                </button>
+              </>
+            )}
           </div>
         )}
+      </div>
+
+      {/* Main Navigation Tabs */}
+      <div className="flex items-center gap-2 mb-6 border-b border-dark-800 pb-3 overflow-x-auto">
+        <button
+          onClick={() => setActiveMainTab('SCHEDULES')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all border ${
+            activeMainTab === 'SCHEDULES'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/20'
+              : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+          }`}
+        >
+          <CalendarIcon className="w-4 h-4" />
+          Semester Timelines
+        </button>
+        <button
+          onClick={() => setActiveMainTab('HOLIDAYS_DB')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all border ${
+            activeMainTab === 'HOLIDAYS_DB'
+              ? 'bg-gradient-to-r from-rose-600 to-purple-600 text-white border-rose-500 shadow-lg shadow-rose-500/20'
+              : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+          }`}
+        >
+          <PartyPopper className="w-4 h-4" />
+          Academic Holidays
+          <span className="px-2 py-0.5 rounded-full bg-dark-950/60 text-[10px] border border-rose-500/30 text-rose-300">
+            {holidaysList.length} Records
+          </span>
+        </button>
       </div>
 
       {/* Academic Year Filter Pills */}
@@ -411,341 +850,374 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
 
       {/* Error state */}
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-400" />
-          <span>{error}</span>
+        <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+            <span className="font-medium">{error}</span>
+          </div>
+          <button
+            onClick={() => {
+              loadCalendars();
+              loadHolidays();
+            }}
+            className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 whitespace-nowrap self-end sm:self-auto"
+          >
+            Retry Loading
+          </button>
         </div>
       )}
 
-      {/* Loading state */}
-      {isLoading ? (
-        <div className="glass-panel p-12 text-center text-dark-400 text-sm">
-          <Clock className="w-6 h-6 animate-spin mx-auto text-indigo-500 mb-2" />
-          Loading Academic Calendar schedules...
-        </div>
-      ) : filteredCalendars.length === 0 ? (
-        /* Empty State */
-        <div className="glass-panel p-12 text-center border border-dashed border-dark-800">
-          <CalendarIcon className="w-12 h-12 text-dark-500 mx-auto mb-4" />
-          <h3 className="text-base font-bold text-white mb-2">No Academic Calendar Configured</h3>
-          <p className="text-dark-400 text-xs max-w-md mx-auto mb-6">
-            Configure semester start/end dates, orientation days, class commencement, mid-term examinations, holidays, and campus occasions.
-          </p>
-          {isAdminOrHod && (
-            <button
-              onClick={() => handleOpenModal()}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg"
-            >
-              Create First Academic Calendar
-            </button>
-          )}
-        </div>
-      ) : (
-        /* Calendar Entries Cards List */
-        <div className="space-y-8">
-          {filteredCalendars.map(cal => (
-            <div 
-              key={cal.id} 
-              className={`glass-panel p-6 border transition-all ${
-                cal.is_active 
-                  ? 'border-indigo-500/60 bg-gradient-to-b from-indigo-950/20 to-dark-900/60 shadow-xl shadow-indigo-500/5' 
-                  : 'border-dark-800'
-              }`}
-            >
-              {/* Card Top Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-dark-800">
-                <div className="flex items-center gap-3">
-                  <div className="px-3.5 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-extrabold text-xs">
-                    A.Y. {cal.academic_year}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-white">{cal.semester}</h3>
-                    <p className="text-dark-400 text-xs">
-                      Duration: <span className="text-dark-200 font-semibold">{formatDateRange(cal.semester_start_date, cal.semester_end_date)}</span>
-                    </p>
-                  </div>
-                </div>
+      {/* TAB 1: SEMESTER SCHEDULES VIEW */}
+      {activeMainTab === 'SCHEDULES' && (
+        isLoading ? (
+          <div className="glass-panel p-12 text-center text-dark-400 text-sm">
+            <Clock className="w-6 h-6 animate-spin mx-auto text-indigo-500 mb-2" />
+            Loading Academic Calendar schedules...
+          </div>
+        ) : filteredCalendars.length === 0 ? (
+          <div className="glass-panel p-12 text-center border border-dashed border-dark-800">
+            <CalendarIcon className="w-12 h-12 text-dark-500 mx-auto mb-4" />
+            <h3 className="text-base font-bold text-white mb-2">No Academic Calendar Configured</h3>
+            <p className="text-dark-400 text-xs max-w-md mx-auto mb-6">
+              Configure semester start/end dates, orientation days, class commencement, mid-term examinations, holidays, and campus occasions.
+            </p>
+            {isAdminOrHod && (
+              <button
+                onClick={() => handleOpenModal()}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg"
+              >
+                Create First Academic Calendar
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Year Schedule Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-2 bg-dark-900/60 p-2.5 border border-dark-800 rounded-2xl">
+              <span className="text-xs text-dark-400 font-bold px-2 uppercase tracking-wider">Year Filter:</span>
+              {[
+                { key: 'ALL', label: 'All Years' },
+                { key: '1ST_YEAR', label: '1st Year' },
+                { key: '2ND_YEAR', label: '2nd Year' },
+                { key: '3RD_YEAR', label: '3rd Year' },
+                { key: '4TH_YEAR', label: '4th Year' },
+              ].map(yr => (
+                <button
+                  key={yr.key}
+                  onClick={() => setSelectedYearCohort(yr.key as any)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border ${
+                    selectedYearCohort === yr.key
+                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
+                      : 'bg-dark-950 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+                  }`}
+                >
+                  {yr.label}
+                </button>
+              ))}
+            </div>
 
-                <div className="flex items-center gap-3">
-                  {cal.is_active ? (
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px] flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      Active Operational Calendar
-                    </span>
-                  ) : isAdminOrHod ? (
+            {/* Official Academic Calendar Master Table matching Database Fields */}
+            <div className="glass-panel p-6 border border-dark-800 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-dark-800 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Table className="w-5 h-5 text-indigo-400" />
+                    Official Academic Calendar Master Table (A.Y. {selectedYear})
+                  </h3>
+                  <p className="text-xs text-dark-400 mt-1">
+                    Official institutional schedule specifying key academic milestone commencement dates and instruction periods.
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto border border-dark-800 rounded-xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-dark-900/90 text-dark-300 font-extrabold uppercase tracking-wider border-b border-dark-800">
+                    <tr>
+                      <th className="p-3 pl-4 text-center w-12">S. No</th>
+                      <th className="p-3 font-extrabold text-white min-w-[130px]">Class</th>
+                      <th className="p-3 min-w-[160px]">Date of commencement of class work</th>
+                      <th className="p-3 min-w-[160px]">Date of commencement of first mid exam</th>
+                      <th className="p-3 min-w-[160px]">Date of commencement of second mid exam</th>
+                      <th className="p-3 min-w-[160px]">Date of closing of instructions</th>
+                      <th className="p-3 text-center min-w-[150px]">No of working days including mid exams</th>
+                      <th className="p-3 min-w-[160px]">Date of commencement of sem end exams</th>
+                      <th className="p-3 min-w-[160px]">Date of commencement of practical exams</th>
+                      {isAdminOrHod && <th className="p-3 text-right pr-4 w-28">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-850 text-dark-200">
+                    {cohortCalendars.map((cal, idx) => (
+                      <tr key={cal.id} className={`hover:bg-dark-900/50 transition-colors ${cal.is_active ? 'bg-indigo-950/20' : ''}`}>
+                        <td className="p-3.5 text-center font-bold text-dark-400">{idx + 1}</td>
+                        <td className="p-3.5 font-black text-white whitespace-nowrap">{cal.semester}</td>
+                        <td className="p-3.5 font-semibold text-emerald-300 whitespace-nowrap">{formatDate(cal.class_commencement_date)}</td>
+                        <td className="p-3.5 font-semibold text-amber-300 whitespace-nowrap">{formatDate(cal.mid1_start_date)}</td>
+                        <td className="p-3.5 font-semibold text-amber-300 whitespace-nowrap">{formatDate(cal.mid2_start_date)}</td>
+                        <td className="p-3.5 font-semibold text-rose-300 whitespace-nowrap">{formatDate(cal.semester_closing_date || cal.semester_end_date)}</td>
+                        <td className="p-3.5 text-center font-extrabold text-cyan-300">{cal.working_days_count || 90}</td>
+                        <td className="p-3.5 font-semibold text-purple-300 whitespace-nowrap">{formatDate(cal.end_sem_exam_start_date)}</td>
+                        <td className="p-3.5 font-semibold text-indigo-300 whitespace-nowrap">{formatDate(cal.practical_exam_start_date)}</td>
+                        {isAdminOrHod && (
+                          <td className="p-3.5 text-right pr-4 whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenModal(cal)}
+                                className="p-1.5 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all"
+                                title="Edit Calendar Row"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(cal.id, cal.semester)}
+                                className="px-2 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-300 hover:text-white hover:bg-rose-600/30 text-[11px] font-bold transition-all flex items-center gap-1"
+                                title={`Clear DB entry for ${cal.semester}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                                <span className="hidden xl:inline">Clear Sem</span>
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Detailed Cards View for active calendars */}
+            {filteredCalendars
+              .filter(cal => {
+                if (selectedYearCohort === 'ALL') return true;
+                const semLower = cal.semester.toLowerCase();
+                if (selectedYearCohort === '1ST_YEAR') return semLower.includes('1st') || semLower.includes('i/iv') || semLower.includes('i b.tech') || semLower.includes('1 year');
+                if (selectedYearCohort === '2ND_YEAR') return semLower.includes('2nd') || semLower.includes('ii/iv') || semLower.includes('ii b.tech') || semLower.includes('2 year');
+                if (selectedYearCohort === '3RD_YEAR') return semLower.includes('3rd') || semLower.includes('iii/iv') || semLower.includes('iii b.tech') || semLower.includes('3 year');
+                if (selectedYearCohort === '4TH_YEAR') return semLower.includes('4th') || semLower.includes('iv/iv') || semLower.includes('iv/i') || semLower.includes('iv b.tech') || semLower.includes('4 year');
+                return true;
+              })
+              .map(cal => (
+              <div 
+                key={cal.id} 
+                className={`glass-panel p-6 border transition-all ${
+                  cal.is_active 
+                    ? 'border-indigo-500/60 bg-gradient-to-b from-indigo-950/20 to-dark-900/60 shadow-xl shadow-indigo-500/5' 
+                    : 'border-dark-800'
+                }`}
+              >
+                {/* Card Top Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-dark-800">
+                  <div className="flex items-center gap-3">
+                    <div className="px-3.5 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-extrabold text-xs">
+                      A.Y. {cal.academic_year}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white">{cal.semester}</h3>
+                      <p className="text-dark-400 text-xs">
+                        Duration: <span className="text-dark-200 font-semibold">{formatDateRange(cal.semester_start_date, cal.semester_end_date)}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {cal.is_active ? (
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px] flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        Active Operational Calendar
+                      </span>
+                    ) : isAdminOrHod ? (
+                      <button
+                        onClick={() => handleSetActive(cal.id)}
+                        className="px-3 py-1.5 rounded-lg bg-dark-900 border border-dark-750 hover:border-emerald-500/40 text-dark-300 hover:text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        Set Active
+                      </button>
+                    ) : null}
+
                     <button
-                      onClick={() => handleSetActive(cal.id)}
-                      className="px-3 py-1.5 rounded-lg bg-dark-900 border border-dark-750 hover:border-emerald-500/40 text-dark-300 hover:text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5"
+                      onClick={() => handleExportCalendarToCsv(cal)}
+                      className="p-2 px-3 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-indigo-400 hover:border-indigo-500/30 transition-all flex items-center gap-1.5 text-xs font-semibold"
+                      title="Export & Download Stored Calendar CSV"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      Set Active
+                      <Download className="w-4 h-4 text-indigo-400" />
+                      <span className="hidden sm:inline">Export CSV</span>
                     </button>
-                  ) : null}
 
-                  {isAdminOrHod && (
-                    <div className="flex items-center gap-1.5 border-l border-dark-800 pl-3">
-                      <button
-                        onClick={() => handleOpenModal(cal)}
-                        className="p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all"
-                        title="Edit Calendar Configuration"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(cal.id)}
-                        className="p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-rose-400 hover:border-rose-500/30 transition-all"
-                        title="Delete Calendar Configuration"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Milestone Timeline Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-                {/* 1. Orientation Days */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold">
-                    <Sparkles className="w-4 h-4" />
-                    <span>Orientation Days</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDateRange(cal.orientation_start_date, cal.orientation_end_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">Student Induction & Briefings</p>
-                </div>
-
-                {/* 2. Class Commencement */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
-                    <BookOpen className="w-4 h-4" />
-                    <span>Class Commencement</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDate(cal.class_commencement_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">Instructional Work Begins</p>
-                </div>
-
-                {/* 3. Mid 1 Exams */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                    <Clock className="w-4 h-4" />
-                    <span>Mid-I Examinations</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDateRange(cal.mid1_start_date, cal.mid1_end_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">First Internal Assessment</p>
-                </div>
-
-                {/* 4. Mid 2 Exams */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                    <Clock className="w-4 h-4" />
-                    <span>Mid-II Examinations</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDateRange(cal.mid2_start_date, cal.mid2_end_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">Second Internal Assessment</p>
-                </div>
-
-                {/* 5. Practical Exams */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-purple-400 text-xs font-bold">
-                    <Clock className="w-4 h-4" />
-                    <span>Practical Exams</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDateRange(cal.practical_exam_start_date, cal.practical_exam_end_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">Laboratory & Viva Evaluation</p>
-                </div>
-
-                {/* 6. End Sem Exams */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
-                    <Award className="w-4 h-4" />
-                    <span>End Semester Exams</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDateRange(cal.end_sem_exam_start_date, cal.end_sem_exam_end_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">Final Theory Examinations</p>
-                </div>
-
-                {/* 7. Result Declaration */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-cyan-400 text-xs font-bold">
-                    <Flag className="w-4 h-4" />
-                    <span>Result Declaration</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDate(cal.result_declaration_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">Grade Sheet Publishing</p>
-                </div>
-
-                {/* 8. Semester Closing Date */}
-                <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                  <div className="flex items-center gap-2 text-dark-300 text-xs font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-dark-400" />
-                    <span>Semester Closing Date</span>
-                  </div>
-                  <p className="text-xs text-white font-extrabold pt-1">
-                    {formatDate(cal.semester_closing_date)}
-                  </p>
-                  <p className="text-[10px] text-dark-400">Term End & Recess</p>
-                </div>
-              </div>
-
-              {/* Holidays & Campus Occasions Section */}
-              <div className="mt-8 pt-6 border-t border-dark-800">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <PartyPopper className="w-5 h-5 text-purple-400" />
-                      <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-                        Holidays & Campus Occasions
-                      </h4>
-                      <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 font-extrabold text-[11px] border border-rose-500/30">
-                        {(cal.events || []).filter(e => e.is_holiday).length} Holidays
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 font-extrabold text-[11px] border border-purple-500/30">
-                        {(cal.events || []).filter(e => !e.is_holiday).length} Campus Occasions
-                      </span>
-                    </div>
-                    <p className="text-dark-400 text-xs mt-1">
-                      Public holidays, festivals, tech fests, sports days, and scheduled campus occasions
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
                     {isAdminOrHod && (
-                      <>
+                      <div className="flex items-center gap-1.5 border-l border-dark-800 pl-3">
                         <button
-                          onClick={() => handleOpenEventImportModal(cal.id)}
-                          className="px-3 py-1.5 rounded-xl bg-dark-900 border border-dark-750 hover:border-dark-700 text-dark-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5"
+                          onClick={() => handleOpenModal(cal)}
+                          className="p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all"
+                          title="Edit Calendar Configuration"
                         >
-                          <Upload className="w-3.5 h-3.5 text-indigo-400" />
-                          Import CSV
+                          <Edit3 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleOpenEventModal(cal.id)}
-                          className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-purple-600/20"
+                          onClick={() => handleDelete(cal.id, cal.semester)}
+                          className="px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-600/30 text-xs font-bold transition-all flex items-center gap-1.5"
+                          title={`Clear DB entry for ${cal.semester}`}
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          Add Holiday/Event
+                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Clear Sem DB</span>
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* Filter Tabs */}
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-[11px] font-bold text-dark-400 flex items-center gap-1">
-                    <Filter className="w-3 h-3 text-dark-400" /> Filter:
-                  </span>
-                  {(['ALL', 'HOLIDAY', 'OCCASION'] as const).map(tab => {
-                    const currentFilter = eventFilterMap[cal.id] || 'ALL';
-                    const label = tab === 'ALL' ? 'All Events' : tab === 'HOLIDAY' ? 'Official Holidays' : 'Campus Occasions';
-                    return (
-                      <button
-                        key={tab}
-                        onClick={() => setEventFilterMap(prev => ({ ...prev, [cal.id]: tab }))}
-                        className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all border ${
-                          currentFilter === tab
-                            ? 'bg-purple-600/30 text-purple-200 border-purple-500/50'
-                            : 'bg-dark-900 border-dark-800 text-dark-400 hover:text-white'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Events Grid */}
-                {(() => {
-                  const filterMode = eventFilterMap[cal.id] || 'ALL';
-                  const filteredEvents = (cal.events || []).filter(e => {
-                    if (filterMode === 'HOLIDAY') return e.is_holiday;
-                    if (filterMode === 'OCCASION') return !e.is_holiday;
-                    return true;
-                  });
-
-                  if (filteredEvents.length === 0) {
-                    return (
-                      <div className="p-6 rounded-xl border border-dashed border-dark-800 text-center text-dark-400 text-xs bg-dark-950/20">
-                        <CalendarOff className="w-6 h-6 mx-auto text-dark-500 mb-2" />
-                        <p>No {filterMode === 'HOLIDAY' ? 'holidays' : filterMode === 'OCCASION' ? 'occasions' : 'events or holidays'} configured for this academic calendar.</p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {filteredEvents.map(ev => (
-                        <div
-                          key={ev.id}
-                          className={`p-3.5 rounded-xl border transition-all relative group ${
-                            ev.is_holiday
-                              ? 'bg-rose-950/10 border-rose-900/30 hover:border-rose-700/50'
-                              : 'bg-purple-950/10 border-purple-900/30 hover:border-purple-700/50'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <span className="px-2 py-0.5 rounded-md bg-dark-900 border border-dark-800 text-white font-extrabold text-[10px]">
-                              {formatDate(ev.date)}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                                ev.is_holiday
-                                  ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
-                                  : 'bg-purple-500/15 border-purple-500/30 text-purple-300'
-                              }`}
-                            >
-                              {ev.is_holiday ? '🛑 Official Holiday' : '🎉 Campus Occasion'}
-                            </span>
-                          </div>
-
-                          <h5 className="text-xs font-bold text-white tracking-wide">{ev.name}</h5>
-                          {ev.description && (
-                            <p className="text-[11px] text-dark-400 mt-1 leading-relaxed">
-                              {ev.description}
-                            </p>
-                          )}
-
-                          {isAdminOrHod && (
-                            <div className="flex items-center gap-1.5 mt-3 pt-2 border-t border-dark-800/60 justify-end">
-                              <button
-                                onClick={() => handleOpenEventModal(cal.id, ev)}
-                                className="p-1 rounded-md bg-dark-900 text-dark-300 hover:text-white hover:bg-dark-800 text-[10px] font-semibold flex items-center gap-1 px-2 border border-dark-800"
-                              >
-                                <Edit3 className="w-3 h-3" /> Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteEvent(ev.id)}
-                                className="p-1 rounded-md bg-dark-900 text-dark-300 hover:text-rose-400 hover:bg-dark-800 text-[10px] font-semibold flex items-center gap-1 px-2 border border-dark-800"
-                              >
-                                <Trash2 className="w-3 h-3" /> Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                {/* Milestone Timeline Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                  {/* 1. Orientation Days */}
+                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
+                    <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold">
+                      <Sparkles className="w-4 h-4" />
+                      <span>Orientation Days</span>
                     </div>
-                  );
-                })()}
+                    <p className="text-xs text-white font-extrabold pt-1">
+                      {formatDateRange(cal.orientation_start_date, cal.orientation_end_date)}
+                    </p>
+                    <p className="text-[10px] text-dark-400">Student Induction & Briefings</p>
+                  </div>
+
+                  {/* 2. Class Commencement */}
+                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
+                    <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                      <BookOpen className="w-4 h-4" />
+                      <span>Class Commencement</span>
+                    </div>
+                    <p className="text-xs text-white font-extrabold pt-1">
+                      {formatDate(cal.class_commencement_date)}
+                    </p>
+                    <p className="text-[10px] text-dark-400">Instructional Work Begins</p>
+                  </div>
+
+                  {/* 3. Mid 1 Exams */}
+                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
+                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+                      <Clock className="w-4 h-4" />
+                      <span>Mid-I Examinations</span>
+                    </div>
+                    <p className="text-xs text-white font-extrabold pt-1">
+                      {formatDateRange(cal.mid1_start_date, cal.mid1_end_date)}
+                    </p>
+                    <p className="text-[10px] text-dark-400">First Internal Assessment</p>
+                  </div>
+
+                  {/* 4. Mid 2 Exams */}
+                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
+                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+                      <Clock className="w-4 h-4" />
+                      <span>Mid-II Examinations</span>
+                    </div>
+                    <p className="text-xs text-white font-extrabold pt-1">
+                      {formatDateRange(cal.mid2_start_date, cal.mid2_end_date)}
+                    </p>
+                    <p className="text-[10px] text-dark-400">Second Internal Assessment</p>
+                  </div>
+
+                  {/* 5. End Sem Exams */}
+                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
+                    <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
+                      <Award className="w-4 h-4" />
+                      <span>End Semester Exams</span>
+                    </div>
+                    <p className="text-xs text-white font-extrabold pt-1">
+                      {formatDateRange(cal.end_sem_exam_start_date, cal.end_sem_exam_end_date)}
+                    </p>
+                    <p className="text-[10px] text-dark-400">Final Theory Examinations</p>
+                  </div>
+
+                  {/* 6. External Examinations (Formerly Practical Exams - Conducted after End Sem) */}
+                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
+                    <div className="flex items-center gap-2 text-purple-400 text-xs font-bold">
+                      <Clock className="w-4 h-4" />
+                      <span>External Examinations</span>
+                    </div>
+                    <p className="text-xs text-white font-extrabold pt-1">
+                      {formatDateRange(cal.practical_exam_start_date, cal.practical_exam_end_date)}
+                    </p>
+                    <p className="text-[10px] text-dark-400">Laboratory & External Viva Evaluation</p>
+                  </div>
+                </div>
               </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* TAB 2: DEDICATED HOLIDAYS DATABASE VIEW */}
+      {activeMainTab === 'HOLIDAYS_DB' && (
+        <div className="glass-panel p-6 border border-dark-800 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-dark-800 pb-4">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <PartyPopper className="w-5 h-5 text-rose-400" />
+                Academic Holidays (`academic_holidays`)
+              </h3>
+              <p className="text-xs text-dark-400 mt-1">
+                Central holiday schedule containing official holiday dates and reason for the holiday.
+              </p>
             </div>
-          ))}
+          </div>
+
+          {/* Holiday List Table (2 Columns: Date & Reason for Holiday) */}
+          {holidaysList.length === 0 ? (
+            <div className="p-12 text-center border border-dashed border-dark-800 rounded-xl text-dark-400 text-xs">
+              <CalendarOff className="w-10 h-10 mx-auto text-dark-500 mb-3" />
+              <p className="font-bold text-white text-sm mb-1">No Holiday Records Found</p>
+              <p>Upload a holiday CSV/Excel file (with columns: <code className="text-rose-300">date, reason</code>) or add holiday entries directly.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-dark-800 rounded-xl">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-dark-900/90 text-dark-300 font-extrabold uppercase tracking-wider border-b border-dark-800">
+                  <tr>
+                    <th className="p-3.5 pl-5 w-44">Holiday Date</th>
+                    <th className="p-3.5">Reason for Holiday</th>
+                    {isAdminOrHod && <th className="p-3.5 text-right pr-5 w-32">Actions</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-dark-850 text-dark-200">
+                  {groupConsecutiveHolidays(holidaysList).map((group, idx) => (
+                    <tr key={idx} className="hover:bg-dark-900/40 transition-colors">
+                      <td className="p-3.5 pl-5 font-bold text-rose-300 whitespace-nowrap">
+                        {formatDateRange(group.startDate, group.endDate)}
+                      </td>
+                      <td className="p-3.5 font-bold text-white">
+                        {group.name}
+                      </td>
+                      {isAdminOrHod && (
+                        <td className="p-3.5 text-right pr-5 whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleEditGroupedHoliday(group)}
+                              className="p-1.5 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all"
+                              title="Edit Holiday"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteGroupedHoliday(group)}
+                              className="p-1.5 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-rose-400 hover:border-rose-500/30 transition-all"
+                              title="Delete Holiday"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
+
+
 
       {/* Admin Configure / Edit Calendar Modal */}
       {isModalOpen && (
@@ -780,10 +1252,36 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 </div>
                 <div>
                   <label className="text-xs font-bold text-dark-300 block mb-1.5">Semester Designation</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mb-2">
+                    {[
+                      '1st Year - Sem 1',
+                      '2nd Year - Sem 1',
+                      '3rd Year - Sem 1',
+                      '4th Year - Sem 1',
+                      '1st Year - Sem 2',
+                      '2nd Year - Sem 2',
+                      '3rd Year - Sem 2',
+                      '4th Year - Sem 2'
+                    ].map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, semester: preset })}
+                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left truncate ${
+                          formData.semester === preset
+                            ? 'bg-indigo-600 text-white border-indigo-500'
+                            : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white'
+                        }`}
+                        title={preset}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Odd Semester (Sem I/III/V/VII)"
+                    placeholder="e.g. 1st Year - Sem 1"
                     value={formData.semester}
                     onChange={e => setFormData({ ...formData, semester: e.target.value })}
                     className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
@@ -891,25 +1389,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 </div>
               </div>
 
-              {/* End Semester & Practical Exams */}
+              {/* End Semester & External Examinations */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-dark-300 block mb-1.5">Practical Exams (Start – End)</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={formData.practical_exam_start_date || ''}
-                      onChange={e => setFormData({ ...formData, practical_exam_start_date: e.target.value })}
-                      className="w-1/2 px-2.5 py-2 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
-                    />
-                    <input
-                      type="date"
-                      value={formData.practical_exam_end_date || ''}
-                      onChange={e => setFormData({ ...formData, practical_exam_end_date: e.target.value })}
-                      className="w-1/2 px-2.5 py-2 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
                 <div>
                   <label className="text-xs font-bold text-dark-300 block mb-1.5">End Sem Exams (Start – End)</label>
                   <div className="flex gap-2">
@@ -927,43 +1408,49 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                     />
                   </div>
                 </div>
+                <div>
+                  <label className="text-xs font-bold text-dark-300 block mb-1.5">External Examinations (Start – End)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={formData.practical_exam_start_date || ''}
+                      onChange={e => setFormData({ ...formData, practical_exam_start_date: e.target.value })}
+                      className="w-1/2 px-2.5 py-2 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
+                    />
+                    <input
+                      type="date"
+                      value={formData.practical_exam_end_date || ''}
+                      onChange={e => setFormData({ ...formData, practical_exam_end_date: e.target.value })}
+                      className="w-1/2 px-2.5 py-2 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Result Declaration & Closing */}
+              {/* Working Days & Active Switch */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-dark-300 block mb-1.5">Result Declaration Date</label>
+                  <label className="text-xs font-bold text-dark-300 block mb-1.5">No of working days including mid exams</label>
                   <input
-                    type="date"
-                    value={formData.result_declaration_date || ''}
-                    onChange={e => setFormData({ ...formData, result_declaration_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
+                    type="number"
+                    placeholder="e.g. 90"
+                    value={formData.working_days_count || ''}
+                    onChange={e => setFormData({ ...formData, working_days_count: parseInt(e.target.value) || undefined })}
+                    className="w-full px-4 py-2 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-dark-300 block mb-1.5">Semester Closing Date</label>
+                <div className="flex items-center gap-3 pt-6">
                   <input
-                    type="date"
-                    required
-                    value={formData.semester_closing_date}
-                    onChange={e => setFormData({ ...formData, semester_closing_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500"
+                    type="checkbox"
+                    id="isActiveCheck"
+                    checked={formData.is_active}
+                    onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-dark-900 border-dark-700"
                   />
+                  <label htmlFor="isActiveCheck" className="text-xs font-bold text-white cursor-pointer">
+                    Set as Active Operational Calendar for the Institution
+                  </label>
                 </div>
-              </div>
-
-              {/* Active Switch */}
-              <div className="flex items-center gap-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="isActiveCheck"
-                  checked={formData.is_active}
-                  onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-dark-900 border-dark-700"
-                />
-                <label htmlFor="isActiveCheck" className="text-xs font-bold text-white cursor-pointer">
-                  Set as Active Operational Calendar for the Institution
-                </label>
               </div>
 
               {/* Submit Buttons */}
@@ -987,48 +1474,168 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
         </div>
       )}
 
-      {/* Import Calendar CSV Modal */}
+      {/* Import Calendar CSV/Excel Modal with Dedicated Preview Engine */}
       {isImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md overflow-y-auto">
-          <div className="glass-panel w-full max-w-lg p-6 relative border border-dark-800 my-8">
+          <div className="glass-panel w-full max-w-2xl p-6 relative border border-dark-800 my-8 space-y-6">
             <button
-              onClick={() => setIsImportModalOpen(false)}
+              onClick={() => {
+                setIsImportModalOpen(false);
+                setSelectedFile(null);
+                setPreviewData(null);
+              }}
               className="absolute top-4 right-4 p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2.5">
-              <Upload className="w-5 h-5 text-indigo-400" />
-              Import Academic Calendar (CSV)
-            </h3>
-            <p className="text-xs text-dark-400 mb-6">
-              Upload a CSV file containing academic calendar timelines.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2.5">
+                  <Upload className="w-5 h-5 text-indigo-400" />
+                  Import Academic Calendar (CSV / Excel)
+                </h3>
+                <p className="text-xs text-dark-400 mt-0.5">
+                  Supports both <code className="text-indigo-300">.csv</code> and <code className="text-indigo-300">.xlsx / .xls</code> formats with auto field mapping.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadScheduleTemplate}
+                className="px-3.5 py-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                Template (CSV)
+              </button>
+            </div>
 
-            {/* Template Info */}
-            <div className="mb-6 p-4 rounded-xl bg-indigo-950/20 border border-indigo-900/30 text-[11px] text-dark-300 space-y-2">
-              <div className="flex items-center gap-1.5 font-bold text-indigo-400 uppercase tracking-wider">
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Expected CSV Headers & Sample Row</span>
+            {/* Template Info & Accepted Format */}
+            <div className="p-4 rounded-xl bg-indigo-950/20 border border-indigo-900/30 text-[11px] text-dark-300 space-y-2">
+              <div className="flex items-center justify-between font-bold text-indigo-400 uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Expected Columns (Flexible Headers Supported)
+                </span>
               </div>
               <div className="bg-dark-950/85 p-3 rounded-lg overflow-x-auto font-mono text-[10px] text-dark-200 border border-dark-850">
-                <p className="text-indigo-400">academic_year,semester,semester_start_date,semester_end_date,class_commencement_date,semester_closing_date,is_active</p>
-                <p className="mt-1">2026–2027,Odd Semester,2026-06-15,2026-10-31,2026-06-18,2026-10-31,true</p>
+                <p className="text-indigo-400">academic_year, semester, semester_start_date, semester_end_date, class_commencement_date, semester_closing_date, is_active</p>
+                <p className="mt-1 text-dark-300">Supports aliases: AY, Year, Sem, Start Date, End Date, Commencement Date, Active Status</p>
               </div>
             </div>
 
-            <form onSubmit={handleImportSubmit} className="space-y-4">
+            <form onSubmit={handleImportSubmit} className="space-y-5">
               <div>
-                <label className="text-xs font-bold text-dark-300 block mb-2">Select CSV File</label>
-                <input
-                  type="file"
-                  accept=".csv"
-                  required
-                  onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-                  className="w-full px-4 py-3 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-extrabold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer"
-                />
+                <label className="text-xs font-bold text-dark-300 block mb-2">Select CSV or Excel File</label>
+                <div className="flex gap-3">
+                  <input
+                    type="file"
+                    accept=".csv, .xlsx, .xls"
+                    required
+                    onChange={e => {
+                      const f = e.target.files?.[0] || null;
+                      setSelectedFile(f);
+                      setPreviewData(null);
+                      if (f) handlePreviewFile(f);
+                    }}
+                    className="w-full px-4 py-3 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-indigo-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-extrabold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer"
+                  />
+                  {selectedFile && (
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewFile(selectedFile)}
+                      disabled={isPreviewLoading}
+                      className="px-4 py-2.5 rounded-xl bg-dark-900 border border-dark-750 text-indigo-300 hover:text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <Eye className="w-4 h-4" />
+                      {isPreviewLoading ? 'Analyzing...' : 'Re-Preview'}
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Live Preview Engine Box */}
+              {previewData && (
+                <div className="p-4 rounded-xl bg-dark-950/80 border border-dark-800 space-y-3">
+                  <div className="flex items-center justify-between border-b border-dark-800 pb-3">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Table className="w-4 h-4 text-indigo-400" />
+                      Engine Validation Summary ({previewData.import_type})
+                    </span>
+                    <div className="flex gap-2 text-[11px] font-extrabold">
+                      <span className="px-2.5 py-0.5 rounded-md bg-dark-900 border border-dark-750 text-dark-300">
+                        Total: {previewData.total_rows}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                        Valid: {previewData.valid_rows}
+                      </span>
+                      {previewData.invalid_rows > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300">
+                          Invalid: {previewData.invalid_rows}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Header Field Mapping Badges */}
+                  <div>
+                    <p className="text-[11px] font-bold text-dark-400 mb-1.5 uppercase tracking-wider">Field Mapping Engine Matrix</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(previewData.field_mapping || {}).map(([orig, mapped]) => (
+                        <span key={orig} className="px-2.5 py-1 rounded-lg bg-dark-900 border border-dark-800 text-[10px] text-dark-200 font-mono flex items-center gap-1">
+                          <span className="text-indigo-400">{orig}</span>
+                          <ArrowRight className="w-3 h-3 text-dark-500" />
+                          <span className={mapped === 'unmapped' ? 'text-rose-400' : 'text-emerald-400 font-bold'}>{mapped}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sample Data Table */}
+                  {previewData.sample_parsed_data && previewData.sample_parsed_data.length > 0 && (
+                    <div className="overflow-x-auto border border-dark-850 rounded-lg">
+                      <table className="w-full text-left text-[11px] font-mono">
+                        <thead className="bg-dark-900 text-dark-400 border-b border-dark-800">
+                          <tr>
+                            <th className="p-2">Academic Year</th>
+                            <th className="p-2">Semester</th>
+                            <th className="p-2">Start Date</th>
+                            <th className="p-2">End Date</th>
+                            <th className="p-2">Classes Start</th>
+                            <th className="p-2">Active</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-dark-850 text-dark-200">
+                          {previewData.sample_parsed_data.map((row: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-dark-900/50">
+                              <td className="p-2 font-bold text-white">{row.academic_year}</td>
+                              <td className="p-2">{row.semester}</td>
+                              <td className="p-2 text-indigo-300">{row.semester_start_date}</td>
+                              <td className="p-2 text-indigo-300">{row.semester_end_date}</td>
+                              <td className="p-2 text-emerald-300">{row.class_commencement_date}</td>
+                              <td className="p-2 font-bold">{row.is_active ? '✅ True' : '❌ False'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Validation Error Warnings */}
+                  {previewData.errors && previewData.errors.length > 0 && (
+                    <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-rose-400" />
+                        Validation Issues Detected ({previewData.errors.length}):
+                      </p>
+                      <ul className="list-disc list-inside text-[11px] space-y-0.5">
+                        {previewData.errors.map((err, errIdx) => (
+                          <li key={errIdx}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {importResult && (
                 <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 space-y-1">
@@ -1049,7 +1656,11 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
               <div className="flex justify-end gap-3 pt-4 border-t border-dark-800">
                 <button
                   type="button"
-                  onClick={() => setIsImportModalOpen(false)}
+                  onClick={() => {
+                    setIsImportModalOpen(false);
+                    setSelectedFile(null);
+                    setPreviewData(null);
+                  }}
                   className="px-4 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 text-xs font-bold hover:text-white"
                 >
                   Cancel
@@ -1057,9 +1668,9 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 <button
                   type="submit"
                   disabled={isUploading}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isUploading ? 'Importing...' : 'Upload & Sync'}
+                  {isUploading ? 'Importing & Syncing DB...' : 'Confirm & Commit to DB'}
                 </button>
               </div>
             </form>
@@ -1165,49 +1776,143 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
         </div>
       )}
 
-      {/* Import Event CSV Modal */}
+      {/* Import Event CSV/Excel Modal */}
       {isEventImportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md overflow-y-auto">
-          <div className="glass-panel w-full max-w-lg p-6 relative border border-dark-800 my-8">
+          <div className="glass-panel w-full max-w-2xl p-6 relative border border-dark-800 my-8 space-y-6">
             <button
-              onClick={() => setIsEventImportModalOpen(false)}
+              onClick={() => {
+                setIsEventImportModalOpen(false);
+                setSelectedEventFile(null);
+                setPreviewData(null);
+              }}
               className="absolute top-4 right-4 p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2.5">
-              <Upload className="w-5 h-5 text-purple-400" />
-              Import Holidays & Occasions (CSV)
-            </h3>
-            <p className="text-xs text-dark-400 mb-6">
-              Upload a CSV file containing custom public holidays and campus events linked to this calendar.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2.5">
+                  <Upload className="w-5 h-5 text-purple-400" />
+                  Import Holidays & Occasions (CSV / Excel)
+                </h3>
+                <p className="text-xs text-dark-400 mt-0.5">
+                  Upload custom public holidays and campus events in <code className="text-purple-300">.csv</code> or <code className="text-purple-300">.xlsx / .xls</code> format.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadEventsTemplate}
+                className="px-3.5 py-2 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                Template (CSV)
+              </button>
+            </div>
 
             {/* Template Info */}
-            <div className="mb-6 p-4 rounded-xl bg-purple-950/20 border border-purple-900/30 text-[11px] text-dark-300 space-y-2">
-              <div className="flex items-center gap-1.5 font-bold text-purple-400 uppercase tracking-wider">
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Expected CSV Headers & Sample Rows</span>
+            <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-900/30 text-[11px] text-dark-300 space-y-2">
+              <div className="flex items-center justify-between font-bold text-purple-400 uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Flexible Holiday Columns & Ranges Supported
+                </span>
               </div>
-              <div className="bg-dark-950/85 p-3 rounded-lg overflow-x-auto font-mono text-[10px] text-dark-200 border border-dark-850">
-                <p className="text-purple-400">date,name,description,is_holiday</p>
-                <p className="mt-1">2026-08-15,Independence Day,National Public Holiday,true</p>
-                <p className="mt-0.5">2026-09-25,Annual Sports Fest,Inter-departmental competitions,false</p>
+              <div className="bg-dark-950/85 p-3 rounded-lg overflow-x-auto font-mono text-[10px] text-dark-200 border border-dark-850 space-y-1">
+                <p className="text-purple-400">S.No, Date, Occasion / Reason for Holiday</p>
+                <p className="text-dark-300">1, 2026-08-15, Independence Day</p>
+                <p className="text-dark-300">2, 2026-10-19 to 2026-10-24, Dussehra Vacation</p>
+                <p className="text-dark-300">3, 13-01-2027 to 16-01-2027, Sankranti Vacation</p>
               </div>
             </div>
 
-            <form onSubmit={handleEventImportSubmit} className="space-y-4">
+            <form onSubmit={handleEventImportSubmit} className="space-y-5">
               <div>
-                <label className="text-xs font-bold text-dark-300 block mb-2">Select Events CSV File</label>
-                <input
-                  type="file"
-                  accept=".csv"
-                  required
-                  onChange={e => setSelectedEventFile(e.target.files?.[0] || null)}
-                  className="w-full px-4 py-3 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-purple-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-extrabold file:bg-purple-600 file:text-white hover:file:bg-purple-500 file:cursor-pointer"
-                />
+                <label className="text-xs font-bold text-dark-300 block mb-2">Select Holidays CSV or Excel File</label>
+                <div className="flex gap-3">
+                  <input
+                    type="file"
+                    accept=".csv, .xlsx, .xls"
+                    required
+                    onChange={e => {
+                      const f = e.target.files?.[0] || null;
+                      setSelectedEventFile(f);
+                      setPreviewData(null);
+                      if (f) handlePreviewFile(f, selectedCalendarForEvent || undefined);
+                    }}
+                    className="w-full px-4 py-3 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-purple-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-extrabold file:bg-purple-600 file:text-white hover:file:bg-purple-500 file:cursor-pointer"
+                  />
+                  {selectedEventFile && (
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewFile(selectedEventFile, selectedCalendarForEvent || undefined)}
+                      disabled={isPreviewLoading}
+                      className="px-4 py-2.5 rounded-xl bg-dark-900 border border-dark-750 text-purple-300 hover:text-white text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <Eye className="w-4 h-4" />
+                      {isPreviewLoading ? 'Analyzing...' : 'Re-Preview'}
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Live Preview Box */}
+              {previewData && (
+                <div className="p-4 rounded-xl bg-dark-950/80 border border-dark-800 space-y-3">
+                  <div className="flex items-center justify-between border-b border-dark-800 pb-3">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <Table className="w-4 h-4 text-purple-400" />
+                      Holidays Preview Summary ({previewData.import_type})
+                    </span>
+                    <div className="flex gap-2 text-[11px] font-extrabold">
+                      <span className="px-2.5 py-0.5 rounded-md bg-dark-900 border border-dark-750 text-dark-300">
+                        Total: {previewData.total_rows}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
+                        Valid: {previewData.valid_rows}
+                      </span>
+                      {previewData.invalid_rows > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300">
+                          Skipped: {previewData.invalid_rows}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Skipped Row Error Details */}
+                  {previewData.errors && previewData.errors.length > 0 && (
+                    <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/25 text-[11px] text-rose-300 space-y-1 font-mono">
+                      <p className="font-bold text-rose-400">Skipped Rows Breakdown:</p>
+                      {previewData.errors.map((errMessage: string, errIdx: number) => (
+                        <p key={errIdx}>• {errMessage}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Sample Events Table */}
+                  {previewData.sample_parsed_data && previewData.sample_parsed_data.length > 0 && (
+                    <div className="overflow-x-auto border border-dark-850 rounded-lg">
+                      <table className="w-full text-left text-[11px] font-mono">
+                        <thead className="bg-dark-900 text-dark-400 border-b border-dark-800">
+                          <tr>
+                            <th className="p-2 w-36">Holiday Date</th>
+                            <th className="p-2">Reason for Holiday</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-dark-850 text-dark-200">
+                          {previewData.sample_parsed_data.map((row: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-dark-900/50">
+                              <td className="p-2 font-bold text-purple-300">{row.date}</td>
+                              <td className="p-2 text-white font-bold">{row.reason || row.name}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {eventImportResult && (
                 <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 space-y-1">
@@ -1228,7 +1933,11 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
               <div className="flex justify-end gap-3 pt-4 border-t border-dark-800">
                 <button
                   type="button"
-                  onClick={() => setIsEventImportModalOpen(false)}
+                  onClick={() => {
+                    setIsEventImportModalOpen(false);
+                    setSelectedEventFile(null);
+                    setPreviewData(null);
+                  }}
                   className="px-4 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 text-xs font-bold hover:text-white"
                 >
                   Cancel
@@ -1236,9 +1945,88 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 <button
                   type="submit"
                   disabled={isUploadingEventCsv}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isUploadingEventCsv ? 'Importing...' : 'Upload & Sync Events'}
+                  {isUploadingEventCsv ? 'Importing & Syncing DB...' : 'Confirm & Commit Events to DB'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Holiday Database Entry Modal */}
+      {isHolidayModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md overflow-y-auto">
+          <div className="glass-panel w-full max-w-md p-6 relative border border-dark-800 my-8">
+            <div className="flex justify-between items-center pb-4 border-b border-dark-800 mb-6">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <PartyPopper className="w-5 h-5 text-rose-400" />
+                {editingHoliday ? 'Edit Holiday Database Entry' : 'Add Holiday Entry to Database'}
+              </h3>
+              <button
+                onClick={() => setIsHolidayModalOpen(false)}
+                className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveHoliday} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-dark-300 block mb-1.5">Start Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={holidayFormData.date}
+                    onChange={e => setHolidayFormData({ ...holidayFormData, date: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500"
+                  />
+                </div>
+                {!editingHoliday && (
+                  <div>
+                    <label className="text-xs font-bold text-dark-300 block mb-1.5">End Date (Optional Range)</label>
+                    <input
+                      type="date"
+                      min={holidayFormData.date}
+                      placeholder="Leave empty for single-day"
+                      value={holidayEndDate}
+                      onChange={e => setHolidayEndDate(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-dark-300 block mb-1.5">Reason for Holiday / Occasion</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Independence Day, Diwali Vacation, Dussehra Holidays"
+                  value={holidayFormData.name}
+                  onChange={e => setHolidayFormData({ ...holidayFormData, name: e.target.value, is_holiday: true })}
+                  className="w-full px-4 py-2.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-dark-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsHolidayModalOpen(false);
+                    setHolidayEndDate('');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 text-xs font-bold hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg"
+                >
+                  {editingHoliday ? 'Update Holiday' : 'Save Holiday Entry'}
                 </button>
               </div>
             </form>
@@ -1248,3 +2036,5 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
     </div>
   );
 };
+
+

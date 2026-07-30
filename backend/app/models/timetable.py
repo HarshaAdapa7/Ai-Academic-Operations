@@ -48,6 +48,7 @@ class TimetableEntry(Base):
     faculty_id = Column(String(36), ForeignKey("faculty_profiles.id", ondelete="CASCADE"), nullable=False)
     classroom_id = Column(String(36), ForeignKey("classrooms.id", ondelete="CASCADE"), nullable=False)
     lab_batch = Column(String(50), nullable=False, default="ALL") # ALL, BATCH_A, BATCH_B
+    is_permanent = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships

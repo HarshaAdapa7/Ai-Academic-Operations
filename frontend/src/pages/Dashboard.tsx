@@ -182,6 +182,16 @@ export const Dashboard: React.FC = () => {
       roles: ['FACULTY', 'HOD', 'ADMIN', 'DEAN'],
       onClick: () => setActiveView('academic_calendar')
     },
+    { 
+      id: 'notification_center',
+      name: 'Notification Center', 
+      desc: 'Universal real-time alert engine, role-targeted broadcasts, live leave approvals, and schedule updates.', 
+      icon: Bell, 
+      color: 'from-amber-500 to-yellow-600', 
+      active: false,
+      roles: ['FACULTY', 'HOD', 'ADMIN', 'DEAN'],
+      onClick: () => {}
+    },
   ];
 
   const visibleModules = allModules.filter(mod => {

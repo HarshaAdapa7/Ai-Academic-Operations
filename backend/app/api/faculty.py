@@ -251,14 +251,10 @@ async def list_subjects(
 ):
     query = select(Subject).options(selectinload(Subject.department), selectinload(Subject.parallel_subject))
     
-<<<<<<< HEAD
-    if current_user and current_user.role not in [UserRole.ADMIN, "DEAN", UserRole.HOD, "HOD"]:
-=======
     if department_id and department_id.upper() == "ALL":
         department_id = None
 
     if not department_id and current_user and current_user.role not in [UserRole.ADMIN, "DEAN"]:
->>>>>>> a46b43307927cd91bdb3dcc58fc95a9f68db6946
         user_dept_id = await get_user_department_id(current_user, db)
         if user_dept_id:
             # Only restrict to user_dept_id if that department actually has subjects in the database

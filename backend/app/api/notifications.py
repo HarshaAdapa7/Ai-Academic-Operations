@@ -23,7 +23,8 @@ router = APIRouter()
 class MarkReadInput(BaseModel):
     notification_ids: List[str]
 
-@router.get("/notifications")
+@router.get("")
+@router.get("/")
 async def list_notifications(
     category: Optional[str] = Query(None),
     unread_only: bool = Query(False),
@@ -47,7 +48,7 @@ async def list_notifications(
         for n in notifs
     ]
 
-@router.get("/notifications/unread-count")
+@router.get("/unread-count")
 async def fetch_unread_count(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -55,7 +56,7 @@ async def fetch_unread_count(
     count = await get_unread_count(db, current_user)
     return {"unread_count": count}
 
-@router.get("/notifications/dept-leave-counts")
+@router.get("/dept-leave-counts")
 async def fetch_department_leave_counts(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -65,7 +66,7 @@ async def fetch_department_leave_counts(
     counts = await get_department_leave_counts(db)
     return counts
 
-@router.post("/notifications/mark-read")
+@router.post("/mark-read")
 async def mark_read(
     input_data: MarkReadInput,
     current_user: User = Depends(get_current_user),
@@ -74,7 +75,7 @@ async def mark_read(
     await mark_notifications_read(db, input_data.notification_ids)
     return {"message": "Notifications marked as read."}
 
-@router.post("/notifications/mark-all-read")
+@router.post("/mark-all-read")
 async def mark_all_read(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -82,7 +83,7 @@ async def mark_all_read(
     await mark_all_notifications_read(db, current_user)
     return {"message": "All notifications marked as read."}
 
-@router.post("/notifications/dispatch-daily-emails")
+@router.post("/dispatch-daily-emails")
 async def trigger_daily_schedule_emails(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -92,7 +93,7 @@ async def trigger_daily_schedule_emails(
     res = await dispatch_daily_faculty_schedules()
     return res
 
-@router.delete("/notifications/{id}")
+@router.delete("/{id}")
 async def delete_notification_entry(
     id: str,
     current_user: User = Depends(get_current_user),

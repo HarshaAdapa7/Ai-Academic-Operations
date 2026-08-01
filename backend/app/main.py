@@ -25,6 +25,7 @@ from app.api.exam_timetable import router as exam_timetable_router
 from app.api.ai import router as ai_router
 from app.api.import_system import router as import_router
 from app.api.academic_calendar import router as academic_calendar_router
+from app.api.notifications import router as notifications_router
 
 # Trigger live uvicorn reload - active
 app = FastAPI(

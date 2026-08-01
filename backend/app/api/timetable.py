@@ -905,9 +905,9 @@ async def generate_master_timetable(
                 teachers = faculty_profiles[:1]
             teachers = teachers[:2]
 
-            target_rooms = [r for r in classrooms if r.department_id == dept_id][:5]
+            target_rooms = [r for r in classrooms if r.department_id == dept_id]
             if not target_rooms:
-                target_rooms = classrooms[:5]
+                target_rooms = classrooms
 
             assigned = False
             for day in weekdays:
@@ -1172,7 +1172,7 @@ async def generate_master_timetable(
                 day_of_week=day,
                 time_slot=slot,
                 subject_id=lib_sports_subj_id,
-                faculty_id=fallback_teacher.id,
+                faculty_id=counselling_teacher.id,
                 classroom_id=fallback_room.id,
                 lab_batch="ALL"
             )

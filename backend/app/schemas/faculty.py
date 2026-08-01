@@ -130,3 +130,23 @@ class AvailabilityItem(BaseModel):
 
 class AvailabilityUpdate(BaseModel):
     availabilities: List[AvailabilityItem] = Field(..., description="Full list of slot configurations")
+
+# --- Section Subject Teacher Link Schemas ---
+class SectionSubjectTeacherBase(BaseModel):
+    section_id: str
+    subject_id: str
+    faculty_id: str
+
+class SectionSubjectTeacherCreate(SectionSubjectTeacherBase):
+    pass
+
+class SectionSubjectTeacherResponse(BaseModel):
+    section_id: str
+    section_name: str
+    subject_id: str
+    subject_code: str
+    subject_name: str
+    faculty_id: str
+    faculty_name: str
+    faculty_email: str
+

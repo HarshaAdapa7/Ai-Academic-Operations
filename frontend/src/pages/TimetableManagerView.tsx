@@ -9,6 +9,7 @@ import type { Classroom } from '../services/classroomService';
 import { PrintableTimetableTemplate } from '../components/PrintableTimetableTemplate';
 import { ChevronLeft, Plus, X, Calendar, RefreshCw, Settings, AlertTriangle, ShieldCheck, Sparkles, Check, Printer, Building2, ChevronDown, FileSpreadsheet, Activity, CheckCircle2 } from 'lucide-react';
 import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
+import { BranchDataManagerView } from './BranchDataManagerView';
 
 interface TimetableManagerViewProps {
   onBack: () => void;
@@ -29,7 +30,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
   const [selectedYearTab, setSelectedYearTab] = useState<'1' | '2' | '3' | '4'>('1');
   const [isCustomSection, setIsCustomSection] = useState(false);
   const [customSectionInput, setCustomSectionInput] = useState('');
-  const [activeTab, setActiveTab] = useState<'class' | 'exam' | 'settings'>('class');
+  const [activeTab, setActiveTab] = useState<'class' | 'exam' | 'settings' | 'data'>('class');
 
   // Timetable grid data
   const [timetableEntries, setTimetableEntries] = useState<TimetableEntry[]>([]);
@@ -638,7 +639,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-md mb-8">
+      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-lg mb-8">
         <button
           onClick={() => setActiveTab('class')}
           className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
@@ -658,6 +659,17 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
             17-Rule Configs
           </button>
         )}
+        {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
+          <button
+            onClick={() => setActiveTab('data')}
+            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              activeTab === 'data' ? 'bg-primary-500 text-white' : 'text-dark-400 hover:text-white'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Branch Data
+          </button>
+        )}
       </div>
 
 
@@ -666,6 +678,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         <div className="text-center py-20">
           <p className="text-dark-400 text-lg">Loading scheduling schedules...</p>
         </div>
+      ) : activeTab === 'data' ? (
+        <BranchDataManagerView onBack={() => setActiveTab('class')} />
       ) : activeTab === 'class' ? (
         /* Dynamic Timetable Grid Tab */
         <div className="space-y-6">

@@ -905,9 +905,9 @@ async def generate_master_timetable(
                 teachers = faculty_profiles[:1]
             teachers = teachers[:2]
 
-            target_rooms = [r for r in classrooms if r.department_id == dept_id][:5]
+            target_rooms = [r for r in classrooms if r.department_id == dept_id]
             if not target_rooms:
-                target_rooms = classrooms[:5]
+                target_rooms = classrooms
 
             assigned = False
             for day in weekdays:
@@ -1044,6 +1044,156 @@ async def generate_master_timetable(
                             break
                         if assigned:
                             break
+
+    # Ensure virtual subjects helper
+    async def get_or_create_virtual_subject(name: str, code: str, subject_type: str, department_id: str) -> str:
+        import uuid
+        stmt = select(Subject).where(Subject.department_id == department_id, Subject.code == code)
+        res = await db.execute(stmt)
+        subj = res.scalars().first()
+        if not subj:
+            subj = Subject(
+                id=str(uuid.uuid4()),
+                code=code,
+                name=name,
+                subject_type=subject_type,
+                department_id=department_id,
+                academic_year=1,
+                is_parallel_lab=False
+            )
+            db.add(subj)
+            await db.flush()
+        return subj.id
+
+    # Post-processing: Fill empty slots with Counseling (1), Library/Sports (1), and Activities (2, consecutive)
+    for sec in input_data.sections:
+        sec_yr = section_year_map[sec]
+        sec_dept_id = section_dept_map[sec]
+        dept_slots = rules_map[sec_dept_id].slots_per_day if (sec_dept_id in rules_map) else 8
+        lunch_slot = 4 if sec_yr == 1 else 5
+        
+        # Build list of all possible slots
+        valid_slots = []
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]:
+            max_day_slots = 4 if day == "Saturday" else dept_slots
+            for slot in range(1, max_day_slots + 1):
+                if slot == lunch_slot:
+                    continue
+                valid_slots.append((day, slot))
+                
+        # Find empty slots for this section
+        empty_slots = []
+        for day, slot in valid_slots:
+            if (day, slot, sec) not in busy_sections and (day, slot, str(sec)) not in busy_sections:
+                empty_slots.append((day, slot))
+                
+        # 1. Find consecutive empty slots on the same day for Activities (2 periods)
+        activity_slots = None
+        for i in range(len(empty_slots) - 1):
+            day1, slot1 = empty_slots[i]
+            day2, slot2 = empty_slots[i + 1]
+            if day1 == day2 and slot2 == slot1 + 1:
+                activity_slots = [(day1, slot1), (day2, slot2)]
+                empty_slots.pop(i + 1)
+                empty_slots.pop(i)
+                break
+                
+        # 2. Find Counselling slot (1 period) - prefer last period of the day
+        counselling_slot = None
+        for day, slot in empty_slots:
+            max_slots = 4 if day == "Saturday" else dept_slots
+            if slot == max_slots:
+                counselling_slot = (day, slot)
+                empty_slots.remove((day, slot))
+                break
+        if not counselling_slot and empty_slots:
+            counselling_slot = empty_slots.pop(0)
+            
+        # 3. Find Library/Sports slot (1 period) - prefer last period of the day or slot 4 (before lunch)
+        lib_sports_slot = None
+        for day, slot in empty_slots:
+            max_slots = 4 if day == "Saturday" else dept_slots
+            if slot == max_slots:
+                lib_sports_slot = (day, slot)
+                empty_slots.remove((day, slot))
+                break
+        if not lib_sports_slot:
+            for day, slot in empty_slots:
+                if slot == 4:
+                    lib_sports_slot = (day, slot)
+                    empty_slots.remove((day, slot))
+                    break
+        if not lib_sports_slot and empty_slots:
+            lib_sports_slot = empty_slots.pop(0)
+            
+        # Setup fallback teacher and room
+        sec_teachers = [p for p in faculty_profiles if p.department_id == sec_dept_id]
+        fallback_teacher = sec_teachers[0] if sec_teachers else faculty_profiles[0]
+        
+        sec_cfg = section_configs.get(sec)
+        class_teacher = None
+        if sec_cfg and sec_cfg.class_teacher_id:
+            class_teacher = faculty_map.get(sec_cfg.class_teacher_id)
+        counselling_teacher = class_teacher if class_teacher else fallback_teacher
+        
+        sec_classrooms = [r for r in classrooms if r.department_id == sec_dept_id and str(r.room_type).upper() not in ["LAB", "COMPUTER_LAB"]]
+        if not sec_classrooms:
+            sec_classrooms = [r for r in classrooms if str(r.room_type).upper() not in ["LAB", "COMPUTER_LAB"]]
+        fallback_room = sec_classrooms[0] if sec_classrooms else classrooms[0]
+        
+        # Ensure virtual subjects exist in the database
+        counsel_subj_id = await get_or_create_virtual_subject("COUNSELLING", "COUNSEL", "COUNSELLING", sec_dept_id)
+        lib_sports_subj_id = await get_or_create_virtual_subject("SPORTS/LIBRARY", "SPORTS_LIB", "SPORTS_LIBRARY", sec_dept_id)
+        activities_subj_id = await get_or_create_virtual_subject("ACTIVITIES", "ACTIVITIES", "THEORY", sec_dept_id)
+        
+        # Insert Counselling, Sports/Library, and Activities
+        if counselling_slot:
+            day, slot = counselling_slot
+            entry = TimetableEntry(
+                department_id=sec_dept_id,
+                section=sec,
+                academic_year=sec_yr,
+                day_of_week=day,
+                time_slot=slot,
+                subject_id=counsel_subj_id,
+                faculty_id=counselling_teacher.id,
+                classroom_id=fallback_room.id,
+                lab_batch="ALL"
+            )
+            schedule_state.append(entry)
+            busy_sections.add((day, slot, str(sec)))
+            
+        if lib_sports_slot:
+            day, slot = lib_sports_slot
+            entry = TimetableEntry(
+                department_id=sec_dept_id,
+                section=sec,
+                academic_year=sec_yr,
+                day_of_week=day,
+                time_slot=slot,
+                subject_id=lib_sports_subj_id,
+                faculty_id=counselling_teacher.id,
+                classroom_id=fallback_room.id,
+                lab_batch="ALL"
+            )
+            schedule_state.append(entry)
+            busy_sections.add((day, slot, str(sec)))
+            
+        if activity_slots:
+            for day, slot in activity_slots:
+                entry = TimetableEntry(
+                    department_id=sec_dept_id,
+                    section=sec,
+                    academic_year=sec_yr,
+                    day_of_week=day,
+                    time_slot=slot,
+                    subject_id=activities_subj_id,
+                    faculty_id=counselling_teacher.id,
+                    classroom_id=fallback_room.id,
+                    lab_batch="ALL"
+                )
+                schedule_state.append(entry)
+                busy_sections.add((day, slot, str(sec)))
 
     for entry in schedule_state:
         entry.is_permanent = True

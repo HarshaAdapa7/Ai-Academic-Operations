@@ -251,14 +251,10 @@ async def list_subjects(
 ):
     query = select(Subject).options(selectinload(Subject.department), selectinload(Subject.parallel_subject))
     
-<<<<<<< HEAD
-    if current_user and current_user.role not in [UserRole.ADMIN, "DEAN", UserRole.HOD, "HOD"]:
-=======
     if department_id and department_id.upper() == "ALL":
         department_id = None
 
     if not department_id and current_user and current_user.role not in [UserRole.ADMIN, "DEAN"]:
->>>>>>> a46b43307927cd91bdb3dcc58fc95a9f68db6946
         user_dept_id = await get_user_department_id(current_user, db)
         if user_dept_id:
             # Only restrict to user_dept_id if that department actually has subjects in the database
@@ -888,3 +884,129 @@ async def update_availability(id: str, data: AvailabilityUpdate, db: AsyncSessio
 
     await db.commit()
     return {"message": "Availability matrix saved successfully."}
+
+# ==========================================
+# 7. REGISTRY DATA MANAGEMENT (EDIT CSV/EXCEL IMPORTS)
+# ==========================================
+
+@router.put("/subjects/{id}", response_model=SubjectResponse)
+async def update_subject(id: str, subj_data: SubjectCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Subject).where(Subject.id == id))
+    subj = result.scalars().first()
+    if not subj:
+        raise HTTPException(status_code=404, detail="Subject not found.")
+        
+    subj.name = subj_data.name
+    subj.code = subj_data.code.upper()
+    subj.department_id = subj_data.department_id
+    subj.credits = subj_data.credits
+    subj.subject_type = subj_data.subject_type
+    subj.is_parallel_lab = subj_data.is_parallel_lab
+    subj.parallel_subject_id = subj_data.parallel_subject_id
+    subj.academic_year = subj_data.academic_year
+    
+    await db.commit()
+    await db.refresh(subj)
+    return subj
+
+from app.schemas.faculty import SectionSubjectTeacherResponse, SectionSubjectTeacherCreate
+
+@router.get("/section-subject-teachers", response_model=List[SectionSubjectTeacherResponse])
+async def list_section_subject_teachers(department_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+    from app.models.faculty import section_subject_teachers
+    
+    query = select(
+        section_subject_teachers.c.section_id,
+        SectionConfig.name.label("section_name"),
+        section_subject_teachers.c.subject_id,
+        Subject.code.label("subject_code"),
+        Subject.name.label("subject_name"),
+        section_subject_teachers.c.faculty_id,
+        User.full_name.label("faculty_name"),
+        User.email.label("faculty_email")
+    ).select_from(section_subject_teachers)\
+     .join(SectionConfig, section_subject_teachers.c.section_id == SectionConfig.id)\
+     .join(Subject, section_subject_teachers.c.subject_id == Subject.id)\
+     .join(FacultyProfile, section_subject_teachers.c.faculty_id == FacultyProfile.id)\
+     .join(User, FacultyProfile.user_id == User.id)
+     
+    if department_id:
+        query = query.where(SectionConfig.department_id == department_id)
+        
+    result = await db.execute(query)
+    rows = result.fetchall()
+    
+    return [
+        SectionSubjectTeacherResponse(
+            section_id=row.section_id,
+            section_name=row.section_name,
+            subject_id=row.subject_id,
+            subject_code=row.subject_code,
+            subject_name=row.subject_name,
+            faculty_id=row.faculty_id,
+            faculty_name=row.faculty_name,
+            faculty_email=row.faculty_email
+        )
+        for row in rows
+    ]
+
+@router.post("/section-subject-teachers")
+async def create_section_subject_teacher(data: SectionSubjectTeacherCreate, db: AsyncSession = Depends(get_db)):
+    from app.models.faculty import section_subject_teachers
+    
+    # Check if section, subject, faculty exist
+    sec_res = await db.execute(select(SectionConfig).where(SectionConfig.id == data.section_id))
+    if not sec_res.scalars().first():
+        raise HTTPException(status_code=404, detail="Section not found.")
+        
+    subj_res = await db.execute(select(Subject).where(Subject.id == data.subject_id))
+    if not subj_res.scalars().first():
+        raise HTTPException(status_code=404, detail="Subject not found.")
+        
+    fac_res = await db.execute(select(FacultyProfile).where(FacultyProfile.id == data.faculty_id))
+    if not fac_res.scalars().first():
+        raise HTTPException(status_code=404, detail="Faculty profile not found.")
+        
+    # Check if link already exists
+    exist_res = await db.execute(
+        select(section_subject_teachers)
+        .where(
+            section_subject_teachers.c.section_id == data.section_id,
+            section_subject_teachers.c.subject_id == data.subject_id,
+            section_subject_teachers.c.faculty_id == data.faculty_id
+        )
+    )
+    if exist_res.first():
+        return {"message": "Teaching assignment already exists."}
+        
+    # Insert link
+    await db.execute(
+        section_subject_teachers.insert().values(
+            section_id=data.section_id,
+            subject_id=data.subject_id,
+            faculty_id=data.faculty_id
+        )
+    )
+    await db.commit()
+    return {"message": "Teaching assignment mapped successfully."}
+
+@router.delete("/section-subject-teachers")
+async def delete_section_subject_teacher(
+    section_id: str,
+    subject_id: str,
+    faculty_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.faculty import section_subject_teachers
+    
+    await db.execute(
+        delete(section_subject_teachers)
+        .where(
+            section_subject_teachers.c.section_id == section_id,
+            section_subject_teachers.c.subject_id == subject_id,
+            section_subject_teachers.c.faculty_id == faculty_id
+        )
+    )
+    await db.commit()
+    return {"message": "Teaching assignment deleted successfully."}
+

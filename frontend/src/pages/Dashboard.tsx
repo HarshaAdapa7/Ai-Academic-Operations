@@ -18,12 +18,15 @@ import { DepartmentDataImportView } from './DepartmentDataImportView';
 import type { DailyBulletin } from '../services/leaveService';
 import { academicCalendarService } from '../services/academicCalendarService';
 import type { AcademicCalendar } from '../services/academicCalendarService';
+import { NotificationDrawer } from '../components/NotificationDrawer';
+import { useNotifications } from '../context/NotificationContext';
 
 type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'exam_timetable_ops' | 'ai_decision_center' | 'academic_analytics' | 'faculty_weekly_timetable' | 'faculty_analytics_records' | 'dept_data_import' | 'academic_calendar';
 
 
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const { unreadCount, setIsDrawerOpen } = useNotifications();
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   
   // Active Academic Calendar state for home page banner
@@ -188,9 +191,9 @@ export const Dashboard: React.FC = () => {
       desc: 'Universal real-time alert engine, role-targeted broadcasts, live leave approvals, and schedule updates.', 
       icon: Bell, 
       color: 'from-amber-500 to-yellow-600', 
-      active: false,
+      active: true,
       roles: ['FACULTY', 'HOD', 'ADMIN', 'DEAN'],
-      onClick: () => {}
+      onClick: () => setIsDrawerOpen(true)
     },
   ];
 
@@ -288,6 +291,19 @@ export const Dashboard: React.FC = () => {
               </span>
             </div>
             
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all relative"
+              title="Notification Center"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary-500 text-white text-[10px] font-extrabold flex items-center justify-center animate-bounce shadow-md shadow-primary-500/50">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={logout}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-red-400 hover:border-red-500/20 transition-all duration-300 hover:bg-red-500/5"
@@ -486,6 +502,9 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Slide-over Notification Drawer */}
+      <NotificationDrawer />
     </div>
   );
 };

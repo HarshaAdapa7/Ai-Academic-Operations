@@ -60,6 +60,7 @@ app.include_router(timetable_router, prefix=settings.API_V1_STR, tags=["Timetabl
 app.include_router(ai_router, prefix=settings.API_V1_STR, tags=["AI Decision Center"])
 app.include_router(import_router, prefix=f"{settings.API_V1_STR}/import", tags=["Department Import Portal"])
 app.include_router(academic_calendar_router, prefix=settings.API_V1_STR, tags=["Academic Calendar"])
+app.include_router(notifications_router, prefix=settings.API_V1_STR, tags=["Universal Notification Center"])
 
 from typing import Optional
 from fastapi import Depends

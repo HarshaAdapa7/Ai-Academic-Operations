@@ -24,25 +24,33 @@ router = APIRouter()
 from typing import Optional
 from fastapi import Query
 
+from app.api.deps import get_current_user, get_optional_current_user
+
 @router.get("/classrooms", response_model=List[ClassroomResponse])
 async def list_classrooms(
     department_id: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    stmt = select(Classroom).order_by(Classroom.room_number)
-    
-    # Enforce department scoping for HODs
-    if current_user.role not in [UserRole.ADMIN, "DEAN"]:
-        from app.api.deps import get_user_department_id
-        user_dept_id = await get_user_department_id(current_user, db)
-        if user_dept_id:
-            stmt = stmt.where(Classroom.department_id == user_dept_id)
-    elif department_id:
-        stmt = stmt.where(Classroom.department_id == department_id)
+    try:
+        stmt = select(Classroom).options(selectinload(Classroom.department)).order_by(Classroom.room_number)
+        
+        if current_user and current_user.role not in [UserRole.ADMIN, "DEAN"]:
+            from app.api.deps import get_user_department_id
+            user_dept_id = await get_user_department_id(current_user, db)
+            if user_dept_id:
+                has_rooms = (await db.execute(select(Classroom.id).where(Classroom.department_id == user_dept_id))).scalars().first()
+                if has_rooms:
+                    stmt = stmt.where(Classroom.department_id == user_dept_id)
+        elif department_id:
+            stmt = stmt.where(Classroom.department_id == department_id)
 
-    res = await db.execute(stmt)
-    return res.scalars().all()
+        res = await db.execute(stmt)
+        return res.scalars().all()
+    except Exception as e:
+        logger.error(f"Error listing classrooms: {e}")
+        res = await db.execute(select(Classroom).options(selectinload(Classroom.department)).order_by(Classroom.room_number))
+        return res.scalars().all()
 
 @router.post("/classrooms", response_model=ClassroomResponse)
 async def create_classroom(

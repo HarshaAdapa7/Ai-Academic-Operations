@@ -46,9 +46,6 @@ async def get_optional_current_user(
     return result.scalars().first()
 
 async def get_user_department_id(user: User, db: AsyncSession) -> Optional[str]:
-    if hasattr(user, "department_id") and user.department_id:
-        return user.department_id
-
     from app.models.faculty import FacultyProfile, Department
     res = await db.execute(select(FacultyProfile.department_id).where(FacultyProfile.user_id == user.id))
     f_dept_id = res.scalars().first()

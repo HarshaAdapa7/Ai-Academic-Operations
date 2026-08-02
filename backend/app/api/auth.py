@@ -20,14 +20,14 @@ logger = logging.getLogger("auth-api")
 
 router = APIRouter()
 
-async def send_otp_email(email: str, otp_code: str):
+async def send_otp_email(email: str, otp_code: str) -> bool:
     """Utility to send OTP code to user's email asynchronously."""
     subject = "Your Verification OTP - AI Academic Operations"
     body = f"Hello,\n\nYour One-Time Password (OTP) for password recovery is: {otp_code}\n\nThis code will expire in 10 minutes.\n\nBest regards,\nAI Academic Operations Team"
     
     if not settings.SMTP_HOST:
-        logger.warning(f"\n========================================\n[DEV-ONLY] OTP Email Not Sent (SMTP_HOST is empty)\nRecipient: {email}\nOTP Code: {otp_code}\n========================================\n")
-        return
+        logger.warning(f"\n========================================\n[LOCAL INTRANET / DEV MODE] OTP Code for {email}: {otp_code}\n========================================\n")
+        return False
 
     message = MIMEText(body)
     message["Subject"] = subject
@@ -44,9 +44,11 @@ async def send_otp_email(email: str, otp_code: str):
             start_tls=True if settings.SMTP_PORT == 587 else False
         )
         logger.info(f"OTP Email sent successfully to {email}")
+        return True
     except Exception as e:
         logger.error(f"Failed to send email to {email}: {str(e)}")
-        logger.warning(f"\n========================================\n[FALLBACK] OTP Code: {otp_code}\n========================================\n")
+        logger.warning(f"\n========================================\n[FALLBACK OTP CODE] {email}: {otp_code}\n========================================\n")
+        return False
 
 @router.post("/signup", response_model=UserResponse)
 async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -149,10 +151,29 @@ async def forgot_password(req: ForgotPasswordRequest, db: AsyncSession = Depends
     db.add(new_reset)
     await db.commit()
 
+    # Create In-App Notification for user
+    try:
+        from app.services.notification_service import create_notification
+        await create_notification(
+            db=db,
+            user_id=user.id,
+            title="🔑 Password Recovery OTP Code",
+            message=f"Your password recovery verification code is: {otp}. Valid for 10 minutes.",
+            category="SYSTEM",
+            priority="HIGH"
+        )
+    except Exception as ne:
+        logger.warning(f"Could not create in-app notification for OTP: {ne}")
+
     # Send Email asynchronously
-    await send_otp_email(email_clean, otp)
+    email_sent = await send_otp_email(email_clean, otp)
     
-    return {"message": "If this email is registered, an OTP has been sent."}
+    return {
+        "message": "If this email is registered, an OTP code has been sent.",
+        "dev_otp": otp,
+        "email_sent": email_sent,
+        "info": "OTP generated and saved to in-app notifications."
+    }
 
 @router.post("/verify-otp")
 async def verify_otp(req: VerifyOTPRequest, db: AsyncSession = Depends(get_db)):

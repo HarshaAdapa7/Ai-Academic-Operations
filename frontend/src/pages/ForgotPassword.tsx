@@ -8,6 +8,7 @@ type Step = 'REQUEST' | 'VERIFY';
 export const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('REQUEST');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -27,8 +28,12 @@ export const ForgotPassword: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await forgotPassword(email);
-      setSuccess('If registered, a 6-digit OTP code has been sent to your email.');
+      const res = await forgotPassword(email);
+      setSuccess('If registered, a 6-digit OTP code has been dispatched.');
+      if (res?.dev_otp) {
+        setDevOtp(res.dev_otp);
+        setOtpCode(res.dev_otp);
+      }
       setStep('VERIFY');
     } catch (err: any) {
       setError(err.toString());
@@ -142,6 +147,20 @@ export const ForgotPassword: React.FC = () => {
             {success && (
               <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-sm">
                 {success}
+              </div>
+            )}
+
+            {devOtp && (
+              <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm space-y-1">
+                <div className="font-bold flex items-center gap-2 text-amber-400">
+                  ⚡ Intranet / Dev Mode OTP Dispatch
+                </div>
+                <div>
+                  Your 6-digit OTP code is: <span className="font-mono text-base font-black text-amber-300 underline tracking-widest">{devOtp}</span>
+                </div>
+                <div className="text-xs text-amber-300/80">
+                  (Auto-filled into verification input below & saved as an In-App Notification)
+                </div>
               </div>
             )}
 

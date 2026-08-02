@@ -46,7 +46,7 @@ class SubstitutionProposal(Base):
     time_slot = Column(Integer, nullable=False)     # 1 to 6
     subject_id = Column(String(36), ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False)
     original_faculty_id = Column(String(36), ForeignKey("faculty_profiles.id", ondelete="CASCADE"), nullable=False)
-    substitute_faculty_id = Column(String(36), ForeignKey("faculty_profiles.id", ondelete="CASCADE"), nullable=False)
+    substitute_faculty_id = Column(String(36), ForeignKey("faculty_profiles.id", ondelete="CASCADE"), nullable=True)
     status = Column(String(20), default="PENDING", nullable=False) # "PENDING", "ACCEPTED", "DECLINED"
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

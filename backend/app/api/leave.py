@@ -105,8 +105,8 @@ async def apply_leave(
     new_request = LeaveRequest(
         faculty_id=profile.id,
         leave_type=leave_in.leave_type,
-        start_date=leave_in.start_date,
-        end_date=leave_in.end_date,
+        start_date=leave_in.start_date.replace(tzinfo=None),
+        end_date=leave_in.end_date.replace(tzinfo=None),
         reason=leave_in.reason,
         status="PENDING"
     )
@@ -122,12 +122,37 @@ async def apply_leave(
             time_slot=prop.time_slot,
             subject_id=prop.subject_id,
             original_faculty_id=profile.id,
-            substitute_faculty_id=prop.substitute_faculty_id,
+            substitute_faculty_id=prop.substitute_faculty_id if prop.substitute_faculty_id else None,
             status="PENDING"
         )
         db.add(new_prop)
     
     await db.commit()
+
+    # Notify department HOD
+    try:
+        from app.services.notification_service import create_notification
+        from app.models.notification import NotificationCategory, NotificationPriority
+        hod_profile_stmt = (
+            select(FacultyProfile)
+            .options(selectinload(FacultyProfile.user))
+            .where(FacultyProfile.department_id == profile.department_id)
+            .join(FacultyProfile.user)
+            .where(User.role == UserRole.HOD)
+        )
+        hod_profile_res = await db.execute(hod_profile_stmt)
+        hod_profile = hod_profile_res.scalars().first()
+        if hod_profile and hod_profile.user:
+            await create_notification(
+                db=db,
+                title="New Leave Request Pending",
+                message=f"{profile.user.full_name if profile.user else 'Faculty'} has submitted a new {leave_in.leave_type} leave request ({duration} days) for your review.",
+                category=NotificationCategory.LEAVE_OPERATIONS,
+                priority=NotificationPriority.NORMAL,
+                user_id=hod_profile.user.id
+            )
+    except Exception as notif_err:
+        logger.warning(f"Failed to send leave submission notification to HOD: {notif_err}")
 
     # Reload with proposals loaded
     stmt = (
@@ -218,7 +243,305 @@ async def update_leave_status(
             balance.taken += duration
             
     await db.commit()
+
+    # Notify applicant user
+    try:
+        from app.services.notification_service import create_notification
+        from app.models.notification import NotificationCategory, NotificationPriority
+        user_stmt = select(User).join(FacultyProfile, FacultyProfile.user_id == User.id).where(FacultyProfile.id == request.faculty_id)
+        user_res = await db.execute(user_stmt)
+        applicant_user = user_res.scalars().first()
+        if applicant_user:
+            await create_notification(
+                db=db,
+                title=f"Leave Request {request.status}",
+                message=f"Your {request.leave_type} leave request from {request.start_date.date()} to {request.end_date.date()} has been {request.status.lower()}.",
+                category=NotificationCategory.LEAVE_OPERATIONS,
+                priority=NotificationPriority.NORMAL,
+                user_id=applicant_user.id
+            )
+    except Exception as notif_err:
+        logger.warning(f"Failed to send leave status notification: {notif_err}")
+
     return {"message": f"Leave request status updated to {request.status} successfully."}
+
+@router.post("/leaves/{id}/auto-allocate")
+async def auto_allocate_substitutes(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # HOD and ADMIN only
+    if current_user.role not in [UserRole.HOD, UserRole.ADMIN]:
+        raise HTTPException(status_code=403, detail="Not authorized to auto-allocate substitutions.")
+
+    from datetime import timedelta
+    from app.models.timetable import TimetableEntry
+    from app.services.notification_service import create_notification
+    from app.models.notification import NotificationCategory, NotificationPriority
+
+    # 1. Fetch leave request
+    stmt = (
+        select(LeaveRequest)
+        .options(selectinload(LeaveRequest.faculty).selectinload(FacultyProfile.user))
+        .where(LeaveRequest.id == id)
+    )
+    res = await db.execute(stmt)
+    request = res.scalars().first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Leave request not found.")
+
+    absent_profile = request.faculty
+    absent_user = absent_profile.user if absent_profile else None
+    absent_name = absent_user.full_name if absent_user else "Faculty Member"
+
+    # 2. Check if there are already proposed substitutions saved by the applicant
+    props_stmt = select(SubstitutionProposal).where(SubstitutionProposal.leave_request_id == request.id)
+    props_res = await db.execute(props_stmt)
+    existing_props = props_res.scalars().all()
+
+    # 3. Find department slots per day and lunch break
+    from app.models.timetable import SchedulingRule
+    rule_stmt = select(SchedulingRule).where(SchedulingRule.department_id == absent_profile.department_id)
+    rule_res = await db.execute(rule_stmt)
+    rule = rule_res.scalars().first()
+    lunch_slot = rule.lunch_slot if rule else 5
+
+    allocated = []
+    unallocated = []
+
+    if existing_props:
+        # Loop through existing proposals and auto-allocate substitute for each
+        for prop in existing_props:
+            day_name = prop.day_of_week
+            time_slot = prop.time_slot
+            subject_id = prop.subject_id
+
+            # Find matching timetable entry to get classroom/section info
+            tt_stmt = (
+                select(TimetableEntry)
+                .options(selectinload(TimetableEntry.subject), selectinload(TimetableEntry.classroom))
+                .where(TimetableEntry.faculty_id == absent_profile.id)
+                .where(TimetableEntry.day_of_week == day_name)
+                .where(TimetableEntry.time_slot == time_slot)
+                .where(TimetableEntry.subject_id == subject_id)
+                .where(TimetableEntry.is_permanent == True)
+            )
+            tt_res = await db.execute(tt_stmt)
+            entry = tt_res.scalars().first()
+            if not entry:
+                continue
+
+            # Find candidates: qualified department faculty
+            sub_stmt = (
+                select(FacultyProfile)
+                .options(
+                    selectinload(FacultyProfile.user),
+                    selectinload(FacultyProfile.department),
+                    selectinload(FacultyProfile.subjects)
+                )
+                .join(FacultyProfile.subjects)
+                .where(FacultyProfile.department_id == absent_profile.department_id)
+                .where(Subject.id == subject_id)
+                .where(FacultyProfile.id != absent_profile.id)
+            )
+            sub_res = await db.execute(sub_stmt)
+            candidates = sub_res.scalars().all()
+
+            # Filter candidates who are actually free
+            selected_sub = None
+            for f in candidates:
+                # Check preferences
+                avail_stmt = (
+                    select(FacultyAvailability)
+                    .where(FacultyAvailability.faculty_id == f.id)
+                    .where(FacultyAvailability.day_of_week == day_name)
+                    .where(FacultyAvailability.time_slot == time_slot)
+                )
+                avail_res = await db.execute(avail_stmt)
+                avail = avail_res.scalars().first()
+                if avail and not avail.is_available:
+                    continue
+
+                # Check schedule
+                busy_stmt = (
+                    select(TimetableEntry)
+                    .where(TimetableEntry.faculty_id == f.id)
+                    .where(TimetableEntry.day_of_week == day_name)
+                    .where(TimetableEntry.time_slot == time_slot)
+                    .where(TimetableEntry.is_permanent == True)
+                )
+                busy_res = await db.execute(busy_stmt)
+                if busy_res.scalars().first():
+                    continue
+
+                # Allocate this substitute!
+                selected_sub = f
+                break
+
+            if selected_sub:
+                prop.substitute_faculty_id = selected_sub.id
+                prop.status = "PENDING"
+
+                allocated.append({
+                    "day_of_week": day_name,
+                    "time_slot": time_slot,
+                    "subject": entry.subject.name,
+                    "substitute": selected_sub.user.full_name if selected_sub.user else "Faculty"
+                })
+
+                # Notify substitute teacher
+                if selected_sub.user_id:
+                    await create_notification(
+                        db=db,
+                        title="Substitution Coverage Requested",
+                        message=f"HOD auto-allocated you to cover {entry.subject.name} ({entry.section}) on {day_name} Slot {time_slot} for {absent_name}.",
+                        category=NotificationCategory.LEAVE_OPERATIONS,
+                        priority=NotificationPriority.NORMAL,
+                        user_id=selected_sub.user_id
+                    )
+            else:
+                unallocated.append(f"{day_name} Slot {time_slot} ({entry.subject.name})")
+    else:
+        # Loop through date range to schedule replacements for ALL classes
+        curr = request.start_date.date()
+        end = request.end_date.date()
+
+        while curr <= end:
+            day_name = curr.strftime("%A")
+            # Get absent faculty's classes on this weekday
+            tt_stmt = (
+                select(TimetableEntry)
+                .options(selectinload(TimetableEntry.subject), selectinload(TimetableEntry.classroom))
+                .where(TimetableEntry.faculty_id == absent_profile.id)
+                .where(TimetableEntry.day_of_week == day_name)
+                .where(TimetableEntry.is_permanent == True)
+            )
+            tt_res = await db.execute(tt_stmt)
+            entries = tt_res.scalars().all()
+
+            for entry in entries:
+                if entry.time_slot == lunch_slot:
+                    continue
+
+                # Find candidates: qualified department faculty
+                sub_stmt = (
+                    select(FacultyProfile)
+                    .options(
+                        selectinload(FacultyProfile.user),
+                        selectinload(FacultyProfile.department),
+                        selectinload(FacultyProfile.subjects)
+                    )
+                    .join(FacultyProfile.subjects)
+                    .where(FacultyProfile.department_id == absent_profile.department_id)
+                    .where(Subject.id == entry.subject_id)
+                    .where(FacultyProfile.id != absent_profile.id)
+                )
+                sub_res = await db.execute(sub_stmt)
+                candidates = sub_res.scalars().all()
+
+                # Filter candidates who are actually free
+                selected_sub = None
+                for f in candidates:
+                    # Check preferences
+                    avail_stmt = (
+                        select(FacultyAvailability)
+                        .where(FacultyAvailability.faculty_id == f.id)
+                        .where(FacultyAvailability.day_of_week == day_name)
+                        .where(FacultyAvailability.time_slot == entry.time_slot)
+                    )
+                    avail_res = await db.execute(avail_stmt)
+                    avail = avail_res.scalars().first()
+                    if avail and not avail.is_available:
+                        continue
+
+                    # Check schedule
+                    busy_stmt = (
+                        select(TimetableEntry)
+                        .where(TimetableEntry.faculty_id == f.id)
+                        .where(TimetableEntry.day_of_week == day_name)
+                        .where(TimetableEntry.time_slot == entry.time_slot)
+                        .where(TimetableEntry.is_permanent == True)
+                    )
+                    busy_res = await db.execute(busy_stmt)
+                    if busy_res.scalars().first():
+                        continue
+
+                    # Allocate this substitute!
+                    selected_sub = f
+                    break
+
+                if selected_sub:
+                    # Create or update substitution proposal
+                    prop_stmt = select(SubstitutionProposal).where(
+                        SubstitutionProposal.leave_request_id == request.id,
+                        SubstitutionProposal.day_of_week == day_name,
+                        SubstitutionProposal.time_slot == entry.time_slot,
+                        SubstitutionProposal.subject_id == entry.subject_id
+                    )
+                    prop_res = await db.execute(prop_stmt)
+                    existing = prop_res.scalars().first()
+                    if existing:
+                        existing.substitute_faculty_id = selected_sub.id
+                        existing.status = "PENDING"
+                    else:
+                        new_prop = SubstitutionProposal(
+                            leave_request_id=request.id,
+                            day_of_week=day_name,
+                            time_slot=entry.time_slot,
+                            subject_id=entry.subject_id,
+                            original_faculty_id=absent_profile.id,
+                            substitute_faculty_id=selected_sub.id,
+                            status="PENDING"
+                        )
+                        db.add(new_prop)
+
+                    allocated.append({
+                        "day_of_week": day_name,
+                        "time_slot": entry.time_slot,
+                        "subject": entry.subject.name,
+                        "substitute": selected_sub.user.full_name if selected_sub.user else "Faculty"
+                    })
+
+                    # Notify substitute teacher
+                    if selected_sub.user_id:
+                        await create_notification(
+                            db=db,
+                            title="Substitution Coverage Requested",
+                            message=f"HOD auto-allocated you to cover {entry.subject.name} ({entry.section}) on {day_name} Slot {entry.time_slot} for {absent_name}.",
+                            category=NotificationCategory.LEAVE_OPERATIONS,
+                            priority=NotificationPriority.NORMAL,
+                            user_id=selected_sub.user_id
+                        )
+                else:
+                    unallocated.append(f"{day_name} Slot {entry.time_slot} ({entry.subject.name})")
+
+            curr += timedelta(days=1)
+
+    await db.commit()
+
+    # Notify applicant user
+    if absent_user:
+        await create_notification(
+            db=db,
+            title="Leave Coverage Auto-Allocated",
+            message=f"Coverage for your leave from {request.start_date.date()} to {request.end_date.date()} has been auto-allocated by HOD.",
+            category=NotificationCategory.LEAVE_OPERATIONS,
+            priority=NotificationPriority.NORMAL,
+            user_id=absent_user.id
+        )
+
+    # Return reload data
+    stmt = (
+        select(LeaveRequest)
+        .options(
+            selectinload(LeaveRequest.substitution_proposals)
+            .selectinload(SubstitutionProposal.subject)
+        )
+        .where(LeaveRequest.id == id)
+    )
+    res = await db.execute(stmt)
+    return res.scalars().first()
 
 # ==========================================
 # 3. SUBSTITUTION MATCHING & PROPOSALS
@@ -245,9 +568,10 @@ async def get_eligible_substitutes(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    # 3. Query profiles that belong to the SAME department as the subject
-    # and have matching expertise (subjects) and are available (FacultyAvailability is True)
-    # Filter using selectinload to eagerly fetch relationships
+    from app.models.timetable import TimetableEntry
+
+    # 3. Query all profiles that belong to the SAME department as the subject
+    # and are qualified to teach this specific subject (exist in many-to-many bridge)
     stmt = (
         select(FacultyProfile)
         .options(
@@ -256,18 +580,45 @@ async def get_eligible_substitutes(
             selectinload(FacultyProfile.subjects)
         )
         .join(FacultyProfile.subjects) # Join many-to-many expertise bridge
-        .join(FacultyAvailability, FacultyProfile.id == FacultyAvailability.faculty_id)
         .where(FacultyProfile.department_id == subject.department_id) # Same department branch
         .where(Subject.id == subject_id) # Qualified to teach this specific subject
-        .where(FacultyAvailability.day_of_week == day_of_week)
-        .where(FacultyAvailability.time_slot == time_slot)
-        .where(FacultyAvailability.is_available == True) # Free slot
     )
     if own_profile_id:
         stmt = stmt.where(FacultyProfile.id != own_profile_id) # Cannot substitute yourself
 
     res = await db.execute(stmt)
-    return res.scalars().all()
+    candidates = res.scalars().all()
+
+    # 4. Filter candidates based on preferences and active timetable schedule
+    eligible = []
+    for f in candidates:
+        # Check if they have explicitly set availability as False
+        avail_stmt = (
+            select(FacultyAvailability)
+            .where(FacultyAvailability.faculty_id == f.id)
+            .where(FacultyAvailability.day_of_week == day_of_week)
+            .where(FacultyAvailability.time_slot == time_slot)
+        )
+        avail_res = await db.execute(avail_stmt)
+        avail = avail_res.scalars().first()
+        if avail and not avail.is_available:
+            continue
+
+        # Check if they are already scheduled to teach in the timetable at this slot
+        tt_stmt = (
+            select(TimetableEntry)
+            .where(TimetableEntry.faculty_id == f.id)
+            .where(TimetableEntry.day_of_week == day_of_week)
+            .where(TimetableEntry.time_slot == time_slot)
+            .where(TimetableEntry.is_permanent == True)
+        )
+        tt_res = await db.execute(tt_stmt)
+        if tt_res.scalars().first():
+            continue
+
+        eligible.append(f)
+
+    return eligible
 
 @router.get("/substitutions/my-proposals", response_model=List[SubProposalResponse])
 async def list_sub_proposals(
@@ -330,6 +681,33 @@ async def update_sub_status(
             entry.faculty_id = proposal.substitute_faculty_id
             
     await db.commit()
+
+    # Notify applicant user
+    try:
+        from app.services.notification_service import create_notification
+        from app.models.notification import NotificationCategory, NotificationPriority
+        
+        # Load the subject name
+        sub_stmt = select(Subject).where(Subject.id == proposal.subject_id)
+        sub_res = await db.execute(sub_stmt)
+        subject_obj = sub_res.scalars().first()
+        subj_name = subject_obj.name if subject_obj else "Class"
+
+        orig_stmt = select(User).join(FacultyProfile, FacultyProfile.user_id == User.id).where(FacultyProfile.id == proposal.original_faculty_id)
+        orig_res = await db.execute(orig_stmt)
+        orig_user = orig_res.scalars().first()
+        if orig_user:
+            await create_notification(
+                db=db,
+                title=f"Substitution Proposal {proposal.status.title()}",
+                message=f"{profile.user.full_name if profile.user else 'Faculty'} has {proposal.status.lower()} your request to cover {subj_name} on {proposal.day_of_week} Slot {proposal.time_slot}.",
+                category=NotificationCategory.LEAVE_OPERATIONS,
+                priority=NotificationPriority.NORMAL,
+                user_id=orig_user.id
+            )
+    except Exception as notif_err:
+        logger.warning(f"Failed to send substitution status notification: {notif_err}")
+
     return {"message": f"Proposal status updated to {proposal.status} successfully."}
 
 # ==========================================

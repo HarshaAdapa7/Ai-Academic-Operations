@@ -113,8 +113,8 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
   }, [tempDay, tempSlot, tempSubjId]);
 
   const addSubstitutionRow = () => {
-    if (!tempSubjId || !tempSubId) {
-      alert('Please select both a subject and an eligible substitute faculty member.');
+    if (!tempSubjId) {
+      alert('Please select a subject first.');
       return;
     }
     
@@ -201,6 +201,16 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
       loadData();
     } catch (err) {
       alert('Failed to update leave request status.');
+    }
+  };
+
+  const handleAutoAllocate = async (id: string) => {
+    try {
+      await leaveService.autoAllocateSubstitutes(id);
+      loadData();
+      alert('Coverage auto-allocated successfully! Substitution proposals have been dispatched.');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to auto-allocate coverage.');
     }
   };
 
@@ -450,88 +460,139 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
         )
       ) : (
         /* HOD Approval Dashboard */
-        <div className="glass-panel p-6">
-          <h3 className="text-lg font-bold text-white mb-6">Pending Leave Requests Review</h3>
-          {requests.filter(r => r.status === 'PENDING').length === 0 ? (
-            <p className="text-sm text-dark-500 py-6">No pending leave applications to review in your department.</p>
-          ) : (
-            <div className="space-y-6">
-              {requests.filter(r => r.status === 'PENDING').map(req => {
-                const startStr = new Date(req.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-                const endStr = new Date(req.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
-                const applicantProfile = facultyProfiles.find(p => p.id === req.faculty_id);
-                
-                // Count accepted vs total substitutions
-                const acceptedSubs = req.substitution_proposals.filter(p => p.status === 'ACCEPTED').length;
-                const totalSubs = req.substitution_proposals.length;
-                const isFullyCovered = acceptedSubs === totalSubs;
-
-                return (
-                  <div key={req.id} className="p-5 rounded-xl border border-dark-800 bg-dark-900/30 space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h4 className="text-sm font-bold text-white">{applicantProfile?.user?.full_name}</h4>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/25 font-bold uppercase tracking-wider">
-                            {req.leave_type} Leave
-                          </span>
+        <div className="space-y-8">
+          {/* 1. Pending Leave Requests */}
+          <div className="glass-panel p-6">
+            <h3 className="text-lg font-bold text-white mb-6">Pending Leave Requests Review</h3>
+            {requests.filter(r => r.status === 'PENDING').length === 0 ? (
+              <p className="text-sm text-dark-500 py-6">No pending leave applications to review in your department.</p>
+            ) : (
+              <div className="space-y-6">
+                {requests.filter(r => r.status === 'PENDING').map(req => {
+                  const startStr = new Date(req.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const endStr = new Date(req.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const applicantProfile = facultyProfiles.find(p => p.id === req.faculty_id);
+                  
+                  return (
+                    <div key={req.id} className="p-5 rounded-xl border border-dark-800 bg-dark-900/30 space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-sm font-bold text-white">{applicantProfile?.user?.full_name}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/25 font-bold uppercase tracking-wider">
+                              {req.leave_type} Leave
+                            </span>
+                          </div>
+                          <p className="text-xs text-dark-400 mt-1">{startStr} - {endStr}</p>
                         </div>
-                        <p className="text-xs text-dark-400 mt-1">{startStr} - {endStr}</p>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleHODDecision(req.id, 'APPROVED')}
+                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all duration-300"
+                          >
+                            <Check className="w-4 h-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleHODDecision(req.id, 'REJECTED')}
+                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all duration-300"
+                          >
+                            <X className="w-4 h-4" />
+                            Reject
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleHODDecision(req.id, 'APPROVED')}
-                          className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all duration-300"
-                        >
-                          <Check className="w-4 h-4" />
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleHODDecision(req.id, 'REJECTED')}
-                          className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all duration-300"
-                        >
-                          <X className="w-4 h-4" />
-                          Reject
-                        </button>
-                      </div>
+                      <p className="text-xs text-dark-300 italic">" {req.reason} "</p>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-                    <p className="text-xs text-dark-300 italic">" {req.reason} "</p>
+          {/* 2. Approved Leaves & Coverage Control */}
+          <div className="glass-panel p-6">
+            <h3 className="text-lg font-bold text-white mb-6">Approved Leaves & Coverage Control</h3>
+            {requests.filter(r => r.status === 'APPROVED').length === 0 ? (
+              <p className="text-sm text-dark-500 py-6">No approved leave requests to display.</p>
+            ) : (
+              <div className="space-y-6">
+                {requests.filter(r => r.status === 'APPROVED').map(req => {
+                  const startStr = new Date(req.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const endStr = new Date(req.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+                  const applicantProfile = facultyProfiles.find(p => p.id === req.faculty_id);
+                  
+                  const acceptedSubs = req.substitution_proposals.filter(p => p.status === 'ACCEPTED').length;
+                  const totalSubs = req.substitution_proposals.length;
+                  const isFullyCovered = totalSubs > 0 && acceptedSubs === totalSubs;
 
-                    {/* Substitution Agreement Breakdown */}
-                    {totalSubs > 0 && (
-                      <div className="border-t border-dark-850/40 pt-4 mt-2">
-                        <div className="flex justify-between items-center mb-3">
-                          <h5 className="text-[10px] font-bold text-dark-500 uppercase tracking-wider">Substitution Coverage Status</h5>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            isFullyCovered ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                          }`}>
-                            {acceptedSubs} of {totalSubs} Accepted
-                          </span>
+                  return (
+                    <div key={req.id} className="p-5 rounded-xl border border-dark-800 bg-dark-900/30 space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <h4 className="text-sm font-bold text-white">{applicantProfile?.user?.full_name}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-bold uppercase tracking-wider">
+                              Approved
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-dark-800 text-dark-300 border border-dark-700 font-medium">
+                              {req.leave_type} Leave
+                            </span>
+                          </div>
+                          <p className="text-xs text-dark-400 mt-1">{startStr} - {endStr}</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {req.substitution_proposals.map(prop => (
-                            <div key={prop.id} className="flex justify-between items-center p-3 rounded-lg bg-dark-950/40 border border-dark-850/30">
-                              <div>
-                                <p className="text-xs font-semibold text-white">{prop.subject?.name} ({prop.subject?.code})</p>
-                                <p className="text-[10px] text-dark-400 mt-0.5">{prop.day_of_week} Slot {prop.time_slot} | Sub: {getSubName(prop.substitute_faculty_id)}</p>
-                              </div>
-                              <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase ${
-                                prop.status === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                              }`}>
-                                {prop.status}
-                              </span>
-                            </div>
-                          ))}
+
+                        <div>
+                          <button
+                            onClick={() => handleAutoAllocate(req.id)}
+                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-primary-500/20 border border-primary-500/30 hover:bg-primary-500/30 text-primary-400 text-xs font-bold transition-all duration-300"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Auto Allocate Coverages
+                          </button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+
+                      <p className="text-xs text-dark-300 italic">" {req.reason} "</p>
+
+                      {/* Substitution Agreement Breakdown */}
+                      {totalSubs > 0 ? (
+                        <div className="border-t border-dark-850/40 pt-4 mt-2">
+                          <div className="flex justify-between items-center mb-3">
+                            <h5 className="text-[10px] font-bold text-dark-500 uppercase tracking-wider">Active Coverages Status</h5>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              isFullyCovered ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                            }`}>
+                              {acceptedSubs} of {totalSubs} Accepted
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {req.substitution_proposals.map(prop => (
+                              <div key={prop.id} className="flex justify-between items-center p-3 rounded-lg bg-dark-950/40 border border-dark-850/30">
+                                <div>
+                                  <p className="text-xs font-semibold text-white">{prop.subject?.name} ({prop.subject?.code})</p>
+                                  <p className="text-[10px] text-dark-400 mt-0.5">{prop.day_of_week} Slot {prop.time_slot} | Sub: {getSubName(prop.substitute_faculty_id)}</p>
+                                </div>
+                                <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase ${
+                                  prop.status === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                }`}>
+                                  {prop.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-dark-500 italic mt-2">No substitution coverages assigned yet. Click "Auto Allocate Coverages" above to assign them.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

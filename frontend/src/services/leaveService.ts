@@ -75,6 +75,11 @@ export const leaveService = {
     return res.data;
   },
 
+  async autoAllocateSubstitutes(id: string): Promise<LeaveRequest> {
+    const res = await axios.post(`${API_URL}/leaves/${id}/auto-allocate`);
+    return res.data;
+  },
+
   async getEligibleSubstitutes(params: {
     day_of_week: string;
     time_slot: number;

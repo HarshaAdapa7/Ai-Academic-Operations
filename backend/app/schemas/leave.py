@@ -18,9 +18,9 @@ class LeaveBalanceResponse(BaseModel):
 # --- Substitution Proposal Schemas ---
 class SubProposalCreate(BaseModel):
     day_of_week: str = Field(..., description="e.g. Monday")
-    time_slot: int = Field(..., ge=1, le=6, description="Slot index (1-6)")
+    time_slot: int = Field(..., ge=1, le=8, description="Slot index (1-8)")
     subject_id: str = Field(..., description="Subject UUID to cover")
-    substitute_faculty_id: str = Field(..., description="Target substitute faculty profile UUID")
+    substitute_faculty_id: Optional[str] = Field(None, description="Target substitute faculty profile UUID")
 
 # Simplified profile return structure to avoid schema recursion loops
 class FacultyProfileMini(BaseModel):

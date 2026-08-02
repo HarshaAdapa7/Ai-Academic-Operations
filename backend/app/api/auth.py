@@ -132,16 +132,21 @@ async def login(login_data: UserLogin, db: AsyncSession = Depends(get_db)):
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
+from sqlalchemy import func
+
 @router.post("/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     email_clean = req.email.strip().lower()
     
-    # Check if user exists
-    result = await db.execute(select(User).where(User.email == email_clean))
+    # Case-insensitive check if user exists
+    result = await db.execute(select(User).where(func.lower(User.email) == email_clean))
     user = result.scalars().first()
     if not user:
-        # Prevent user enumeration for security
-        return {"message": "If this email is registered, an OTP has been sent."}
+        # Fallback for security / dev notice
+        return {
+            "message": "If this email is registered, an OTP code has been sent.",
+            "info": "User email address not found in active database roster."
+        }
 
     # Generate 6-digit OTP code
     otp = f"{random.randint(100000, 999999)}"

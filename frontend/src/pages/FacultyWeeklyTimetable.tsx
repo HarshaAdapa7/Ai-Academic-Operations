@@ -11,15 +11,17 @@ interface FacultyWeeklyTimetableProps {
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const SLOTS = [1, 2, 3, 4, 5, 6];
+const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 const SLOT_TIMINGS: Record<number, string> = {
   1: '09:00 - 10:00',
   2: '10:00 - 11:00',
   3: '11:15 - 12:15',
   4: '12:15 - 01:15',
-  5: '02:00 - 03:00',
-  6: '03:00 - 04:00'
+  5: '01:15 - 02:00',
+  6: '02:00 - 03:00',
+  7: '03:00 - 04:00',
+  8: '04:00 - 05:00'
 };
 
 export const FacultyWeeklyTimetable: React.FC<FacultyWeeklyTimetableProps> = ({ onBack }) => {
@@ -211,7 +213,7 @@ export const FacultyWeeklyTimetable: React.FC<FacultyWeeklyTimetableProps> = ({ 
       <div className="glass-panel p-6 overflow-x-auto">
         <div className="min-w-[900px]">
           {/* Header Row: Slots */}
-          <div className="grid grid-cols-7 gap-3 mb-4 text-center">
+          <div className="grid grid-cols-9 gap-3 mb-4 text-center">
             <div className="p-3 bg-dark-900/60 rounded-xl border border-dark-800 font-bold text-xs text-dark-400 uppercase tracking-wider flex items-center justify-center">
               Day / Slot
             </div>
@@ -227,7 +229,7 @@ export const FacultyWeeklyTimetable: React.FC<FacultyWeeklyTimetableProps> = ({ 
           {DAYS.filter(day => selectedDayFilter === 'ALL' || selectedDayFilter === day).map(day => {
             const isToday = day === todayDayName;
             return (
-              <div key={day} className="grid grid-cols-7 gap-3 mb-3">
+              <div key={day} className="grid grid-cols-9 gap-3 mb-3">
                 {/* Day Label */}
                 <div className={`p-4 rounded-xl border flex flex-col justify-center items-center text-center ${
                   isToday 

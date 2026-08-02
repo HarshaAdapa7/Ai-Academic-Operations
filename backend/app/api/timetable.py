@@ -920,7 +920,7 @@ async def generate_master_timetable(
 
                 for start_slot in range(1, max_day_slots - duration + 2):
                     end_slot = start_slot + duration - 1
-                    crosses_lunch = (start_slot <= 3 and end_slot >= 4) if year == 1 else (start_slot <= 4 and end_slot >= 5)
+                    crosses_lunch = start_slot <= lunch_slot <= end_slot
                     if crosses_lunch:
                         continue
 

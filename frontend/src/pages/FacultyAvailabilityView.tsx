@@ -11,7 +11,7 @@ interface FacultyAvailabilityViewProps {
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const SLOTS = [1, 2, 3, 4, 5, 6];
+const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 // Custom label for slots
 const SLOT_LABELS: Record<number, string> = {
@@ -19,8 +19,10 @@ const SLOT_LABELS: Record<number, string> = {
   2: 'Slot 2 (10:00 - 11:00)',
   3: 'Slot 3 (11:15 - 12:15)',
   4: 'Slot 4 (12:15 - 01:15)',
-  5: 'Slot 5 (02:00 - 03:00)',
-  6: 'Slot 6 (03:00 - 04:00)'
+  5: 'Slot 5 (01:15 - 02:00)',
+  6: 'Slot 6 (02:00 - 03:00)',
+  7: 'Slot 7 (03:00 - 04:00)',
+  8: 'Slot 8 (04:00 - 05:00)'
 };
 
 export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = ({ 

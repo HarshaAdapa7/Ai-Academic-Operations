@@ -20,8 +20,10 @@ logger = logging.getLogger("auth-api")
 
 router = APIRouter()
 
+import asyncio
+
 async def send_otp_email(email: str, otp_code: str) -> bool:
-    """Utility to send OTP code to user's email asynchronously."""
+    """Utility to send OTP code to user's email asynchronously with 3s timeout for offline LAN support."""
     subject = "Your Verification OTP - AI Academic Operations"
     body = f"Hello,\n\nYour One-Time Password (OTP) for password recovery is: {otp_code}\n\nThis code will expire in 10 minutes.\n\nBest regards,\nAI Academic Operations Team"
     
@@ -35,18 +37,21 @@ async def send_otp_email(email: str, otp_code: str) -> bool:
     message["To"] = email
 
     try:
-        await aiosmtplib.send(
-            message,
-            hostname=settings.SMTP_HOST,
-            port=settings.SMTP_PORT,
-            username=settings.SMTP_USER,
-            password=settings.SMTP_PASSWORD,
-            start_tls=True if settings.SMTP_PORT == 587 else False
+        await asyncio.wait_for(
+            aiosmtplib.send(
+                message,
+                hostname=settings.SMTP_HOST,
+                port=settings.SMTP_PORT,
+                username=settings.SMTP_USER,
+                password=settings.SMTP_PASSWORD,
+                start_tls=True if settings.SMTP_PORT == 587 else False
+            ),
+            timeout=3.0
         )
         logger.info(f"OTP Email sent successfully to {email}")
         return True
     except Exception as e:
-        logger.error(f"Failed to send email to {email}: {str(e)}")
+        logger.error(f"Failed or timed out sending email to {email}: {str(e)}")
         logger.warning(f"\n========================================\n[FALLBACK OTP CODE] {email}: {otp_code}\n========================================\n")
         return False
 

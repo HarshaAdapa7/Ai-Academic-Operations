@@ -42,11 +42,10 @@ async def get_scheduling_rule(
         stmt = select(SchedulingRule).options(selectinload(SchedulingRule.department)).where(SchedulingRule.department_id == department_id)
         res = await db.execute(stmt)
         rule = res.scalars().first()
-
         if not rule:
             rule = SchedulingRule(
                 department_id=department_id,
-                slots_per_day=7,
+                slots_per_day=8,
                 days_active="Monday,Tuesday,Wednesday,Thursday,Friday,Saturday",
                 allow_classroom_overlap=False,
                 allow_faculty_overlap=False,
@@ -607,7 +606,6 @@ async def generate_master_timetable(
 
                 is_morning = end_slot < lunch_slot
                 is_afternoon = start_slot > lunch_slot
-
                 if task_type in ["LAB", "DUAL_LAB"] and duration == 3:
                     if lunch_slot == 4:
                         # Lunch is slot 4. Morning lab is strictly slots 1-3. Afternoon lab is strictly slots 5-7.
@@ -616,19 +614,18 @@ async def generate_master_timetable(
                         if is_afternoon and (start_slot != 5 or end_slot != 7):
                             continue
                     else:
-                        # Lunch is slot 5. Morning lab is strictly slots 2-4. Afternoon lab is strictly slots 5-7.
+                        # Lunch is slot 5. Morning lab is strictly slots 2-4. Afternoon lab is strictly slots 6-8.
                         if is_morning and start_slot != 2:
                             continue
-                        if is_afternoon and start_slot != 5:
+                        if is_afternoon and start_slot != 6:
                             continue
 
-                if task_type == "COUNSELLING" and start_slot != 7:
+                if task_type == "COUNSELLING" and start_slot != max_day_slots:
                     continue
                 elif task_type == "SPORTS_LIBRARY":
                     pre_lunch_slot = 3 if year == 1 else 4
-                    if start_slot not in [7, pre_lunch_slot]:
+                    if start_slot not in [max_day_slots, pre_lunch_slot]:
                         continue
-
                 # Enforce at most 1 lab session (LAB or DUAL_LAB) per section per day
                 if task_type in ["LAB", "DUAL_LAB"]:
                     if section_daily_has_lab.get((sec, day), False):
@@ -678,10 +675,10 @@ async def generate_master_timetable(
                     sec_mentors = section_configs[sec].counseling_mentors
 
                 if task_type == "COUNSELLING" and sec_mentors:
-                    # Check if ALL mentors for this section are free at (day, 7)
+                    # Check if ALL mentors for this section are free at (day, max_day_slots)
                     mentors_free = True
                     for m in sec_mentors:
-                        if (day, 7, m.id) in busy_teachers or (m.id, day, 7) in unavailable_faculty:
+                        if (day, max_day_slots, m.id) in busy_teachers or (m.id, day, max_day_slots) in unavailable_faculty:
                             mentors_free = False
                             break
                     if not mentors_free:
@@ -692,9 +689,9 @@ async def generate_master_timetable(
                     teachers = [sec_mentors[0]]
 
                 for teacher in teachers:
-                    # Rule 1: HOD Period 1/7 Exclusion
+                    # Rule 1: HOD Period 1/Last Slot Exclusion
                     if teacher.is_hod or teacher.designation.upper() == "HOD":
-                        if start_slot == 1 or end_slot == 7 or (start_slot <= 1 <= end_slot) or (start_slot <= 7 <= end_slot):
+                        if start_slot == 1 or end_slot == max_day_slots or (start_slot <= 1 <= end_slot) or (start_slot <= max_day_slots <= end_slot):
                             continue
 
                     # Rule 2: HOD Wednesday Afternoon Exemption
@@ -821,12 +818,11 @@ async def generate_master_timetable(
                             teacher_slot_dept[(str(teacher.id), day, slot)] = dept_id
                             section_slot_subject[(day, slot, sec)] = subj_id
 
-                        # Rule 18: Lock ALL assigned counseling mentors for Section
                         locked_mentors = []
                         if task_type == "COUNSELLING" and sec_mentors:
                             for m in sec_mentors:
                                 if m.id != teacher.id:
-                                    busy_teachers.add((day, 7, m.id))
+                                    busy_teachers.add((day, max_day_slots, m.id))
                                     locked_mentors.append(m.id)
 
                         if task_type != "COUNSELLING":
@@ -865,7 +861,7 @@ async def generate_master_timetable(
                             dual_lab_first_session.pop((sec, subj_id), None)
 
                         for m_id in locked_mentors:
-                            busy_teachers.remove((day, 7, m_id))
+                            busy_teachers.remove((day, max_day_slots, m_id))
 
                         for slot in range(start_slot, end_slot + 1):
                             busy_sections.remove((day, slot, sec))
@@ -937,7 +933,7 @@ async def generate_master_timetable(
                         else:
                             if is_morning and start_slot != 2:
                                 continue
-                            if is_afternoon and start_slot != 5:
+                            if is_afternoon and start_slot != 6:
                                 continue
 
                     # Enforce at most 1 lab session (LAB or DUAL_LAB) per section per day
@@ -977,7 +973,7 @@ async def generate_master_timetable(
                     for teacher in teachers:
                         # HOD Exclusions
                         if teacher.is_hod or teacher.designation.upper() == "HOD":
-                            if start_slot == 1 or end_slot == 7 or (start_slot <= 1 <= end_slot) or (start_slot <= 7 <= end_slot):
+                            if start_slot == 1 or end_slot == max_day_slots or (start_slot <= 1 <= end_slot) or (start_slot <= max_day_slots <= end_slot):
                                 continue
                             if day == "Wednesday" and start_slot > lunch_slot:
                                 continue
@@ -1048,13 +1044,19 @@ async def generate_master_timetable(
     # Ensure virtual subjects helper
     async def get_or_create_virtual_subject(name: str, code: str, subject_type: str, department_id: str) -> str:
         import uuid
-        stmt = select(Subject).where(Subject.department_id == department_id, Subject.code == code)
+        from app.models.faculty import Department
+        d_stmt = select(Department.code).where(Department.id == department_id)
+        d_res = await db.execute(d_stmt)
+        d_code = d_res.scalar() or "GEN"
+        unique_code = f"{code}_{d_code}"[:50]
+
+        stmt = select(Subject).where(Subject.code == unique_code)
         res = await db.execute(stmt)
         subj = res.scalars().first()
         if not subj:
             subj = Subject(
                 id=str(uuid.uuid4()),
-                code=code,
+                code=unique_code,
                 name=name,
                 subject_type=subject_type,
                 department_id=department_id,
@@ -1064,6 +1066,24 @@ async def generate_master_timetable(
             db.add(subj)
             await db.flush()
         return subj.id
+
+    # Ensure virtual classrooms helper
+    async def get_or_create_virtual_classroom(room_number: str, department_id: str) -> str:
+        import uuid
+        stmt = select(Classroom).where(Classroom.room_number == room_number)
+        res = await db.execute(stmt)
+        room = res.scalars().first()
+        if not room:
+            room = Classroom(
+                id=str(uuid.uuid4()),
+                room_number=room_number,
+                room_type="CLASSROOM",
+                capacity=100,
+                department_id=department_id
+            )
+            db.add(room)
+            await db.flush()
+        return room.id
 
     # Post-processing: Fill empty slots with Counseling (1), Library/Sports (1), and Activities (2, consecutive)
     for sec in input_data.sections:
@@ -1140,6 +1160,7 @@ async def generate_master_timetable(
         if not sec_classrooms:
             sec_classrooms = [r for r in classrooms if str(r.room_type).upper() not in ["LAB", "COMPUTER_LAB"]]
         fallback_room = sec_classrooms[0] if sec_classrooms else classrooms[0]
+        virtual_room_id = await get_or_create_virtual_classroom("VIRTUAL_ROOM", sec_dept_id)
         
         # Ensure virtual subjects exist in the database
         counsel_subj_id = await get_or_create_virtual_subject("COUNSELLING", "COUNSEL", "COUNSELLING", sec_dept_id)
@@ -1149,6 +1170,13 @@ async def generate_master_timetable(
         # Insert Counselling, Sports/Library, and Activities
         if counselling_slot:
             day, slot = counselling_slot
+            assigned_teacher = counselling_teacher
+            if (day, slot, assigned_teacher.id) in busy_teachers or (day, slot, str(assigned_teacher.id)) in busy_teachers:
+                for t in sec_teachers:
+                    if (day, slot, t.id) not in busy_teachers and (day, slot, str(t.id)) not in busy_teachers:
+                        assigned_teacher = t
+                        break
+            
             entry = TimetableEntry(
                 department_id=sec_dept_id,
                 section=sec,
@@ -1156,15 +1184,23 @@ async def generate_master_timetable(
                 day_of_week=day,
                 time_slot=slot,
                 subject_id=counsel_subj_id,
-                faculty_id=counselling_teacher.id,
-                classroom_id=fallback_room.id,
+                faculty_id=assigned_teacher.id,
+                classroom_id=virtual_room_id,
                 lab_batch="ALL"
             )
             schedule_state.append(entry)
             busy_sections.add((day, slot, str(sec)))
+            busy_teachers.add((day, slot, str(assigned_teacher.id)))
             
         if lib_sports_slot:
             day, slot = lib_sports_slot
+            assigned_teacher = counselling_teacher
+            if (day, slot, assigned_teacher.id) in busy_teachers or (day, slot, str(assigned_teacher.id)) in busy_teachers:
+                for t in sec_teachers:
+                    if (day, slot, t.id) not in busy_teachers and (day, slot, str(t.id)) not in busy_teachers:
+                        assigned_teacher = t
+                        break
+            
             entry = TimetableEntry(
                 department_id=sec_dept_id,
                 section=sec,
@@ -1172,15 +1208,23 @@ async def generate_master_timetable(
                 day_of_week=day,
                 time_slot=slot,
                 subject_id=lib_sports_subj_id,
-                faculty_id=counselling_teacher.id,
-                classroom_id=fallback_room.id,
+                faculty_id=assigned_teacher.id,
+                classroom_id=virtual_room_id,
                 lab_batch="ALL"
             )
             schedule_state.append(entry)
             busy_sections.add((day, slot, str(sec)))
+            busy_teachers.add((day, slot, str(assigned_teacher.id)))
             
         if activity_slots:
             for day, slot in activity_slots:
+                assigned_teacher = counselling_teacher
+                if (day, slot, assigned_teacher.id) in busy_teachers or (day, slot, str(assigned_teacher.id)) in busy_teachers:
+                    for t in sec_teachers:
+                        if (day, slot, t.id) not in busy_teachers and (day, slot, str(t.id)) not in busy_teachers:
+                            assigned_teacher = t
+                            break
+                
                 entry = TimetableEntry(
                     department_id=sec_dept_id,
                     section=sec,
@@ -1188,12 +1232,13 @@ async def generate_master_timetable(
                     day_of_week=day,
                     time_slot=slot,
                     subject_id=activities_subj_id,
-                    faculty_id=counselling_teacher.id,
-                    classroom_id=fallback_room.id,
+                    faculty_id=assigned_teacher.id,
+                    classroom_id=virtual_room_id,
                     lab_batch="ALL"
                 )
                 schedule_state.append(entry)
                 busy_sections.add((day, slot, str(sec)))
+                busy_teachers.add((day, slot, str(assigned_teacher.id)))
 
     for entry in schedule_state:
         entry.is_permanent = True

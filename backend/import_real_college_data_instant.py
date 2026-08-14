@@ -13,7 +13,7 @@ from app.models.classroom import Classroom
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("instant_importer")
 
-WORKSPACE_DIR = r"c:\Users\harsh\Documents\dynamic time table management"
+WORKSPACE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEPT_CSV_FILES = [
     "biotechnology_master_import.csv",
@@ -73,6 +73,7 @@ async def main():
         secs_map = {}       # (dept_code, name) -> dict
         fac_subj_pairs = set() # (email, subj_code)
         sec_mentor_pairs = set() # ((dept_code, sec_name), email)
+        sec_subj_fac_links = set() # ((dept_code, sec_name), subj_code, email)
 
         dept_metrics = {}
         total_rows = 0
@@ -170,6 +171,8 @@ async def main():
                         for m_email in [m.strip().lower() for m in mentor_raw.split(',') if m.strip()]:
                             sec_mentor_pairs.add(((dept_code, sec_name), m_email))
 
+                    sec_subj_fac_links.add(((dept_code, sec_name), subj_code, fac_email))
+
         logger.info(f"Parsed {total_rows} total rows. Generating in-memory UUIDs for instant bulk commit...")
 
         dept_id_map = {}
@@ -266,6 +269,19 @@ async def main():
                 "INSERT INTO section_mentors (section_id, faculty_id) VALUES (:sec_id, :fid) ON CONFLICT DO NOTHING;"
             ), sec_mentor_dicts)
 
+        sec_subj_fac_dicts = []
+        for s_key, scode, email in sec_subj_fac_links:
+            sec_id = sec_id_map.get(s_key)
+            sid = subj_id_map.get(scode)
+            fid = prof_id_map.get(email)
+            if sec_id and sid and fid:
+                sec_subj_fac_dicts.append({"sec_id": sec_id, "sid": sid, "fid": fid})
+
+        if sec_subj_fac_dicts:
+            await db.execute(text(
+                "INSERT INTO section_subject_teachers (section_id, subject_id, faculty_id) VALUES (:sec_id, :sid, :fid) ON CONFLICT DO NOTHING;"
+            ), sec_subj_fac_dicts)
+
         await db.commit()
         logger.info("INSTANT BULK COMMIT SUCCESSFUL!")
 
@@ -289,7 +305,7 @@ async def main():
         tables = [
             'users', 'departments', 'subjects', 'faculty_profiles', 
             'faculty_subjects', 'section_configs', 'section_mentors',
-            'classrooms', 'academic_policies'
+            'section_subject_teachers', 'classrooms', 'academic_policies'
         ]
         for t in tables:
             res = await db.execute(text(f"SELECT COUNT(*) FROM {t};"))

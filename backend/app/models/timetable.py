@@ -11,11 +11,11 @@ class SchedulingRule(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     department_id = Column(String(36), ForeignKey("departments.id", ondelete="CASCADE"), unique=True, nullable=True) # Null = global rules
-    slots_per_day = Column(Integer, nullable=False, default=6)
+    slots_per_day = Column(Integer, nullable=False, default=8)
     days_active = Column(String(250), nullable=False, default="Monday,Tuesday,Wednesday,Thursday,Friday,Saturday") # comma-separated
     allow_classroom_overlap = Column(Boolean, nullable=False, default=False)
     allow_faculty_overlap = Column(Boolean, nullable=False, default=False)
-    lunch_slot = Column(Integer, nullable=True, default=4) # e.g. Slot 4 is lunch break
+    lunch_slot = Column(Integer, nullable=True, default=5) # e.g. Slot 5 is lunch break
     activity_blocks = Column(String(500), nullable=True, default="Saturday-5,Saturday-6") # comma-separated "Day-Slot" blocks
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

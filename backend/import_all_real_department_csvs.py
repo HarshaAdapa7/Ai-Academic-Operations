@@ -15,7 +15,7 @@ from app.models.classroom import Classroom
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("real_csv_importer")
 
-WORKSPACE_DIR = r"c:\Users\harsh\Documents\dynamic time table management"
+WORKSPACE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEPT_CSV_FILES = [
     "biotechnology_master_import.csv",

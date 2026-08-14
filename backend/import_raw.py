@@ -4,7 +4,7 @@ import asyncio
 from sqlalchemy import text
 from app.core.database import engine
 
-WORKSPACE_DIR = r"c:\Users\harsh\Documents\dynamic time table management"
+WORKSPACE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEPT_CSV_FILES = [
     "biotechnology_master_import.csv",

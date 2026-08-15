@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 import { 
-  Bell, X, CheckCheck, Trash2, Calendar, FileText, 
-  CheckCircle2, AlertTriangle, Shield, Mail, RefreshCw,
-  UserCheck, ExternalLink
+  Bell, X, CheckCheck, Trash2, Mail, RefreshCw, UserCheck
 } from 'lucide-react';
 
 export const NotificationDrawer: React.FC = () => {

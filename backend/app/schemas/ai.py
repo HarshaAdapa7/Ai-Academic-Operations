@@ -69,6 +69,11 @@ class FacultyWorkloadMetric(BaseModel):
     max_weekly_workload: int
     utilization_percentage: float
     status: str # "OVERUTILIZED", "OPTIMAL", "UNDERUTILIZED"
+    theory_hours: int = 0
+    lab_hours: int = 0
+    substitution_hours: int = 0
+    invigilation_hours: int = 0
+    total_active_hours: int = 0
 
 class ClassroomUtilizationMetric(BaseModel):
     classroom_id: str
@@ -79,6 +84,16 @@ class ClassroomUtilizationMetric(BaseModel):
     total_available_slots: int
     occupancy_percentage: float
 
+class DepartmentAnalyticsMetric(BaseModel):
+    department_id: str
+    department_name: str
+    department_code: str
+    total_faculty: int
+    total_teaching_hours: int
+    avg_utilization: float
+    overutilized_count: int
+    underutilized_count: int
+
 class AnalyticsDashboardOutput(BaseModel):
     total_faculty: int
     total_classrooms: int
@@ -87,3 +102,4 @@ class AnalyticsDashboardOutput(BaseModel):
     average_room_occupancy: float
     workload_metrics: List[FacultyWorkloadMetric]
     classroom_metrics: List[ClassroomUtilizationMetric]
+    department_metrics: List[DepartmentAnalyticsMetric] = []

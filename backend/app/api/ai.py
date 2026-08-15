@@ -105,32 +105,64 @@ async def create_academic_policy(
 # 2. ANALYTICS & UTILIZATION ENGINE
 # ==========================================
 
+from app.models.faculty import Department
+from app.models.leave import SubstitutionProposal
+from app.models.timetable import ExamTimetableEntry
+from app.schemas.ai import DepartmentAnalyticsMetric
+
 @router.get("/ai/analytics/dashboard", response_model=AnalyticsDashboardOutput)
 async def get_analytics_dashboard(
     department_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # Fetch Departments
+    res_depts = await db.execute(select(Department))
+    departments = res_depts.scalars().all()
+    dept_map = {d.id: d for d in departments}
+
     # Fetch Faculty profiles
     stmt_fac = select(FacultyProfile).options(
         selectinload(FacultyProfile.user),
         selectinload(FacultyProfile.department)
     )
-    if department_id:
+    if department_id and department_id != "ALL":
         stmt_fac = stmt_fac.where(FacultyProfile.department_id == department_id)
     res_fac = await db.execute(stmt_fac)
     faculties = res_fac.scalars().all()
 
-    # Fetch Timetable entries to count assigned slots
-    stmt_tt = select(TimetableEntry)
+    # Fetch Timetable entries with subjects
+    stmt_tt = select(TimetableEntry).options(selectinload(TimetableEntry.subject))
     res_tt = await db.execute(stmt_tt)
     tt_entries = res_tt.scalars().all()
 
+    # Fetch Approved Substitutions
+    stmt_sub = select(SubstitutionProposal).where(SubstitutionProposal.status.in_(["APPROVED", "Approved", "ACCEPTED", "Accepted"]))
+    res_sub = await db.execute(stmt_sub)
+    sub_entries = res_sub.scalars().all()
+
+    # Fetch Exam Invigilations
+    stmt_inv = select(ExamTimetableEntry)
+    res_inv = await db.execute(stmt_inv)
+    inv_entries = res_inv.scalars().all()
+
     workload_metrics: List[FacultyWorkloadMetric] = []
+    
     for fac in faculties:
-        assigned = sum(1 for e in tt_entries if e.faculty_id == fac.id)
+        # Timetable entries assigned
+        my_tt = [e for e in tt_entries if e.faculty_id == fac.id]
+        theory_h = sum(1 for e in my_tt if not (e.subject and hasattr(e.subject, 'subject_type') and str(e.subject.subject_type).upper() == 'LAB'))
+        lab_h = sum(1 for e in my_tt if e.subject and hasattr(e.subject, 'subject_type') and str(e.subject.subject_type).upper() == 'LAB')
+        
+        # Substitutions covering for others
+        sub_h = sum(1 for s in sub_entries if s.substitute_faculty_id == fac.id)
+        
+        # Exam invigilations
+        inv_h = sum(1 for iv in inv_entries if iv.invigilator_id == fac.id)
+
+        total_active = theory_h + lab_h + sub_h + inv_h
         max_workload = fac.max_weekly_workload or 18
-        utilization = round((assigned / max_workload) * 100, 1) if max_workload > 0 else 0.0
+        utilization = round((total_active / max_workload) * 100, 1) if max_workload > 0 else 0.0
         
         status_str = "OPTIMAL"
         if utilization > 100:
@@ -142,11 +174,37 @@ async def get_analytics_dashboard(
             faculty_id=fac.id,
             faculty_name=fac.user.full_name if fac.user else "Faculty Member",
             department_code=fac.department.code if fac.department else "GEN",
-            assigned_slots=assigned,
+            assigned_slots=len(my_tt),
             max_weekly_workload=max_workload,
             utilization_percentage=utilization,
-            status=status_str
+            status=status_str,
+            theory_hours=theory_h,
+            lab_hours=lab_h,
+            substitution_hours=sub_h,
+            invigilation_hours=inv_h,
+            total_active_hours=total_active
         ))
+
+    # Calculate Department-Wise Analytics
+    department_metrics: List[DepartmentAnalyticsMetric] = []
+    for d in departments:
+        dept_facs = [m for m in workload_metrics if m.department_code == d.code]
+        if dept_facs:
+            tot_faculty = len(dept_facs)
+            tot_hours = sum(m.total_active_hours for m in dept_facs)
+            avg_util = round(sum(m.utilization_percentage for m in dept_facs) / tot_faculty, 1)
+            over_cnt = sum(1 for m in dept_facs if m.status == "OVERUTILIZED")
+            under_cnt = sum(1 for m in dept_facs if m.status == "UNDERUTILIZED")
+            department_metrics.append(DepartmentAnalyticsMetric(
+                department_id=d.id,
+                department_name=d.name,
+                department_code=d.code,
+                total_faculty=tot_faculty,
+                total_teaching_hours=tot_hours,
+                avg_utilization=avg_util,
+                overutilized_count=over_cnt,
+                underutilized_count=under_cnt
+            ))
 
     # Fetch Classrooms & Occupancy
     stmt_rm = select(Classroom)
@@ -185,7 +243,8 @@ async def get_analytics_dashboard(
         average_faculty_utilization=avg_faculty_util,
         average_room_occupancy=avg_room_occ,
         workload_metrics=workload_metrics,
-        classroom_metrics=classroom_metrics
+        classroom_metrics=classroom_metrics,
+        department_metrics=department_metrics
     )
 
 # ==========================================

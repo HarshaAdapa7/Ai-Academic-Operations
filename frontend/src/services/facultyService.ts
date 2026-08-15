@@ -235,6 +235,22 @@ export const facultyService = {
     return this.getFacultyAvailability(facultyId);
   },
 
+  // Faculty CRUD
+  async createFaculty(data: any): Promise<FacultyProfile> {
+    const res = await axios.post(`${API_URL}/faculty`, data);
+    return res.data;
+  },
+
+  async updateFaculty(id: string, data: any): Promise<FacultyProfile> {
+    const res = await axios.put(`${API_URL}/faculty/${id}`, data);
+    return res.data;
+  },
+
+  async deleteFaculty(id: string): Promise<any> {
+    const res = await axios.delete(`${API_URL}/faculty/${id}`);
+    return res.data;
+  },
+
   async updateFacultyAvailability(facultyId: string, availabilities: AvailabilityItem[]): Promise<any> {
     const res = await axios.put(`${API_URL}/faculty/${facultyId}/availability`, { availabilities });
     return res.data;

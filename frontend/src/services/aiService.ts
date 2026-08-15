@@ -46,6 +46,11 @@ export interface FacultyWorkloadMetric {
   max_weekly_workload: number;
   utilization_percentage: number;
   status: 'OVERUTILIZED' | 'OPTIMAL' | 'UNDERUTILIZED';
+  theory_hours?: number;
+  lab_hours?: number;
+  substitution_hours?: number;
+  invigilation_hours?: number;
+  total_active_hours?: number;
 }
 
 export interface ClassroomUtilizationMetric {
@@ -58,6 +63,17 @@ export interface ClassroomUtilizationMetric {
   occupancy_percentage: number;
 }
 
+export interface DepartmentAnalyticsMetric {
+  department_id: string;
+  department_name: string;
+  department_code: string;
+  total_faculty: number;
+  total_teaching_hours: number;
+  avg_utilization: number;
+  overutilized_count: number;
+  underutilized_count: number;
+}
+
 export interface AnalyticsDashboardOutput {
   total_faculty: number;
   total_classrooms: number;
@@ -66,6 +82,7 @@ export interface AnalyticsDashboardOutput {
   average_room_occupancy: number;
   workload_metrics: FacultyWorkloadMetric[];
   classroom_metrics: ClassroomUtilizationMetric[];
+  department_metrics?: DepartmentAnalyticsMetric[];
 }
 
 export const aiService = {

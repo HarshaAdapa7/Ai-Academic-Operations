@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setUser(userData);
     } catch (error) {
-      console.error('Failed to fetch user profiles:', error);
+      console.warn('Session expired or unauthenticated. Cleared session token.');
       logout();
     } finally {
       setIsLoading(false);

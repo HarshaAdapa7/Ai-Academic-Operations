@@ -79,6 +79,7 @@ async def main_export_department_data(
     return await export_department_data_direct(department_id=department_id, current_user=current_user, db=db)
 
 @app.api_route("/api/v1/timetable/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
+@app.api_route("/api/v1/timetable/exams/calendar-dates", methods=["GET", "POST", "OPTIONS"])
 @app.api_route("/api/v1/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
 async def main_exam_calendar_dates(
     current_user: Optional[User] = Depends(get_optional_current_user),
@@ -86,6 +87,29 @@ async def main_exam_calendar_dates(
 ):
     from app.api.exam_timetable import get_exam_calendar_dates
     return await get_exam_calendar_dates(current_user=current_user, db=db)
+
+from fastapi import WebSocket, WebSocketDisconnect
+@app.websocket("/api/v1/ws/notifications")
+@app.websocket("/api/v1/notifications/ws/notifications")
+@app.websocket("/api/v1/notifications/ws")
+async def main_websocket_notifications(
+    websocket: WebSocket,
+    user_id: Optional[str] = None,
+    role: Optional[str] = "FACULTY",
+    department_id: Optional[str] = None
+):
+    from app.core.ws_manager import ws_manager
+    target_user_id = user_id or "anonymous"
+    await ws_manager.connect(websocket, target_user_id, role=role or "FACULTY", department_id=department_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket, target_user_id)
+    except Exception:
+        ws_manager.disconnect(websocket, target_user_id)
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import HTTPException as FastAPIHTTPException

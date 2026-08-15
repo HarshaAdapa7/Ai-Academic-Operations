@@ -149,10 +149,10 @@ export const timetableService = {
     }>;
   }> {
     try {
-      const res = await axios.get(`${API_URL}/timetable/exams/calendar-dates`);
+      const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`);
       return res.data;
     } catch (err) {
-      const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`);
+      const res = await axios.get(`${API_URL}/timetable/exams/calendar-dates`);
       return res.data;
     }
   },

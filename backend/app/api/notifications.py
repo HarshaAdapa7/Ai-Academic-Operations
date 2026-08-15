@@ -109,6 +109,9 @@ async def delete_notification_entry(
     return {"message": "Notification deleted successfully."}
 
 @router.websocket("/ws/notifications")
+@router.websocket("/ws")
+@router.websocket("/notifications")
+@router.websocket("")
 async def websocket_notifications_endpoint(
     websocket: WebSocket,
     user_id: Optional[str] = Query(None),

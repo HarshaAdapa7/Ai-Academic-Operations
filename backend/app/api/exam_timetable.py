@@ -112,6 +112,9 @@ def get_calendar_date_for_year(all_cals: List[AcademicCalendar], year: int, exam
 
 
 @router.get("/timetable/exam-calendar-dates")
+@router.get("/timetable/exams/calendar-dates")
+@router.api_route("/timetable/exam-calendar-dates", methods=["GET", "POST", "OPTIONS"])
+@router.api_route("/timetable/exams/calendar-dates", methods=["GET", "POST", "OPTIONS"])
 async def get_exam_calendar_dates(
     semester: Optional[int] = 1,
     current_user: User = Depends(get_current_user),

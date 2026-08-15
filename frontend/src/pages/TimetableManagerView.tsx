@@ -684,8 +684,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         /* Dynamic Timetable Grid Tab */
         <div className="space-y-6">
           {/* Academic Year Tabs for Separate Timetables per Year */}
-          <div className="flex items-center gap-2 bg-dark-900/60 p-2 border border-dark-800 rounded-2xl overflow-x-auto">
-            <span className="text-xs text-dark-400 font-bold px-2 whitespace-nowrap">Academic Year:</span>
+          <div className="flex items-center gap-2 bg-slate-100 p-2 border border-slate-300 rounded-2xl overflow-x-auto">
+            <span className="text-xs text-slate-800 font-extrabold px-2 whitespace-nowrap">Academic Year:</span>
             {[
               { key: '1', label: '1st Year (Sem 1 & Sem 2)' },
               { key: '2', label: '2nd Year (Sem 1 & Sem 2)' },
@@ -704,10 +704,10 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                     setIsCustomSection(false);
                   }
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap border ${
                   selectedYearTab === yr.key
-                    ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-md shadow-primary-500/20'
-                    : 'bg-dark-950/60 text-dark-300 hover:text-white hover:bg-dark-850'
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-600/30'
+                    : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
                 {yr.label}
@@ -717,7 +717,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
 
           {/* Quick Section Pills for Dedicated Section Timetables */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs text-dark-400 font-semibold whitespace-nowrap">Section Timetables:</span>
+            <span className="text-xs text-slate-800 font-bold whitespace-nowrap">Section Timetables:</span>
             {getAvailableSections()
               .filter(sec => sec.includes(`${selectedYearTab}-`))
               .map(sec => (
@@ -730,8 +730,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                   }}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border ${
                     selectedSection === sec && !isCustomSection
-                      ? 'bg-primary-500 text-white border-primary-400 shadow-md shadow-primary-500/20'
-                      : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-600/20'
+                      : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-200 hover:text-slate-900'
                   }`}
                 >
                   {sec} Timetable
@@ -739,10 +739,10 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               ))}
           </div>
 
-          <div className="flex justify-between items-center gap-4 bg-dark-900/30 p-4 border border-dark-800 rounded-xl">
+          <div className="flex justify-between items-center gap-4 bg-white p-4 border border-slate-300 rounded-2xl shadow-sm">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-dark-400">Cohort Section:</label>
+                <label className="text-xs font-extrabold text-slate-800">Cohort Section:</label>
                 <select
                   value={isCustomSection ? '__CUSTOM__' : selectedSection}
                   onChange={e => {
@@ -753,7 +753,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                       setSelectedSection(e.target.value);
                     }
                   }}
-                  className="px-3 py-1.5 bg-dark-950 border border-dark-800 rounded-lg text-white text-xs outline-none focus:border-primary-500/50"
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-extrabold text-xs outline-none focus:border-blue-600"
                 >
                   {getAvailableSections().map(sec => (
                     <option key={sec} value={sec}>{sec}</option>
@@ -771,20 +771,20 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                       setSelectedSection(val);
                     }}
                     placeholder="e.g. IT 3-A"
-                    className="w-28 px-3 py-1.5 bg-dark-950 border border-primary-500/50 rounded-lg text-white text-xs outline-none"
+                    className="w-28 px-3 py-1.5 bg-slate-50 border border-blue-600 rounded-xl text-slate-900 font-bold text-xs outline-none"
                   />
                 )}
               </div>
 
               {/* Permanent / Present View Toggle */}
-              <div className="flex items-center gap-1 p-0.5 bg-dark-950 border border-dark-800 rounded-lg">
+              <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-300 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setViewMode('present')}
-                  className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wider font-extrabold transition-all duration-300 ${
+                  className={`px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider font-extrabold transition-all duration-300 ${
                     viewMode === 'present'
-                      ? 'bg-primary-500 text-white shadow-md'
-                      : 'text-dark-400 hover:text-white'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                   }`}
                 >
                   Present Timetable
@@ -792,20 +792,20 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                 <button
                   type="button"
                   onClick={() => setViewMode('permanent')}
-                  className={`px-3 py-1 rounded-md text-[10px] uppercase tracking-wider font-extrabold transition-all duration-300 ${
+                  className={`px-3 py-1.5 rounded-lg text-[10px] uppercase tracking-wider font-extrabold transition-all duration-300 ${
                     viewMode === 'permanent'
                       ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-dark-400 hover:text-white'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                   }`}
                 >
                   Permanent Timetable
                 </button>
               </div>
 
-              <span className="text-xs px-2.5 py-1 rounded bg-primary-500/10 text-primary-400 border border-primary-500/20 font-bold">
+              <span className="text-xs px-3 py-1.5 rounded-xl bg-blue-50 text-blue-800 border border-blue-200 font-extrabold">
                 Rule 0: {sectionYear === 1 ? `1st Year (Lunch Slot ${currentLunchSlot})` : `Year ${sectionYear} (Lunch Slot ${currentLunchSlot})`}
               </span>
-              <span className="text-xs px-2.5 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+              <span className="text-xs px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-800 border border-indigo-200 font-extrabold">
                 Daily Capacity: {ruleSlotsPerDay} Slots
               </span>
             </div>
@@ -814,7 +814,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               <button
                 type="button"
                 onClick={handleExportICS}
-                className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-indigo-600/15 border border-indigo-500/30 hover:bg-indigo-600/25 text-indigo-300 text-xs font-bold transition-all"
+                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md shadow-blue-600/20 transition-all"
                 title="Export for Google Calendar / Outlook"
               >
                 <Calendar className="w-3.5 h-3.5" />
@@ -824,7 +824,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-blue-600/15 border border-blue-500/30 hover:bg-blue-600/25 text-blue-300 text-xs font-bold transition-all"
+                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all"
                 title="Export for Excel / Data Analytics"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -834,7 +834,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               <button
                 type="button"
                 onClick={() => setIsPrintModalOpen(true)}
-                className="flex items-center gap-2 py-2 px-3 rounded-xl bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-emerald-300 text-xs font-bold transition-all"
+                className="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold shadow-md shadow-teal-600/20 transition-all"
               >
                 <Printer className="w-3.5 h-3.5" />
                 Official Print PDF
@@ -847,7 +847,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                     setSolverError('');
                     setIsSolverModalOpen(true);
                   }}
-                  className="flex items-center gap-2 py-2 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-primary-600 hover:from-indigo-500 hover:to-primary-500 text-white text-xs font-bold shadow-lg shadow-indigo-500/10 transition-all duration-300"
+                  className="flex items-center gap-2 py-2 px-4 rounded-xl bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white text-xs font-extrabold shadow-md shadow-blue-700/20 transition-all duration-300"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   Run Master 17-Rule Solver
@@ -858,40 +858,40 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
 
           {/* AI Real-time Compliance & Diagnostic Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <div className="glass-panel p-3.5 border border-emerald-500/20 bg-emerald-500/5 flex items-center justify-between">
+            <div className="glass-panel p-3.5 border border-emerald-300 bg-emerald-50/60 flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider">17-Rule Health Status</span>
-                <span className="text-sm font-extrabold text-white">100% Conflict-Free</span>
+                <span className="text-[10px] uppercase font-bold text-emerald-800 block tracking-wider">17-Rule Health Status</span>
+                <span className="text-sm font-extrabold text-emerald-950">100% Conflict-Free</span>
               </div>
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             </div>
 
-            <div className="glass-panel p-3.5 border border-indigo-500/20 bg-indigo-500/5 flex items-center justify-between">
+            <div className="glass-panel p-3.5 border border-indigo-300 bg-indigo-50/60 flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-indigo-400 block tracking-wider">Weekly Assigned Sessions</span>
-                <span className="text-sm font-extrabold text-white">
+                <span className="text-[10px] uppercase font-bold text-indigo-800 block tracking-wider">Weekly Assigned Sessions</span>
+                <span className="text-sm font-extrabold text-indigo-950">
                   {timetableEntries.filter(e => e.section === selectedSection).length} Periods scheduled
                 </span>
               </div>
-              <Activity className="w-5 h-5 text-indigo-400" />
+              <Activity className="w-5 h-5 text-indigo-600" />
             </div>
 
-            <div className="glass-panel p-3.5 border border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
+            <div className="glass-panel p-3.5 border border-amber-300 bg-amber-50/60 flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-amber-400 block tracking-wider">Protected Lunch Window</span>
-                <span className="text-sm font-extrabold text-white">
+                <span className="text-[10px] uppercase font-bold text-amber-800 block tracking-wider">Protected Lunch Window</span>
+                <span className="text-sm font-extrabold text-amber-950">
                   {sectionYear === 1 ? 'Slot 4 (11:20-12:10)' : 'Slot 5 (12:10-1:00)'}
                 </span>
               </div>
-              <ShieldCheck className="w-5 h-5 text-amber-400" />
+              <ShieldCheck className="w-5 h-5 text-amber-600" />
             </div>
 
-            <div className="glass-panel p-3.5 border border-primary-500/20 bg-primary-500/5 flex items-center justify-between">
+            <div className="glass-panel p-3.5 border border-blue-300 bg-blue-50/60 flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-primary-400 block tracking-wider">Practical Lab Splitting</span>
-                <span className="text-sm font-extrabold text-white">Continuous 3-Slot Blocks</span>
+                <span className="text-[10px] uppercase font-bold text-blue-800 block tracking-wider">Practical Lab Splitting</span>
+                <span className="text-sm font-extrabold text-blue-950">Continuous 3-Slot Blocks</span>
               </div>
-              <Sparkles className="w-5 h-5 text-primary-400" />
+              <Sparkles className="w-5 h-5 text-blue-600" />
             </div>
           </div>
 
@@ -900,12 +900,12 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
             <table className="w-full min-w-[900px] border-collapse">
               <thead>
                 <tr>
-                  <th className="p-3 text-left text-xs font-bold text-dark-500 border-b border-dark-850 w-24 uppercase">Day / Slot</th>
+                  <th className="p-3 text-left text-xs font-extrabold text-slate-800 border-b border-slate-300 w-24 uppercase">Day / Slot</th>
                   {Array.from({ length: ruleSlotsPerDay }).map((_, idx) => {
                     const slotNum = idx + 1;
                     const isLunch = slotNum === currentLunchSlot;
                     return (
-                      <th key={idx} className={`p-3 text-center text-xs font-bold border-b border-dark-850 uppercase ${isLunch ? 'text-amber-400' : 'text-dark-500'}`}>
+                      <th key={idx} className={`p-3 text-center text-xs font-extrabold border-b border-slate-300 uppercase ${isLunch ? 'text-amber-800 font-black' : 'text-slate-800'}`}>
                         {isLunch ? `Slot ${slotNum} (Lunch)` : `Slot ${slotNum}`}
                       </th>
                     );
@@ -919,8 +919,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                   );
 
                   return (
-                    <tr key={day} className="border-b border-dark-850/40 hover:bg-dark-900/5">
-                      <td className="p-3 text-xs font-extrabold text-white align-middle">{day}</td>
+                    <tr key={day} className="border-b border-slate-200 hover:bg-slate-50/80">
+                      <td className="p-3 text-xs font-black text-slate-900 align-middle">{day}</td>
                       {Array.from({ length: ruleSlotsPerDay }).map((_, slotIdx) => {
                         const slotNum = slotIdx + 1;
                         const entry = dayEntries.find(e => e.time_slot === slotNum);
@@ -941,34 +941,34 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                             className="p-2"
                           >
                             {isLunch ? (
-                              <div className="py-4 border border-amber-500/20 bg-amber-500/5 text-center rounded-xl text-amber-400/80 text-[10px] uppercase font-bold tracking-widest">
+                              <div className="py-4 border border-amber-300 bg-amber-50/80 text-center rounded-xl text-amber-900 text-[10px] uppercase font-black tracking-widest">
                                 Lunch Break
                               </div>
                             ) : isSatAfternoon ? (
-                              <div className="py-4 border border-dark-850 bg-dark-950/40 text-center rounded-xl text-dark-600 text-[10px] uppercase font-bold tracking-widest">
+                              <div className="py-4 border border-slate-300 bg-slate-100 text-center rounded-xl text-slate-600 text-[10px] uppercase font-extrabold tracking-widest">
                                 Half Day
                               </div>
                             ) : isActivity ? (
-                              <div className="py-4 border border-dark-850 bg-indigo-950/10 text-center rounded-xl text-indigo-400/80 text-[10px] uppercase font-bold tracking-wider">
+                              <div className="py-4 border border-indigo-200 bg-indigo-50 text-center rounded-xl text-indigo-900 text-[10px] uppercase font-extrabold tracking-wider">
                                 Activities
                               </div>
                             ) : entry ? (
-                              <div className="p-3 rounded-xl bg-primary-500/10 border border-primary-500/25 relative group cursor-pointer hover:bg-primary-500/15 transition-all">
+                              <div className="p-3 rounded-xl bg-blue-50/90 border border-blue-300 relative group cursor-pointer hover:bg-blue-100 transition-all shadow-sm">
                                 {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
                                   <button
                                     onClick={(e) => handleDeleteSlot(entry.id, e)}
-                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold shadow-lg"
+                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold shadow-lg"
                                     title="Delete session"
                                   >
                                     <X className="w-3 h-3" />
                                   </button>
                                 )}
-                                <strong className="block text-[11px] text-white font-extrabold truncate">{entry.subject?.name}</strong>
-                                <span className="block text-[9px] text-primary-400 font-semibold mt-1 truncate">Prof. {entry.faculty?.user?.full_name}</span>
+                                <strong className="block text-[11px] text-slate-900 font-black truncate">{entry.subject?.name}</strong>
+                                <span className="block text-[10px] text-blue-700 font-extrabold mt-1 truncate">Prof. {entry.faculty?.user?.full_name}</span>
                                 <div className="flex justify-between items-center mt-1">
-                                  <span className="text-[9px] text-dark-400 font-bold uppercase truncate">{entry.classroom?.room_number}</span>
+                                  <span className="text-[9px] text-slate-700 font-extrabold uppercase truncate">{entry.classroom?.room_number}</span>
                                   {entry.lab_batch && entry.lab_batch !== 'ALL' && (
-                                    <span className="text-[8px] px-1 rounded bg-purple-500/20 text-purple-300 font-bold">{entry.lab_batch}</span>
+                                    <span className="text-[8px] px-1 rounded bg-purple-100 text-purple-800 border border-purple-300 font-black">{entry.lab_batch}</span>
                                   )}
                                 </div>
                               </div>

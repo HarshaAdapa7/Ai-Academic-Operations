@@ -7,7 +7,7 @@ from app.schemas.classroom import ClassroomResponse
 # --- Scheduling Rule Schemas ---
 class SchedulingRuleCreate(BaseModel):
     department_id: Optional[str] = Field(None, description="Department UUID, Null for global college rules")
-    slots_per_day: int = Field(7, ge=1, le=12, description="Number of daily teaching slots")
+    slots_per_day: int = Field(8, ge=1, le=12, description="Number of daily teaching slots")
     days_active: str = Field("Monday,Tuesday,Wednesday,Thursday,Friday,Saturday", description="Comma-separated active days list")
     allow_classroom_overlap: bool = Field(False, description="Allow classroom overlaps")
     allow_faculty_overlap: bool = Field(False, description="Allow teacher schedule overlaps")

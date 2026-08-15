@@ -1,7 +1,7 @@
 ======================================================================
 === ANITS REAL COLLEGE DATA IMPORT SUMMARY REPORT ===
 ======================================================================
-Total CSV Data Rows Processed Across 7 Departments: 408
+Total CSV Data Rows Processed Across 7 Departments: 399
 
 Department [BT] - Bio Technology:
   - Rows Processed: 10
@@ -25,11 +25,11 @@ Department [CIVIL] - Civil Engineering:
   - Unique Classrooms: 4
 --------------------------------------------------
 Department [CSD] - Computer Science & Data Science:
-  - Rows Processed: 81
-  - Unique Subjects: 27
-  - Unique Faculty: 22
+  - Rows Processed: 72
+  - Unique Subjects: 24
+  - Unique Faculty: 33
   - Unique Sections: 9 (CSD 2-A, CSD 2-B, CSD 2-C, CSD 3-A, CSD 3-B, CSD 3-C, CSD 4-A, CSD 4-B, CSD 4-C)
-  - Unique Classrooms: 6
+  - Unique Classrooms: 9
 --------------------------------------------------
 Department [CSE] - Computer Science & Engineering:
   - Rows Processed: 68
@@ -54,13 +54,14 @@ Department [IT] - Information Technology:
 --------------------------------------------------
 
 --- POST-IMPORT DATABASE RECORD COUNTS ---
-  users                         : 112 rows
+  users                         : 123 rows
   departments                   : 7 rows
   subjects                      : 168 rows
-  faculty_profiles              : 111 rows
-  faculty_subjects              : 184 rows
+  faculty_profiles              : 122 rows
+  faculty_subjects              : 205 rows
   section_configs               : 43 rows
-  section_mentors               : 50 rows
-  classrooms                    : 45 rows
+  section_mentors               : 102 rows
+  section_subject_teachers      : 399 rows
+  classrooms                    : 48 rows
   academic_policies             : 3 rows
 ======================================================================

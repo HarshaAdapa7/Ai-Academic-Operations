@@ -58,7 +58,7 @@ async def main():
 
     # Conflict audit query
     async with async_session_maker() as db:
-        tt_res = await db.execute(select(TimetableEntry))
+        tt_res = await db.execute(select(TimetableEntry).where(TimetableEntry.is_permanent == True))
         entries = tt_res.scalars().all()
 
         teacher_slots = set()

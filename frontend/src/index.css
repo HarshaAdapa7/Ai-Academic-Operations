@@ -30,10 +30,10 @@
 }
 
 /* =========================================================
-   OFFICIAL ACADEMIC EXECUTIVE WHITE THEME OVERRIDES
+   WORLD-CLASS EXECUTIVE ACADEMIC LIGHT THEME
    ========================================================= */
 
-/* Main page background reset */
+/* Main page background */
 .min-h-screen,
 body {
   background-color: #f8fafc !important;
@@ -50,39 +50,31 @@ body {
 .bg-dark-950\/70,
 .bg-dark-950\/50 {
   background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03) !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
 }
 
 /* Hover Cards */
 .glass-panel-hover:hover {
   border-color: #2563eb !important;
-  box-shadow: 0 10px 25px -3px rgba(37, 99, 235, 0.1) !important;
+  box-shadow: 0 12px 28px -4px rgba(37, 99, 235, 0.12) !important;
 }
 
-/* Navbar */
+/* Top Navbar */
 nav.glass-panel,
 nav {
   background-color: #ffffff !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  box-shadow: 0 2px 8px 0 rgba(15, 23, 42, 0.06) !important;
 }
 
-/* Headings & Text Legibility */
-h1, h2, h3, h4, h5, h6,
-.text-white,
-.text-dark-100,
-.text-dark-200 {
+/* Headings & Title Legibility */
+h1, h2, h3, h4, h5, h6 {
   color: #0f172a !important;
 }
 
-.text-dark-300,
-.text-dark-400 {
-  color: #475569 !important;
-}
-
-.text-dark-500 {
-  color: #64748b !important;
+p, span, div, label {
+  color: #334155;
 }
 
 /* Inset Boxes inside cards */
@@ -92,22 +84,23 @@ h1, h2, h3, h4, h5, h6,
 .bg-dark-850,
 .bg-dark-800 {
   background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
 }
 
-/* Input Fields & Selects */
+/* Input Fields & Select Controls */
 .glass-input,
 input,
 select,
 textarea {
-  background-color: #f8fafc !important;
+  background-color: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
   color: #0f172a !important;
+  font-weight: 600 !important;
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 
 input:focus,
@@ -121,41 +114,76 @@ textarea:focus {
 select option {
   background-color: #ffffff !important;
   color: #0f172a !important;
+  font-weight: 600 !important;
 }
 
-/* Primary Action Buttons */
+/* =========================================================
+   HIGH-CONTRAST BUTTONS & NAVIGATION TABS
+   ========================================================= */
+
+/* Primary Solid Blue Buttons */
 .btn-primary,
 button.bg-primary-500,
 button.bg-primary-600,
+button.bg-blue-600,
 .bg-gradient-to-r.from-primary-600,
-.bg-gradient-to-r.from-blue-600 {
-  background-color: #2563eb !important;
+.bg-gradient-to-r.from-blue-600,
+.active-nav-btn {
+  background-color: #1d4ed8 !important;
   background-image: linear-gradient(to right, #1d4ed8, #2563eb) !important;
   color: #ffffff !important;
+  font-weight: 800 !important;
   border: none !important;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25) !important;
 }
 
 .btn-primary *,
 button.bg-primary-500 *,
 button.bg-primary-600 *,
+button.bg-blue-600 *,
 .bg-gradient-to-r.from-primary-600 * {
   color: #ffffff !important;
 }
 
-/* Secondary Buttons */
+/* Secondary / Inactive Navigation Buttons */
 .btn-secondary,
 button.bg-dark-900,
-button.bg-dark-800 {
+button.bg-dark-800,
+.inactive-nav-btn {
   background-color: #f1f5f9 !important;
   border: 1px solid #cbd5e1 !important;
   color: #1e293b !important;
+  font-weight: 700 !important;
 }
 
 button.bg-dark-900:hover,
 button.bg-dark-800:hover,
-.btn-secondary:hover {
+.btn-secondary:hover,
+.inactive-nav-btn:hover {
   background-color: #e2e8f0 !important;
   color: #0f172a !important;
+}
+
+/* =========================================================
+   DROPDOWNS, POPOVERS & DIALOGS
+   ========================================================= */
+.z-50,
+.absolute.right-0,
+div[class*="backdrop-blur"] {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.2) !important;
+  color: #0f172a !important;
+}
+
+div[class*="backdrop-blur"] span,
+div[class*="backdrop-blur"] button {
+  color: #0f172a;
+}
+
+div[class*="backdrop-blur"] button:hover {
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
 }
 
 /* Status Badges */
@@ -165,6 +193,7 @@ button.bg-dark-800:hover,
   background-color: #eff6ff !important;
   color: #1d4ed8 !important;
   border-color: #bfdbfe !important;
+  font-weight: 700 !important;
 }
 
 .bg-emerald-500\/10,
@@ -172,6 +201,7 @@ button.bg-dark-800:hover,
   background-color: #ecfdf5 !important;
   color: #047857 !important;
   border-color: #a7f3d0 !important;
+  font-weight: 700 !important;
 }
 
 .bg-amber-500\/10,
@@ -179,6 +209,7 @@ button.bg-dark-800:hover,
   background-color: #fffbeb !important;
   color: #b45309 !important;
   border-color: #fde68a !important;
+  font-weight: 700 !important;
 }
 
 .bg-red-500\/10,
@@ -186,14 +217,20 @@ button.bg-dark-800:hover,
   background-color: #fef2f2 !important;
   color: #b91c1c !important;
   border-color: #fecaca !important;
+  font-weight: 700 !important;
 }
 
-/* Tables */
+/* Table Styling */
 table thead,
 thead tr {
   background-color: #f1f5f9 !important;
-  color: #475569 !important;
-  border-bottom: 2px solid #e2e8f0 !important;
+  color: #1e293b !important;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+}
+
+table tbody tr {
+  border-bottom: 1px solid #e2e8f0 !important;
 }
 
 table tbody tr:hover {

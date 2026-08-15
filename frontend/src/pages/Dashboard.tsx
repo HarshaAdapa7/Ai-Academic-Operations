@@ -229,59 +229,58 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center gap-4">
             {/* HOD sub-navigation options shown in Navbar when inside Module 2 */}
             {(user?.role === 'HOD' || user?.role === 'ADMIN') && activeView !== 'dashboard' && (
-              <div className="hidden md:flex items-center gap-2 mr-6 bg-dark-900/50 p-1 rounded-xl border border-dark-800">
+              <div className="hidden md:flex items-center gap-1.5 mr-6 bg-slate-100 p-1.5 rounded-xl border border-slate-300 shadow-inner">
                 <button
                   onClick={() => setActiveView('faculty_profiles')}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'faculty_profiles' 
-                      ? 'bg-primary-500 text-white shadow-md' 
-                      : 'text-dark-400 hover:text-white'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                   }`}
                 >
                   Faculty Registry
                 </button>
                 <button
                   onClick={() => setActiveView('dept_subjects')}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'dept_subjects' 
-                      ? 'bg-primary-500 text-white shadow-md' 
-                      : 'text-dark-400 hover:text-white'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                   }`}
                 >
                   Dept & Subjects
                 </button>
                 <button
                   onClick={() => setActiveView('timetable_ops')}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'timetable_ops' 
-                      ? 'bg-primary-500 text-white shadow-md' 
-                      : 'text-dark-400 hover:text-white'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                   }`}
                 >
                   Weekly Timetable
                 </button>
                 <button
                   onClick={() => setActiveView('exam_timetable_ops')}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'exam_timetable_ops' 
-                      ? 'bg-amber-500 text-white shadow-md' 
-                      : 'text-dark-400 hover:text-white'
+                      ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30' 
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                   }`}
                 >
                   Exam Preparation
                 </button>
                 <button
                   onClick={() => setActiveView('academic_analytics')}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'academic_analytics' 
-                      ? 'bg-primary-500 text-white shadow-md' 
-                      : 'text-dark-400 hover:text-white'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
                   }`}
                 >
                   Academic Analytics
                 </button>
               </div>
-
             )}
 
             <div className="text-right hidden sm:block">

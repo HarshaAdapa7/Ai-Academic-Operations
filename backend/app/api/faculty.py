@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 
 from app.core.database import get_db
 from app.api.deps import get_current_user, get_optional_current_user
@@ -763,7 +763,17 @@ async def list_faculty_profiles(
     if department_id:
         query = query.where(FacultyProfile.department_id == department_id)
     result = await db.execute(query)
-    return result.scalars().all()
+    profiles = result.scalars().all()
+
+    # Calculate actual active weekly workload assigned in timetable
+    stmt_tt = select(TimetableEntry.faculty_id, func.count(TimetableEntry.id)).group_by(TimetableEntry.faculty_id)
+    res_tt = await db.execute(stmt_tt)
+    tt_counts = dict(res_tt.all())
+
+    for p in profiles:
+        p.current_weekly_workload = tt_counts.get(p.id, 0)
+
+    return profiles
 
 @router.post("/faculty", response_model=FacultyProfileResponse)
 async def create_faculty_profile(data: FacultyProfileCreate, db: AsyncSession = Depends(get_db)):

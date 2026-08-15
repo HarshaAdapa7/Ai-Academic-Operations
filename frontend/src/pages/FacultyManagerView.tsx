@@ -272,17 +272,26 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProfiles.map(p => {
-            const workloadPct = Math.min((p.current_weekly_workload / p.max_weekly_workload) * 100, 100);
+            const rawRatio = p.max_weekly_workload > 0 ? (p.current_weekly_workload / p.max_weekly_workload) : 0;
+            const workloadPct = Math.round(rawRatio * 100);
             
             // Workload warning color classes
-            let progressColor = 'bg-emerald-500 shadow-emerald-500/20';
-            if (p.max_weekly_workload > 0) {
-              const ratio = p.current_weekly_workload / p.max_weekly_workload;
-              if (ratio >= 1.0) {
-                progressColor = 'bg-red-500 shadow-red-500/20';
-              } else if (ratio >= 0.75) {
-                progressColor = 'bg-amber-500 shadow-amber-500/20';
-              }
+            let progressColor = 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-emerald-500/30';
+            let badgeBg = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+            let statusText = `${workloadPct}% Capacity`;
+
+            if (rawRatio > 1.0) {
+              progressColor = 'bg-gradient-to-r from-red-500 to-rose-500 shadow-red-500/30';
+              badgeBg = 'bg-red-500/10 text-red-400 border-red-500/30';
+              statusText = `${workloadPct}% Overutilized`;
+            } else if (rawRatio >= 0.8) {
+              progressColor = 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/30';
+              badgeBg = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+              statusText = `${workloadPct}% Heavy Load`;
+            } else if (p.current_weekly_workload === 0) {
+              progressColor = 'bg-dark-700';
+              badgeBg = 'bg-dark-900 text-dark-400 border-dark-800';
+              statusText = 'Unassigned';
             }
 
             return (
@@ -307,16 +316,21 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
                     )}
                   </div>
 
-                  {/* Workload Progress */}
-                  <div className="space-y-1.5 mb-6">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-dark-400">Weekly Workload</span>
-                      <span className="text-white">{p.current_weekly_workload} / {p.max_weekly_workload} hrs</span>
+                  {/* Workload Progress Bar */}
+                  <div className="space-y-2 mb-6">
+                    <div className="flex justify-between items-center text-xs font-semibold">
+                      <span className="text-dark-300 font-bold">Weekly Workload</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-extrabold">{p.current_weekly_workload} / {p.max_weekly_workload} hrs</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded font-extrabold border ${badgeBg}`}>
+                          {statusText}
+                        </span>
+                      </div>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-dark-900 overflow-hidden border border-dark-800">
+                    <div className="w-full h-2.5 rounded-full bg-dark-950 overflow-hidden border border-dark-800 p-0.5">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
-                        style={{ width: `${workloadPct}%` }}
+                        style={{ width: `${Math.min(workloadPct, 100)}%` }}
                       ></div>
                     </div>
                   </div>

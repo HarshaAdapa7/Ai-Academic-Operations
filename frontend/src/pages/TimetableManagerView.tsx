@@ -559,13 +559,13 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all font-bold shadow-sm"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-2xl font-extrabold text-white">Dynamic Timetable Scheduling (17 B.Tech Rules)</h2>
-            <p className="text-dark-400 text-sm">Automated multi-department, multi-year constraint solver engine</p>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Dynamic Timetable Scheduling (17 B.Tech Rules)</h2>
+            <p className="text-slate-600 text-sm font-semibold mt-1">Automated multi-department, multi-year constraint solver engine</p>
           </div>
         </div>
 
@@ -576,22 +576,22 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                 <button
                   type="button"
                   onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
-                  className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-primary-500/15 via-indigo-500/15 to-purple-500/15 border border-primary-500/30 hover:border-primary-500/60 text-white text-xs font-bold shadow-lg shadow-primary-500/5 transition-all duration-300 group"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-300 hover:bg-blue-100 text-blue-900 text-xs font-black shadow-sm transition-all duration-300 group"
                 >
-                  <Building2 className="w-4 h-4 text-primary-400 group-hover:scale-110 transition-transform" />
+                  <Building2 className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
                   <div className="text-left">
-                    <span className="text-[9px] uppercase tracking-wider text-dark-400 block font-semibold">Active Branch</span>
-                    <span className="text-xs font-extrabold text-white">
+                    <span className="text-[9px] uppercase tracking-wider text-blue-700 block font-extrabold">Active Branch</span>
+                    <span className="text-xs font-black text-blue-950">
                       {departments.find(d => d.id === selectedDeptId)?.name || availableDepartments[0]?.name || 'Computer Science & Data Science'} ({departments.find(d => d.id === selectedDeptId)?.code || availableDepartments[0]?.code || 'CSD'})
                     </span>
                   </div>
-                  <ChevronDown className={`w-3.5 h-3.5 text-dark-400 transition-transform duration-300 ml-1 ${isDeptDropdownOpen ? 'rotate-180 text-primary-400' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-blue-700 transition-transform duration-300 ml-1 ${isDeptDropdownOpen ? 'rotate-180 text-blue-600' : ''}`} />
                 </button>
 
                 {/* Dropdown Menu for Admin Branch Switcher */}
                 {isDeptDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-72 bg-dark-900/95 backdrop-blur-xl border border-dark-800 rounded-2xl shadow-2xl z-50 p-2 space-y-1">
-                    <div className="px-3 py-1.5 border-b border-dark-850 text-[10px] uppercase tracking-wider font-extrabold text-dark-400">
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-300 rounded-2xl shadow-2xl z-50 p-2 space-y-1">
+                    <div className="px-3 py-1.5 border-b border-slate-200 text-[10px] uppercase tracking-wider font-black text-slate-700">
                       Switch Department Branch
                     </div>
                     {availableDepartments.map(d => (
@@ -602,14 +602,14 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
                           setSelectedDeptId(d.id);
                           setIsDeptDropdownOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
                           d.id === selectedDeptId
-                            ? 'bg-primary-500/20 border border-primary-500/30 text-primary-300 font-bold'
-                            : 'text-dark-300 hover:bg-dark-800/60 hover:text-white'
+                            ? 'bg-blue-50 border border-blue-200 text-blue-900 font-black'
+                            : 'text-slate-800 hover:bg-slate-100 hover:text-slate-900'
                         }`}
                       >
                         <span>{d.name} ({d.code})</span>
-                        {d.id === selectedDeptId && <Check className="w-3.5 h-3.5 text-primary-400" />}
+                        {d.id === selectedDeptId && <Check className="w-3.5 h-3.5 text-blue-600" />}
                       </button>
                     ))}
                   </div>
@@ -617,11 +617,11 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               </div>
             ) : (
               /* Glowing Jurisdiction Banner for HOD */
-              <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-dark-900 border border-emerald-500/30 text-white text-xs font-bold shadow-lg shadow-emerald-500/5">
-                <ShieldCheck className="w-4.5 h-4.5 text-emerald-400" />
+              <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-black shadow-sm">
+                <ShieldCheck className="w-4.5 h-4.5 text-emerald-600" />
                 <div className="text-left">
-                  <span className="text-[9px] uppercase tracking-wider text-emerald-400/80 block font-bold">HOD Department</span>
-                  <span className="text-xs font-extrabold text-white">
+                  <span className="text-[9px] uppercase tracking-wider text-emerald-800 block font-extrabold">HOD Department</span>
+                  <span className="text-xs font-black text-slate-900">
                     {departments.find(d => d.id === selectedDeptId)?.name || availableDepartments[0]?.name || 'Computer Science & Data Science'} ({departments.find(d => d.id === selectedDeptId)?.code || availableDepartments[0]?.code || 'CSD'})
                   </span>
                 </div>
@@ -630,7 +630,7 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
           </div>
           <button
             onClick={loadBaseData}
-            className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all duration-300"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all shadow-sm"
             title="Refresh database records"
           >
             <RefreshCw className="w-4 h-4" />
@@ -639,11 +639,11 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-lg mb-8">
+      <div className="flex gap-2 p-1.5 bg-slate-100 border border-slate-300 rounded-2xl max-w-lg mb-8 shadow-sm">
         <button
           onClick={() => setActiveTab('class')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-            activeTab === 'class' ? 'bg-primary-500 text-white' : 'text-dark-400 hover:text-white'
+          className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all border ${
+            activeTab === 'class' ? 'bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-600/30' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-200'
           }`}
         >
           Weekly Class Timetable
@@ -651,8 +651,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-              activeTab === 'settings' ? 'bg-primary-500 text-white' : 'text-dark-400 hover:text-white'
+            className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all border flex items-center justify-center gap-1 ${
+              activeTab === 'settings' ? 'bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-600/30' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-200'
             }`}
           >
             <Settings className="w-3.5 h-3.5" />
@@ -662,8 +662,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
         {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
           <button
             onClick={() => setActiveTab('data')}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 ${
-              activeTab === 'data' ? 'bg-primary-500 text-white' : 'text-dark-400 hover:text-white'
+            className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition-all border flex items-center justify-center gap-1 ${
+              activeTab === 'data' ? 'bg-blue-600 text-white border-blue-700 shadow-md shadow-blue-600/30' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-200'
             }`}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />

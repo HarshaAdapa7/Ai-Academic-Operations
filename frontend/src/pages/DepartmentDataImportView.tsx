@@ -268,20 +268,20 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 py-6">
       {/* Top Navigation Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800 backdrop-blur-md">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-300 shadow-sm">
         <div className="flex items-center space-x-3">
           <button 
             onClick={onBack}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors"
+            className="p-2.5 bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-800 font-bold rounded-xl transition-all shadow-sm"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Database className="w-5 h-5 text-indigo-400" />
+            <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <Database className="w-5 h-5 text-blue-600" />
               Department Data Collection & Secure Import Portal
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600 font-semibold">
               Department-wise secure ingestion, validation staging, and production database commit
             </p>
           </div>
@@ -291,30 +291,30 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
         <div className="flex items-center space-x-3">
           {user?.role === 'ADMIN' && departments.length > 0 && (
             <div className="flex items-center space-x-2">
-              <span className="text-xs text-slate-400 font-medium">Select Dept:</span>
+              <span className="text-xs text-slate-700 font-bold">Select Dept:</span>
               <select
                 value={selectedDeptId}
                 onChange={(e) => setSelectedDeptId(e.target.value)}
-                className="bg-slate-800 text-white text-xs border border-slate-700 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500"
+                className="bg-slate-50 text-slate-900 text-xs font-extrabold border border-slate-300 rounded-xl px-3 py-2 outline-none focus:border-blue-600 shadow-sm"
               >
                 {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                  <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold">{d.name} ({d.code})</option>
                 ))}
               </select>
             </div>
           )}
 
-          <div className="flex items-center gap-2 bg-indigo-950/60 border border-indigo-700/50 text-indigo-300 text-xs px-3 py-1.5 rounded-lg">
-            <Lock className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Scope: <strong className="text-white">{activeDepartment?.name || 'All Departments'}</strong></span>
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-900 text-xs font-black px-3 py-2 rounded-xl">
+            <Lock className="w-3.5 h-3.5 text-blue-600" />
+            <span>Scope: <strong className="text-slate-900">{activeDepartment?.name || 'All Departments'}</strong></span>
           </div>
 
           <button
             onClick={() => setIsClearModalOpen(true)}
-            className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-1.5 bg-red-50 border border-red-300 text-red-700 hover:bg-red-100 text-xs font-extrabold px-3.5 py-2 rounded-xl transition-all shadow-sm"
             title="Clear department section, subject, classroom and faculty data for new semester import"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3.5 h-3.5 text-red-600" />
             <span>Clear Semester Data</span>
           </button>
         </div>
@@ -322,14 +322,14 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
       {/* Clear Department Data Success Banner */}
       {clearSuccessMsg && (
-        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 p-4 rounded-xl flex items-center justify-between text-sm shadow-lg animate-in fade-in">
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 p-4 rounded-2xl flex items-center justify-between text-sm shadow-sm font-bold animate-in fade-in">
           <div className="flex items-center space-x-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
             <span>{clearSuccessMsg}</span>
           </div>
           <button 
             onClick={() => setClearSuccessMsg('')}
-            className="text-xs bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 px-3 py-1 rounded-lg transition-colors"
+            className="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-900 px-3 py-1 rounded-lg transition-colors font-extrabold"
           >
             Dismiss
           </button>
@@ -337,62 +337,62 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
       )}
 
       {/* Security Lock Banner Notice */}
-      <div className="bg-gradient-to-r from-indigo-950/40 via-slate-900 to-purple-950/40 p-4 rounded-xl border border-indigo-800/40 flex items-start gap-3">
-        <ShieldCheck className="w-6 h-6 text-indigo-400 shrink-0 mt-0.5" />
+      <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200 flex items-start gap-3 shadow-sm">
+        <ShieldCheck className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
         <div className="text-xs space-y-1">
-          <h3 className="font-semibold text-indigo-200 text-sm">Enterprise Security Scoping Active</h3>
-          <p className="text-slate-300">
+          <h3 className="font-black text-blue-950 text-sm">Enterprise Security Scoping Active</h3>
+          <p className="text-slate-700 font-semibold">
             Records uploaded via this portal are automatically scoped to <strong>{activeDepartment?.name || 'your department'} ({activeDepartment?.code})</strong>. Cross-department dataset tampering or header overrides are strictly blocked at the backend level.
           </p>
         </div>
       </div>
 
       {/* Section 1: File Upload & Staging Zone */}
-      <div className="bg-slate-900/90 rounded-xl border border-slate-800 p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Upload className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <Upload className="w-5 h-5 text-blue-600" />
               1. Upload Department File (CSV or Excel)
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600 font-semibold">
               Upload your department's Faculty, Subjects & Weekly Hours, Sections, and Classrooms
             </p>
           </div>
 
           {/* Download Sample Templates */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-slate-400">Download Templates:</span>
+            <span className="text-xs text-slate-700 font-bold">Download Templates:</span>
             <button 
               onClick={() => handleDownloadSampleTemplate('master')}
-              className="text-xs bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 font-semibold px-3 py-1 rounded border border-indigo-700/60 flex items-center gap-1 shadow-sm"
+              className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-900 font-black px-3 py-1.5 rounded-xl border border-blue-300 flex items-center gap-1 shadow-sm"
               title="Download full 20-column Master CSV template for all department data"
             >
-              <Download className="w-3 h-3 text-indigo-400" /> Master All-in-One CSV (20 Cols)
+              <Download className="w-3 h-3 text-blue-600" /> Master All-in-One CSV (20 Cols)
             </button>
             <button 
               onClick={() => handleDownloadSampleTemplate('faculty')}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 flex items-center gap-1"
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold px-2.5 py-1.5 rounded-xl border border-slate-300 flex items-center gap-1 shadow-sm"
             >
-              <Download className="w-3 h-3 text-indigo-400" /> Faculty
+              <Download className="w-3 h-3 text-blue-600" /> Faculty
             </button>
             <button 
               onClick={() => handleDownloadSampleTemplate('subject')}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 flex items-center gap-1"
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold px-2.5 py-1.5 rounded-xl border border-slate-300 flex items-center gap-1 shadow-sm"
             >
-              <Download className="w-3 h-3 text-emerald-400" /> Subjects & Hours
+              <Download className="w-3 h-3 text-emerald-600" /> Subjects & Hours
             </button>
             <button 
               onClick={() => handleDownloadSampleTemplate('section')}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 flex items-center gap-1"
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold px-2.5 py-1.5 rounded-xl border border-slate-300 flex items-center gap-1 shadow-sm"
             >
-              <Download className="w-3 h-3 text-amber-400" /> Sections
+              <Download className="w-3 h-3 text-amber-600" /> Sections
             </button>
             <button 
               onClick={() => handleDownloadSampleTemplate('classroom')}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700 flex items-center gap-1"
+              className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-900 font-extrabold px-2.5 py-1.5 rounded-xl border border-slate-300 flex items-center gap-1 shadow-sm"
             >
-              <Download className="w-3 h-3 text-cyan-400" /> Rooms
+              <Download className="w-3 h-3 text-indigo-600" /> Rooms
             </button>
           </div>
         </div>
@@ -401,7 +401,7 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
           <div 
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            className="border-2 border-dashed border-slate-700 hover:border-indigo-500 transition-colors rounded-xl p-6 text-center cursor-pointer bg-slate-950/40"
+            className="border-2 border-dashed border-slate-300 hover:border-blue-600 transition-colors rounded-2xl p-6 text-center cursor-pointer bg-slate-50"
           >
             <input 
               type="file" 
@@ -411,19 +411,19 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
               id="file-upload-input" 
             />
             <label htmlFor="file-upload-input" className="cursor-pointer space-y-2 block">
-              <FileSpreadsheet className="w-10 h-10 text-indigo-400 mx-auto" />
+              <FileSpreadsheet className="w-10 h-10 text-blue-600 mx-auto" />
               <div>
-                <span className="text-sm font-medium text-white">
+                <span className="text-sm font-black text-slate-900">
                   {selectedFile ? selectedFile.name : 'Click to select or drag & drop file'}
                 </span>
-                <p className="text-xs text-slate-400">Supports .csv, .xlsx, and .xls spreadsheets</p>
+                <p className="text-xs text-slate-600 font-semibold">Supports .csv, .xlsx, and .xls spreadsheets</p>
               </div>
             </label>
           </div>
 
           {uploadError && (
-            <div className="p-3 bg-red-950/60 border border-red-800 text-red-300 text-xs rounded-lg flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <div className="p-3 bg-red-50 border border-red-300 text-red-800 text-xs rounded-xl flex items-center gap-2 font-bold">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
               <span>{uploadError}</span>
             </div>
           )}
@@ -432,7 +432,7 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
             <button
               type="submit"
               disabled={!selectedFile || isUploading}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-sm rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/20"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-sm rounded-xl flex items-center gap-2 transition-all shadow-md shadow-blue-600/20"
             >
               {isUploading ? (
                 <>
@@ -452,22 +452,22 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
       {/* Section 2: Missing Data Alerts & Validation Preview */}
       {uploadResult && (
-        <div className="bg-slate-900/90 rounded-xl border border-slate-800 p-6 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div className="bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div>
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
                 2. Validation Staging Preview & Missing Data Checklist
               </h2>
-              <p className="text-xs text-slate-400">
-                Staged file: <strong className="text-white">{uploadResult.file_name}</strong>
+              <p className="text-xs text-slate-600 font-semibold">
+                Staged file: <strong className="text-slate-900">{uploadResult.file_name}</strong>
               </p>
             </div>
 
             <button
               onClick={() => setIsConfirmModalOpen(true)}
               disabled={uploadResult.failed_records > 0 || uploadResult.valid_records === 0}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-emerald-600/20"
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-extrabold rounded-xl flex items-center gap-2 transition-all shadow-md shadow-emerald-600/20"
             >
               <CheckCircle2 className="w-4 h-4" />
               Confirm & Commit {uploadResult.valid_records} Records to Production
@@ -476,53 +476,53 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-1">
-              <span className="text-xs text-slate-400">Total Staged Records</span>
-              <div className="text-2xl font-bold text-white">{uploadResult.total_records}</div>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-300 space-y-1 shadow-sm">
+              <span className="text-xs text-slate-600 font-bold">Total Staged Records</span>
+              <div className="text-2xl font-black text-slate-900">{uploadResult.total_records}</div>
             </div>
 
-            <div className="bg-emerald-950/30 p-4 rounded-xl border border-emerald-800/40 space-y-1">
-              <span className="text-xs text-emerald-400">Valid Records</span>
-              <div className="text-2xl font-bold text-emerald-300">{uploadResult.valid_records}</div>
+            <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-300 space-y-1 shadow-sm">
+              <span className="text-xs text-emerald-800 font-black">Valid Records</span>
+              <div className="text-2xl font-black text-emerald-900">{uploadResult.valid_records}</div>
             </div>
 
-            <div className="bg-amber-950/30 p-4 rounded-xl border border-amber-800/40 space-y-1">
-              <span className="text-xs text-amber-400">Missing Fields / Warnings</span>
-              <div className="text-2xl font-bold text-amber-300">{uploadResult.missing_fields_count}</div>
+            <div className="bg-amber-50 p-4 rounded-2xl border border-amber-300 space-y-1 shadow-sm">
+              <span className="text-xs text-amber-800 font-black">Missing Fields / Warnings</span>
+              <div className="text-2xl font-black text-amber-900">{uploadResult.missing_fields_count}</div>
             </div>
 
-            <div className="bg-red-950/30 p-4 rounded-xl border border-red-800/40 space-y-1">
-              <span className="text-xs text-red-400">Validation Errors</span>
-              <div className="text-2xl font-bold text-red-300">{uploadResult.failed_records}</div>
+            <div className="bg-red-50 p-4 rounded-2xl border border-red-300 space-y-1 shadow-sm">
+              <span className="text-xs text-red-800 font-black">Validation Errors</span>
+              <div className="text-2xl font-black text-red-900">{uploadResult.failed_records}</div>
             </div>
           </div>
 
           {/* Missing Data Checklist Panel */}
           {uploadResult.missing_fields_count > 0 && (
-            <div className="bg-amber-950/40 border border-amber-800/60 p-4 rounded-xl space-y-2">
-              <div className="flex items-center gap-2 text-amber-300 text-sm font-semibold">
-                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <div className="bg-amber-50 border border-amber-300 p-4 rounded-2xl space-y-2 shadow-sm">
+              <div className="flex items-center gap-2 text-amber-900 text-sm font-black">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
                 <span>Missing Data Reminders Checklist for Upload Person</span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-700 font-semibold">
                 The validation engine identified {uploadResult.missing_fields_count} missing values in your dataset. You can inline-edit the yellow rows below to complete missing fields before confirming commit.
               </p>
             </div>
           )}
 
           {/* Validation Filters */}
-          <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-50 p-3 rounded-xl border border-slate-300 shadow-inner">
             {/* Status Filter */}
             <div className="flex items-center space-x-2 text-xs">
-              <span className="text-slate-400 font-medium">Status Filter:</span>
+              <span className="text-slate-700 font-bold">Status Filter:</span>
               {['ALL', 'VALID', 'MISSING_DATA', 'INVALID'].map(st => (
                 <button
                   key={st}
                   onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-md text-xs transition-colors ${
+                  className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all ${
                     statusFilter === st 
-                      ? 'bg-indigo-600 text-white font-medium' 
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-blue-600 text-white shadow-sm' 
+                      : 'bg-white text-slate-700 border border-slate-300 hover:text-slate-900'
                   }`}
                 >
                   {st}
@@ -532,15 +532,15 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
             {/* Entity Filter */}
             <div className="flex items-center space-x-2 text-xs">
-              <span className="text-slate-400 font-medium">Entity Filter:</span>
+              <span className="text-slate-700 font-bold">Entity Filter:</span>
               {['ALL', 'FACULTY', 'SUBJECT', 'SECTION', 'CLASSROOM'].map(ef => (
                 <button
                   key={ef}
                   onClick={() => setEntityFilter(ef)}
-                  className={`px-3 py-1 rounded-md text-xs transition-colors ${
+                  className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all ${
                     entityFilter === ef 
-                      ? 'bg-indigo-600 text-white font-medium' 
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-blue-600 text-white shadow-sm' 
+                      : 'bg-white text-slate-700 border border-slate-300 hover:text-slate-900'
                   }`}
                 >
                   {ef}
@@ -550,9 +550,9 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
           </div>
 
           {/* Staging Preview Table */}
-          <div className="overflow-x-auto border border-slate-800 rounded-xl">
-            <table className="w-full text-xs text-left text-slate-300">
-              <thead className="bg-slate-950 text-slate-400 font-medium uppercase border-b border-slate-800">
+          <div className="overflow-x-auto border border-slate-300 rounded-2xl shadow-sm">
+            <table className="w-full text-xs text-left text-slate-900">
+              <thead className="bg-slate-100 text-slate-800 font-black uppercase border-b border-slate-300">
                 <tr>
                   <th className="px-4 py-3">Row #</th>
                   <th className="px-4 py-3">Entity Type</th>
@@ -562,25 +562,25 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-slate-900/60">
+              <tbody className="divide-y divide-slate-200 bg-white font-bold">
                 {isLoadingStaging ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-slate-400">Loading staging records...</td>
+                    <td colSpan={6} className="text-center py-8 text-slate-600 font-bold">Loading staging records...</td>
                   </tr>
                 ) : stagingRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-slate-400">No staging records match filter.</td>
+                    <td colSpan={6} className="text-center py-8 text-slate-600 font-bold">No staging records match filter.</td>
                   </tr>
                 ) : (
                   stagingRecords.map(rec => (
-                    <tr key={rec.id} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="px-4 py-3 font-medium text-slate-400">{rec.row_number}</td>
+                    <tr key={rec.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-bold text-slate-600">{rec.row_number}</td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 bg-slate-800 text-indigo-300 rounded font-semibold text-[10px]">
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-900 border border-blue-200 rounded font-black text-[10px]">
                           {rec.entity_type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-white">
+                      <td className="px-4 py-3 font-mono text-[11px] text-slate-900 font-bold">
                         {rec.entity_type === 'FACULTY' && (
                           <span>{rec.raw_data.full_name || rec.raw_data.name} ({rec.raw_data.email || 'NO EMAIL'})</span>
                         )}
@@ -596,31 +596,31 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
                       </td>
                       <td className="px-4 py-3">
                         {rec.validation_status === 'VALID' && (
-                          <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-semibold text-[10px]">VALID</span>
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded font-black text-[10px]">VALID</span>
                         )}
                         {rec.validation_status === 'MISSING_DATA' && (
-                          <span className="px-2 py-0.5 bg-amber-950 text-amber-300 border border-amber-800 rounded font-semibold text-[10px]">MISSING DATA</span>
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-900 border border-amber-300 rounded font-black text-[10px]">MISSING DATA</span>
                         )}
                         {rec.validation_status === 'INVALID' && (
-                          <span className="px-2 py-0.5 bg-red-950 text-red-300 border border-red-800 rounded font-semibold text-[10px]">INVALID</span>
+                          <span className="px-2 py-0.5 bg-red-50 text-red-900 border border-red-300 rounded font-black text-[10px]">INVALID</span>
                         )}
                         {rec.validation_status === 'WARNING' && (
-                          <span className="px-2 py-0.5 bg-yellow-950 text-yellow-300 border border-yellow-800 rounded font-semibold text-[10px]">WARNING</span>
+                          <span className="px-2 py-0.5 bg-yellow-50 text-yellow-900 border border-yellow-300 rounded font-black text-[10px]">WARNING</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-300">
+                      <td className="px-4 py-3 text-xs text-slate-800 font-bold">
                         {rec.error_messages?.length > 0 ? (
-                          <span className="text-red-400 font-medium">{rec.error_messages.join(', ')}</span>
+                          <span className="text-red-700 font-black">{rec.error_messages.join(', ')}</span>
                         ) : rec.missing_fields?.length > 0 ? (
-                          <span className="text-amber-400 font-medium">Missing: {rec.missing_fields.join(', ')}</span>
+                          <span className="text-amber-800 font-black">Missing: {rec.missing_fields.join(', ')}</span>
                         ) : (
-                          <span className="text-emerald-400 font-medium">Ready for commit</span>
+                          <span className="text-emerald-800 font-black">Ready for commit</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => handleOpenRemediate(rec)}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 rounded border border-slate-700 text-[11px] flex items-center gap-1 ml-auto"
+                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-blue-800 font-black rounded border border-slate-300 text-[11px] flex items-center gap-1 ml-auto shadow-sm"
                         >
                           <Edit3 className="w-3 h-3" /> Fix / Edit
                         </button>
@@ -635,29 +635,29 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
       )}
 
       {/* Section 3: Import Audit Trail & History */}
-      <div className="bg-slate-900/90 rounded-xl border border-slate-800 p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div className="bg-white rounded-2xl border border-slate-300 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-600" />
               3. Department Import Audit History
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600 font-semibold">
               Audit trail of all data uploads, staging validations, and production commits
             </p>
           </div>
 
           <button
             onClick={loadHistory}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs flex items-center gap-1 transition-colors"
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl text-xs font-extrabold flex items-center gap-1 transition-all border border-slate-300 shadow-sm"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh History
           </button>
         </div>
 
-        <div className="overflow-x-auto border border-slate-800 rounded-xl">
-          <table className="w-full text-xs text-left text-slate-300">
-            <thead className="bg-slate-950 text-slate-400 font-medium uppercase border-b border-slate-800">
+        <div className="overflow-x-auto border border-slate-300 rounded-2xl shadow-sm">
+          <table className="w-full text-xs text-left text-slate-900">
+            <thead className="bg-slate-100 text-slate-800 font-black uppercase border-b border-slate-300">
               <tr>
                 <th className="px-4 py-3">File Name</th>
                 <th className="px-4 py-3">Department</th>
@@ -667,40 +667,40 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-slate-900/60">
+            <tbody className="divide-y divide-slate-200 bg-white font-bold">
               {isLoadingHistory ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-6 text-slate-400">Loading import audit history...</td>
+                  <td colSpan={6} className="text-center py-6 text-slate-600 font-bold">Loading import audit history...</td>
                 </tr>
               ) : historyItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-6 text-slate-400">No previous import logs found.</td>
+                  <td colSpan={6} className="text-center py-6 text-slate-600 font-bold">No previous import logs found.</td>
                 </tr>
               ) : (
                 historyItems.map(h => (
-                  <tr key={h.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3 font-medium text-white flex items-center gap-2">
-                      <FileSpreadsheet className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <tr key={h.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 font-black text-slate-900 flex items-center gap-2">
+                      <FileSpreadsheet className="w-4 h-4 text-blue-600 shrink-0" />
                       {h.file_name}
                     </td>
                     <td className="px-4 py-3">{h.department_name} ({h.department_code})</td>
                     <td className="px-4 py-3">{h.uploaded_by}</td>
-                    <td className="px-4 py-3 text-slate-400">{new Date(h.upload_time).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-slate-600">{new Date(h.upload_time).toLocaleString()}</td>
                     <td className="px-4 py-3">
-                      <span className="text-white font-semibold">{h.total_records}</span> total / <span className="text-emerald-400 font-semibold">{h.successful_records}</span> valid / <span className="text-red-400 font-semibold">{h.failed_records}</span> errors
+                      <span className="text-slate-900 font-black">{h.total_records}</span> total / <span className="text-emerald-700 font-black">{h.successful_records}</span> valid / <span className="text-red-700 font-black">{h.failed_records}</span> errors
                     </td>
                     <td className="px-4 py-3">
                       {h.import_status === 'CONFIRMED' && (
-                        <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded font-semibold text-[10px]">CONFIRMED</span>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded font-black text-[10px]">CONFIRMED</span>
                       )}
                       {h.import_status === 'STAGED' && (
-                        <span className="px-2 py-0.5 bg-indigo-950 text-indigo-300 border border-indigo-800 rounded font-semibold text-[10px]">STAGED</span>
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-900 border border-blue-200 rounded font-black text-[10px]">STAGED</span>
                       )}
                       {h.import_status === 'VALIDATED' && (
-                        <span className="px-2 py-0.5 bg-blue-950 text-blue-300 border border-blue-800 rounded font-semibold text-[10px]">VALIDATED</span>
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-900 border border-indigo-200 rounded font-black text-[10px]">VALIDATED</span>
                       )}
                       {h.import_status === 'NEEDS_REMEDIATION' && (
-                        <span className="px-2 py-0.5 bg-amber-950 text-amber-300 border border-amber-800 rounded font-semibold text-[10px]">NEEDS REMEDIATION</span>
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-900 border border-amber-300 rounded font-black text-[10px]">NEEDS REMEDIATION</span>
                       )}
                     </td>
                   </tr>
@@ -713,41 +713,41 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
       {/* Remediation Edit Modal */}
       {editRecord && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-6 space-y-4 text-xs">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <Edit3 className="w-5 h-5 text-indigo-400" />
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 rounded-2xl max-w-lg w-full p-6 space-y-4 text-xs text-slate-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-blue-600" />
                 Remediate Missing Data (Row {editRecord.row_number})
               </h3>
-              <button onClick={() => setEditRecord(null)} className="text-slate-400 hover:text-white">✕</button>
+              <button onClick={() => setEditRecord(null)} className="text-slate-500 hover:text-slate-900 font-bold">✕</button>
             </div>
 
             <form onSubmit={handleSaveRemediation} className="space-y-3">
               {Object.keys(editFormData).map(key => (
                 <div key={key} className="space-y-1">
-                  <label className="text-slate-400 font-medium capitalize">{key.replace('_', ' ')}:</label>
+                  <label className="text-slate-800 font-extrabold capitalize">{key.replace('_', ' ')}:</label>
                   <input
                     type="text"
                     value={editFormData[key] || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, [key]: e.target.value })}
-                    className="w-full bg-slate-950 text-white border border-slate-800 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-slate-50 text-slate-900 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-blue-600 shadow-sm"
                   />
                 </div>
               ))}
 
-              <div className="flex justify-end space-x-2 border-t border-slate-800 pt-3">
+              <div className="flex justify-end space-x-2 border-t border-slate-200 pt-3">
                 <button
                   type="button"
                   onClick={() => setEditRecord(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold rounded-xl border border-slate-300"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingRemediation}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg flex items-center gap-1"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl shadow-md shadow-blue-600/20 flex items-center gap-1"
                 >
                   {isSavingRemediation ? 'Saving...' : 'Save Remediation'}
                 </button>
@@ -759,28 +759,28 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
       {/* Confirmation Modal */}
       {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 space-y-4 text-xs text-center">
-            <Database className="w-12 h-12 text-emerald-400 mx-auto" />
-            <h3 className="text-lg font-bold text-white">Confirm Production Database Commit</h3>
-            <p className="text-slate-300">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 rounded-2xl max-w-md w-full p-6 space-y-4 text-xs text-center text-slate-900 shadow-2xl">
+            <Database className="w-12 h-12 text-emerald-600 mx-auto" />
+            <h3 className="text-lg font-black text-slate-900">Confirm Production Database Commit</h3>
+            <p className="text-slate-700 font-semibold">
               Are you sure you want to commit <strong>{uploadResult?.valid_records} valid records</strong> to the live production database for <strong>{activeDepartment?.name}</strong>?
             </p>
-            <p className="text-xs text-amber-400 bg-amber-950/40 p-3 rounded-lg border border-amber-800/40">
+            <p className="text-xs text-amber-900 bg-amber-50 p-3 rounded-xl border border-amber-300 font-bold">
               ⚡ This action executes inside an atomic database transaction.
             </p>
 
             <div className="flex justify-center space-x-3 pt-2">
               <button
                 onClick={() => setIsConfirmModalOpen(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold rounded-xl border border-slate-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmCommit}
                 disabled={isCommitting}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-md shadow-emerald-600/20 flex items-center gap-2"
               >
                 {isCommitting ? 'Committing to DB...' : 'Confirm & Commit Now'}
               </button>
@@ -791,22 +791,22 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
       {/* Commit Result Modal */}
       {commitResult && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-emerald-800/60 rounded-xl max-w-md w-full p-6 space-y-4 text-xs text-center">
-            <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto animate-bounce" />
-            <h3 className="text-lg font-bold text-white">Production Commit Successful!</h3>
-            <p className="text-slate-300">{commitResult.message}</p>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 rounded-2xl max-w-md w-full p-6 space-y-4 text-xs text-center text-slate-900 shadow-2xl">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto animate-bounce" />
+            <h3 className="text-lg font-black text-slate-900">Production Commit Successful!</h3>
+            <p className="text-slate-700 font-semibold">{commitResult.message}</p>
             
-            <div className="bg-slate-950/80 p-4 rounded-xl text-left space-y-1 text-slate-300 font-mono">
-              <div>Faculty Members Committed: <strong className="text-emerald-400">{commitResult.committed_faculty}</strong></div>
-              <div>Subjects & Hours Committed: <strong className="text-emerald-400">{commitResult.committed_subjects}</strong></div>
-              <div>Sections Committed: <strong className="text-emerald-400">{commitResult.committed_sections}</strong></div>
-              <div>Classrooms Committed: <strong className="text-emerald-400">{commitResult.committed_rooms}</strong></div>
+            <div className="bg-slate-50 p-4 rounded-xl text-left space-y-1 text-slate-900 font-mono border border-slate-200">
+              <div>Faculty Members Committed: <strong className="text-emerald-700">{commitResult.committed_faculty}</strong></div>
+              <div>Subjects & Hours Committed: <strong className="text-emerald-700">{commitResult.committed_subjects}</strong></div>
+              <div>Sections Committed: <strong className="text-emerald-700">{commitResult.committed_sections}</strong></div>
+              <div>Classrooms Committed: <strong className="text-emerald-700">{commitResult.committed_rooms}</strong></div>
             </div>
 
             <button
               onClick={() => setCommitResult(null)}
-              className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl shadow-md shadow-blue-600/20"
             >
               Done / Return to Portal
             </button>
@@ -816,26 +816,26 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
 
       {/* Clear Department Data Confirmation Modal */}
       {isClearModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-rose-800/80 rounded-2xl max-w-lg w-full p-6 space-y-5 text-slate-300 shadow-2xl">
-            <div className="flex items-center space-x-3 text-rose-400">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-300 rounded-2xl max-w-lg w-full p-6 space-y-5 text-slate-900 shadow-2xl">
+            <div className="flex items-center space-x-3 text-red-600">
               <AlertTriangle className="w-8 h-8 shrink-0" />
               <div>
-                <h3 className="text-lg font-bold text-white">Clear Semester Data</h3>
-                <p className="text-xs text-rose-300 font-medium">Action for New Semester Reset</p>
+                <h3 className="text-lg font-black text-slate-900">Clear Semester Data</h3>
+                <p className="text-xs text-red-700 font-bold">Action for New Semester Reset</p>
               </div>
             </div>
 
-            <div className="bg-rose-950/40 border border-rose-900/50 rounded-xl p-4 text-xs space-y-2 leading-relaxed">
-              <p className="text-rose-200 font-semibold">
-                Are you sure you want to clear all semester database records for <strong className="text-white">{activeDepartment?.name || 'this department'}</strong>?
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-xs space-y-2 leading-relaxed">
+              <p className="text-red-900 font-extrabold">
+                Are you sure you want to clear all semester database records for <strong className="text-slate-900">{activeDepartment?.name || 'this department'}</strong>?
               </p>
-              <ul className="list-disc list-inside space-y-1 text-slate-300 font-mono">
+              <ul className="list-disc list-inside space-y-1 text-slate-800 font-semibold font-mono">
                 <li>Wipes all Sections & Student configs for this department</li>
                 <li>Wipes all Subjects & Weekly Hours rules for this department</li>
                 <li>Wipes all Classrooms & Labs assigned to this department</li>
                 <li>Deletes non-HOD Faculty login user accounts for this department</li>
-                <li><strong className="text-emerald-400">HOD and Admin accounts will remain preserved and active!</strong></li>
+                <li><strong className="text-emerald-700">HOD and Admin accounts will remain preserved and active!</strong></li>
               </ul>
             </div>
 
@@ -843,14 +843,14 @@ export const DepartmentDataImportView: React.FC<DepartmentDataImportViewProps> =
               <button
                 onClick={() => setIsClearModalOpen(false)}
                 disabled={isClearingData}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold border border-slate-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleClearDepartmentData}
                 disabled={isClearingData}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 transition-all"
+                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-2 shadow-md shadow-red-600/20 transition-all"
               >
                 <Trash2 className="w-4 h-4" />
                 {isClearingData ? 'Clearing Semester Data...' : 'Yes, Clear All Semester Data'}

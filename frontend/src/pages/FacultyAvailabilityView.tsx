@@ -169,14 +169,14 @@ export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = (
           {onBack && (
             <button 
               onClick={onBack}
-              className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300"
+              className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all font-bold shadow-sm"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
           )}
           <div>
-            <h2 className="text-2xl font-extrabold text-white">Availability Settings</h2>
-            <p className="text-dark-400 text-sm">
+            <h2 className="text-2xl font-black text-slate-900">Availability Settings</h2>
+            <p className="text-slate-600 text-sm font-semibold">
               {activeFacultyName ? `Configuring slots for: ${activeFacultyName}` : 'Manage weekly scheduling availability'}
             </p>
           </div>
@@ -186,13 +186,13 @@ export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = (
           <div className="flex gap-2">
             <button
               onClick={() => handleResetAll(true)}
-              className="px-3 py-2 text-xs font-semibold text-dark-300 bg-dark-900 border border-dark-800 rounded-lg hover:text-white transition-all"
+              className="px-3 py-2 text-xs font-extrabold text-slate-800 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-all shadow-sm"
             >
               Mark All Available
             </button>
             <button
               onClick={() => handleResetAll(false)}
-              className="px-3 py-2 text-xs font-semibold text-dark-300 bg-dark-900 border border-dark-800 rounded-lg hover:text-white transition-all"
+              className="px-3 py-2 text-xs font-extrabold text-slate-800 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-all shadow-sm"
             >
               Mark All Unavailable
             </button>
@@ -202,17 +202,17 @@ export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = (
 
       {isLoading ? (
         <div className="text-center py-20">
-          <p className="text-dark-400 text-lg">Loading scheduling matrix...</p>
+          <p className="text-slate-600 text-lg font-bold">Loading scheduling matrix...</p>
         </div>
       ) : errorMsg ? (
-        <div className="glass-panel p-8 text-center max-w-xl mx-auto">
-          <CalendarDays className="w-12 h-12 text-primary-500 mx-auto mb-4 opacity-70" />
-          <h4 className="text-lg font-bold text-white mb-2">Profile Missing</h4>
-          <p className="text-dark-400 text-sm leading-relaxed">{errorMsg}</p>
+        <div className="glass-panel p-8 text-center max-w-xl mx-auto bg-white border border-slate-300 shadow-sm rounded-2xl">
+          <CalendarDays className="w-12 h-12 text-blue-600 mx-auto mb-4 opacity-70" />
+          <h4 className="text-lg font-black text-slate-900 mb-2">Profile Missing</h4>
+          <p className="text-slate-600 text-sm font-semibold leading-relaxed">{errorMsg}</p>
           {onBack && (
             <button
               onClick={onBack}
-              className="mt-6 py-2.5 px-5 bg-dark-900 border border-dark-800 rounded-xl text-xs text-white hover:bg-dark-850 font-semibold"
+              className="mt-6 py-2.5 px-5 bg-slate-100 border border-slate-300 rounded-xl text-xs text-slate-900 hover:bg-slate-200 font-extrabold shadow-sm"
             >
               Go Back
             </button>
@@ -221,15 +221,15 @@ export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = (
       ) : (
         <div className="space-y-6">
           {/* Calendar Grid */}
-          <div className="glass-panel p-6 overflow-x-auto">
+          <div className="glass-panel p-6 overflow-x-auto bg-white border border-slate-300 shadow-sm rounded-2xl">
             <table className="w-full border-collapse min-w-[700px]">
               <thead>
                 <tr>
-                  <th className="p-3 text-left text-xs font-bold text-dark-500 uppercase tracking-wider border-b border-dark-800/80 w-32">Day</th>
+                  <th className="p-3 text-left text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-300 w-32">Day</th>
                   {SLOTS.map(slot => (
-                    <th key={slot} className="p-3 text-center text-xs font-bold text-dark-500 uppercase tracking-wider border-b border-dark-800/80">
+                    <th key={slot} className="p-3 text-center text-xs font-black text-slate-900 uppercase tracking-wider border-b border-slate-300">
                       Slot {slot}
-                      <span className="block text-[9px] text-dark-600 font-semibold normal-case mt-0.5">
+                      <span className="block text-[9px] text-slate-600 font-bold normal-case mt-0.5">
                         {SLOT_LABELS[slot].split(' ')[2]}
                       </span>
                     </th>
@@ -238,29 +238,29 @@ export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = (
               </thead>
               <tbody>
                 {DAYS.map(day => (
-                  <tr key={day} className="border-b border-dark-800/20 hover:bg-dark-900/10">
-                    <td className="p-3 text-sm font-bold text-white border-r border-dark-800/30 bg-dark-950/20">{day}</td>
+                  <tr key={day} className="border-b border-slate-200 hover:bg-slate-50">
+                    <td className="p-3 text-sm font-black text-slate-900 border-r border-slate-300 bg-slate-50">{day}</td>
                     {SLOTS.map(slot => {
                       const isAvailable = grid[day][slot];
                       return (
-                        <td key={slot} className="p-2 border-r border-dark-800/10">
+                        <td key={slot} className="p-2 border-r border-slate-200">
                           <button
                             onClick={() => toggleSlot(day, slot)}
-                            className={`w-full py-5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all duration-300 ${
+                            className={`w-full py-5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all ${
                               isAvailable
-                                ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-sm shadow-emerald-500/5'
-                                : 'bg-red-500/5 hover:bg-red-500/10 border-red-500/20 text-red-400 shadow-sm shadow-red-500/5'
+                                ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-900 shadow-sm'
+                                : 'bg-red-50 hover:bg-red-100 border-red-300 text-red-900 shadow-sm'
                             }`}
                           >
                             {isAvailable ? (
                               <>
-                                <Check className="w-4 h-4" />
-                                <span className="text-[9px] font-bold uppercase tracking-wider">Available</span>
+                                <Check className="w-4 h-4 text-emerald-700" />
+                                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-800">Available</span>
                               </>
                             ) : (
                               <>
-                                <X className="w-4 h-4" />
-                                <span className="text-[9px] font-bold uppercase tracking-wider">Busy</span>
+                                <X className="w-4 h-4 text-red-700" />
+                                <span className="text-[9px] font-black uppercase tracking-wider text-red-800">Busy</span>
                               </>
                             )}
                           </button>
@@ -274,21 +274,21 @@ export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = (
           </div>
 
           {/* Action buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 glass-panel p-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 glass-panel p-4 bg-white border border-slate-300 shadow-sm rounded-2xl">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-dark-400">
-                <div className="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-500/35"></div>
+              <div className="flex items-center gap-2 text-xs text-slate-700 font-bold">
+                <div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300"></div>
                 <span>Available</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-dark-400">
-                <div className="w-3 h-3 rounded bg-red-500/20 border border-red-500/35"></div>
+              <div className="flex items-center gap-2 text-xs text-slate-700 font-bold">
+                <div className="w-3 h-3 rounded bg-red-100 border border-red-300"></div>
                 <span>Busy (Blocked)</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3 w-full sm:w-auto">
               {saveSuccess && (
-                <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in">
+                <span className="text-xs font-black text-emerald-700 flex items-center gap-1.5 animate-fade-in">
                   <Check className="w-4 h-4" />
                   Availability saved successfully!
                 </span>
@@ -296,7 +296,7 @@ export const FacultyAvailabilityView: React.FC<FacultyAvailabilityViewProps> = (
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 disabled:opacity-55 text-white text-sm font-bold shadow-lg shadow-primary-500/15 transition-all duration-300 hover:-translate-y-0.5"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-55 text-white text-sm font-extrabold shadow-md shadow-blue-600/20 transition-all"
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? 'Saving...' : 'Save Availability Grid'}

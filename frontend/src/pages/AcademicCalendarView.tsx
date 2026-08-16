@@ -696,20 +696,20 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all shadow-md"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all font-bold shadow-sm"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
                 <CalendarIcon className="w-5 h-5" />
               </div>
-              <h2 className="text-2xl font-extrabold text-white tracking-tight">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 Academic Calendar & Databases
               </h2>
             </div>
-            <p className="text-dark-400 text-xs mt-1">
+            <p className="text-slate-600 text-xs font-semibold mt-1">
               Centralized academic management for semester schedules, dedicated holidays database, and examination dates
             </p>
           </div>
@@ -721,9 +721,9 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
               <>
                 <button
                   onClick={() => setIsImportModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-dark-900 border border-dark-750 hover:border-indigo-500/40 text-dark-200 hover:text-white font-bold text-xs transition-all shadow-md"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-900 font-extrabold text-xs transition-all shadow-sm"
                 >
-                  <Upload className="w-4 h-4 text-indigo-400" />
+                  <Upload className="w-4 h-4 text-indigo-600" />
                   Import Schedule (CSV / Excel)
                 </button>
                 {calendars.length > 0 && (
@@ -731,19 +731,19 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                     {selectedYearCohort === 'ALL' ? (
                       <button
                         onClick={() => handleClearAllCalendars(true)}
-                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-600/25 border border-rose-500/50 text-rose-200 hover:text-white hover:bg-rose-600/40 font-extrabold text-xs transition-all shadow-md"
+                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 hover:bg-rose-100 font-extrabold text-xs transition-all shadow-sm"
                         title="Clear ALL academic calendar schedule DB entries across ALL years at once"
                       >
-                        <CalendarOff className="w-3.5 h-3.5 text-rose-300" />
+                        <CalendarOff className="w-3.5 h-3.5 text-rose-600" />
                         Clear Overall DB ({calendars.length})
                       </button>
                     ) : (
                       <button
                         onClick={() => handleClearAllCalendars(false)}
-                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-600/30 font-bold text-xs transition-all shadow-md"
+                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 hover:bg-rose-100 font-extrabold text-xs transition-all shadow-sm"
                         title={`Clear academic calendar schedule DB entries for A.Y. ${selectedYear}`}
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                         Clear Schedules DB ({cohortCalendars.length})
                       </button>
                     )}
@@ -751,7 +751,7 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 )}
                 <button
                   onClick={() => handleOpenModal()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 transition-all"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/20 transition-all"
                 >
                   <Plus className="w-4 h-4" />
                   Configure Academic Calendar
@@ -763,38 +763,38 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
               <>
                 <button
                   onClick={handleDownloadHolidaysTemplate}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 text-xs font-extrabold shadow-sm"
                 >
-                  <Download className="w-3.5 h-3.5 text-rose-400" />
+                  <Download className="w-3.5 h-3.5 text-rose-600" />
                   CSV Template
                 </button>
                 <button
                   onClick={() => setIsEventImportModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 text-xs font-extrabold shadow-sm"
                 >
-                  <Upload className="w-3.5 h-3.5 text-purple-400" />
+                  <Upload className="w-3.5 h-3.5 text-purple-600" />
                   Import Holidays (CSV / Excel)
                 </button>
                 <button
                   onClick={handleExportHolidaysCsv}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 text-xs font-extrabold shadow-sm"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                   Export CSV
                 </button>
                 {holidaysList.length > 0 && (
                   <button
                     onClick={handleClearAllHolidays}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-600/30 text-xs font-semibold transition-all"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 hover:bg-rose-100 text-xs font-extrabold transition-all shadow-sm"
                     title="Clear all holiday records for selected Academic Year"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                     Clear All ({holidaysList.length})
                   </button>
                 )}
                 <button
                   onClick={() => handleOpenHolidayModal()}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-purple-600 text-white font-bold text-xs shadow-lg shadow-rose-600/20"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20"
                 >
                   <Plus className="w-4 h-4" />
                   Add Holiday Entry
@@ -806,13 +806,13 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
       </div>
 
       {/* Main Navigation Tabs */}
-      <div className="flex items-center gap-2 mb-6 border-b border-dark-800 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-2 mb-6 border-b border-slate-300 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveMainTab('SCHEDULES')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all border ${
             activeMainTab === 'SCHEDULES'
-              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/20'
-              : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
+              : 'bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900'
           }`}
         >
           <CalendarIcon className="w-4 h-4" />
@@ -822,13 +822,13 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
           onClick={() => setActiveMainTab('HOLIDAYS_DB')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all border ${
             activeMainTab === 'HOLIDAYS_DB'
-              ? 'bg-gradient-to-r from-rose-600 to-purple-600 text-white border-rose-500 shadow-lg shadow-rose-500/20'
-              : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+              ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-600/20'
+              : 'bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900'
           }`}
         >
           <PartyPopper className="w-4 h-4" />
           Academic Holidays
-          <span className="px-2 py-0.5 rounded-full bg-dark-950/60 text-[10px] border border-rose-500/30 text-rose-300">
+          <span className="px-2 py-0.5 rounded-full bg-white text-[10px] border border-rose-300 text-rose-700 font-black">
             {holidaysList.length} Records
           </span>
         </button>
@@ -836,15 +836,15 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
 
       {/* Academic Year Filter Pills */}
       <div className="flex flex-wrap items-center gap-3 mb-8">
-        <span className="text-xs font-bold text-dark-400 uppercase tracking-wider mr-1">Academic Year:</span>
+        <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider mr-1">Academic Year:</span>
         {availableYears.map(year => (
           <button
             key={year}
             onClick={() => setSelectedYear(year)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all border ${
               selectedYear === year
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                : 'bg-dark-900 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                : 'bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900'
             }`}
           >
             A.Y. {year}
@@ -897,8 +897,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
         ) : (
           <div className="space-y-8">
             {/* Year Schedule Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-2 bg-dark-900/60 p-2.5 border border-dark-800 rounded-2xl">
-              <span className="text-xs text-dark-400 font-bold px-2 uppercase tracking-wider">Year Filter:</span>
+            <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 border border-slate-300 rounded-2xl shadow-sm">
+              <span className="text-xs text-slate-700 font-extrabold px-2 uppercase tracking-wider">Year Filter:</span>
               {[
                 { key: 'ALL', label: 'All Years' },
                 { key: '1ST_YEAR', label: '1st Year' },
@@ -911,8 +911,8 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                   onClick={() => setSelectedYearCohort(yr.key as any)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all border ${
                     selectedYearCohort === yr.key
-                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                      : 'bg-dark-950 border-dark-800 text-dark-300 hover:text-white hover:border-dark-700'
+                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-md shadow-indigo-600/20'
+                      : 'bg-white border-slate-300 text-slate-800 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   {yr.label}
@@ -921,25 +921,25 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
             </div>
 
             {/* Official Academic Calendar Master Table matching Database Fields */}
-            <div className="glass-panel p-6 border border-dark-800 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-dark-800 pb-4">
+            <div className="bg-white p-6 border border-slate-300 rounded-2xl shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Table className="w-5 h-5 text-indigo-400" />
+                  <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                    <Table className="w-5 h-5 text-indigo-600" />
                     Official Academic Calendar Master Table (A.Y. {selectedYear})
                   </h3>
-                  <p className="text-xs text-dark-400 mt-1">
+                  <p className="text-xs text-slate-600 font-semibold mt-1">
                     Official institutional schedule specifying key academic milestone commencement dates and instruction periods.
                   </p>
                 </div>
               </div>
 
-              <div className="overflow-x-auto border border-dark-800 rounded-xl">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-dark-900/90 text-dark-300 font-extrabold uppercase tracking-wider border-b border-dark-800">
+              <div className="overflow-x-auto border border-slate-300 rounded-2xl shadow-sm">
+                <table className="w-full text-left text-xs text-slate-900">
+                  <thead className="bg-slate-100 text-slate-800 font-black uppercase tracking-wider border-b border-slate-300">
                     <tr>
                       <th className="p-3 pl-4 text-center w-12">S. No</th>
-                      <th className="p-3 font-extrabold text-white min-w-[130px]">Class</th>
+                      <th className="p-3 font-black text-slate-900 min-w-[130px]">Class</th>
                       <th className="p-3 min-w-[160px]">Date of commencement of class work</th>
                       <th className="p-3 min-w-[160px]">Date of commencement of first mid exam</th>
                       <th className="p-3 min-w-[160px]">Date of commencement of second mid exam</th>
@@ -950,34 +950,34 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                       {isAdminOrHod && <th className="p-3 text-right pr-4 w-28">Actions</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-dark-850 text-dark-200">
+                  <tbody className="divide-y divide-slate-200 bg-white font-bold text-slate-900">
                     {cohortCalendars.map((cal, idx) => (
-                      <tr key={cal.id} className={`hover:bg-dark-900/50 transition-colors ${cal.is_active ? 'bg-indigo-950/20' : ''}`}>
-                        <td className="p-3.5 text-center font-bold text-dark-400">{idx + 1}</td>
-                        <td className="p-3.5 font-black text-white whitespace-nowrap">{cal.semester}</td>
-                        <td className="p-3.5 font-semibold text-emerald-300 whitespace-nowrap">{formatDate(cal.class_commencement_date)}</td>
-                        <td className="p-3.5 font-semibold text-amber-300 whitespace-nowrap">{formatDate(cal.mid1_start_date)}</td>
-                        <td className="p-3.5 font-semibold text-amber-300 whitespace-nowrap">{formatDate(cal.mid2_start_date)}</td>
-                        <td className="p-3.5 font-semibold text-rose-300 whitespace-nowrap">{formatDate(cal.semester_closing_date || cal.semester_end_date)}</td>
-                        <td className="p-3.5 text-center font-extrabold text-cyan-300">{cal.working_days_count || 90}</td>
-                        <td className="p-3.5 font-semibold text-purple-300 whitespace-nowrap">{formatDate(cal.end_sem_exam_start_date)}</td>
-                        <td className="p-3.5 font-semibold text-indigo-300 whitespace-nowrap">{formatDate(cal.practical_exam_start_date)}</td>
+                      <tr key={cal.id} className={`hover:bg-slate-50 transition-colors ${cal.is_active ? 'bg-indigo-50/50' : ''}`}>
+                        <td className="p-3.5 text-center font-bold text-slate-600">{idx + 1}</td>
+                        <td className="p-3.5 font-black text-slate-900 whitespace-nowrap">{cal.semester}</td>
+                        <td className="p-3.5 font-black text-emerald-800 whitespace-nowrap">{formatDate(cal.class_commencement_date)}</td>
+                        <td className="p-3.5 font-black text-amber-800 whitespace-nowrap">{formatDate(cal.mid1_start_date)}</td>
+                        <td className="p-3.5 font-black text-amber-800 whitespace-nowrap">{formatDate(cal.mid2_start_date)}</td>
+                        <td className="p-3.5 font-black text-rose-800 whitespace-nowrap">{formatDate(cal.semester_closing_date || cal.semester_end_date)}</td>
+                        <td className="p-3.5 text-center font-black text-blue-900">{cal.working_days_count || 90}</td>
+                        <td className="p-3.5 font-black text-purple-800 whitespace-nowrap">{formatDate(cal.end_sem_exam_start_date)}</td>
+                        <td className="p-3.5 font-black text-indigo-800 whitespace-nowrap">{formatDate(cal.practical_exam_start_date)}</td>
                         {isAdminOrHod && (
                           <td className="p-3.5 text-right pr-4 whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleOpenModal(cal)}
-                                className="p-1.5 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all"
+                                className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 transition-all shadow-sm"
                                 title="Edit Calendar Row"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDelete(cal.id, cal.semester)}
-                                className="px-2 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-300 hover:text-white hover:bg-rose-600/30 text-[11px] font-bold transition-all flex items-center gap-1"
+                                className="px-2 py-1.5 rounded-lg bg-rose-50 border border-rose-300 text-rose-700 hover:bg-rose-100 text-[11px] font-extrabold transition-all flex items-center gap-1 shadow-sm"
                                 title={`Clear DB entry for ${cal.semester}`}
                               >
-                                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                                 <span className="hidden xl:inline">Clear Sem</span>
                               </button>
                             </div>
@@ -1004,66 +1004,66 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
               .map(cal => (
               <div 
                 key={cal.id} 
-                className={`glass-panel p-6 border transition-all ${
+                className={`p-6 rounded-2xl bg-white border border-slate-300 shadow-sm transition-all ${
                   cal.is_active 
-                    ? 'border-indigo-500/60 bg-gradient-to-b from-indigo-950/20 to-dark-900/60 shadow-xl shadow-indigo-500/5' 
-                    : 'border-dark-800'
+                    ? 'border-indigo-400 bg-indigo-50/20' 
+                    : ''
                 }`}
               >
                 {/* Card Top Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-dark-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
                   <div className="flex items-center gap-3">
-                    <div className="px-3.5 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-extrabold text-xs">
+                    <div className="px-3.5 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 font-black text-xs">
                       A.Y. {cal.academic_year}
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-white">{cal.semester}</h3>
-                      <p className="text-dark-400 text-xs">
-                        Duration: <span className="text-dark-200 font-semibold">{formatDateRange(cal.semester_start_date, cal.semester_end_date)}</span>
+                      <h3 className="text-lg font-black text-slate-900">{cal.semester}</h3>
+                      <p className="text-slate-600 text-xs font-semibold">
+                        Duration: <span className="text-slate-900 font-extrabold">{formatDateRange(cal.semester_start_date, cal.semester_end_date)}</span>
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
                     {cal.is_active ? (
-                      <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px] flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 font-black text-[11px] flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         Active Operational Calendar
                       </span>
                     ) : isAdminOrHod ? (
                       <button
                         onClick={() => handleSetActive(cal.id)}
-                        className="px-3 py-1.5 rounded-lg bg-dark-900 border border-dark-750 hover:border-emerald-500/40 text-dark-300 hover:text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm"
                       >
-                        <Check className="w-3.5 h-3.5" />
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
                         Set Active
                       </button>
                     ) : null}
 
                     <button
                       onClick={() => handleExportCalendarToCsv(cal)}
-                      className="p-2 px-3 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-indigo-400 hover:border-indigo-500/30 transition-all flex items-center gap-1.5 text-xs font-semibold"
+                      className="p-2 px-3 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 hover:bg-slate-200 transition-all flex items-center gap-1.5 text-xs font-extrabold shadow-sm"
                       title="Export & Download Stored Calendar CSV"
                     >
-                      <Download className="w-4 h-4 text-indigo-400" />
+                      <Download className="w-4 h-4 text-indigo-600" />
                       <span className="hidden sm:inline">Export CSV</span>
                     </button>
 
                     {isAdminOrHod && (
-                      <div className="flex items-center gap-1.5 border-l border-dark-800 pl-3">
+                      <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
                         <button
                           onClick={() => handleOpenModal(cal)}
-                          className="p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all"
+                          className="p-2 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all shadow-sm"
                           title="Edit Calendar Configuration"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(cal.id, cal.semester)}
-                          className="px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 hover:text-white hover:bg-rose-600/30 text-xs font-bold transition-all flex items-center gap-1.5"
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-700 hover:bg-rose-100 text-xs font-extrabold transition-all flex items-center gap-1.5 shadow-sm"
                           title={`Clear DB entry for ${cal.semester}`}
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
                           <span>Clear Sem DB</span>
                         </button>
                       </div>
@@ -1074,75 +1074,75 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                 {/* Milestone Timeline Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
                   {/* 1. Orientation Days */}
-                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                    <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold">
-                      <Sparkles className="w-4 h-4" />
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-300 space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2 text-indigo-900 text-xs font-black">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
                       <span>Orientation Days</span>
                     </div>
-                    <p className="text-xs text-white font-extrabold pt-1">
+                    <p className="text-xs text-slate-900 font-black pt-1">
                       {formatDateRange(cal.orientation_start_date, cal.orientation_end_date)}
                     </p>
-                    <p className="text-[10px] text-dark-400">Student Induction & Briefings</p>
+                    <p className="text-[10px] text-slate-600 font-extrabold">Student Induction & Briefings</p>
                   </div>
 
                   {/* 2. Class Commencement */}
-                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                    <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
-                      <BookOpen className="w-4 h-4" />
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-300 space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2 text-emerald-900 text-xs font-black">
+                      <BookOpen className="w-4 h-4 text-emerald-600" />
                       <span>Class Commencement</span>
                     </div>
-                    <p className="text-xs text-white font-extrabold pt-1">
+                    <p className="text-xs text-slate-900 font-black pt-1">
                       {formatDate(cal.class_commencement_date)}
                     </p>
-                    <p className="text-[10px] text-dark-400">Instructional Work Begins</p>
+                    <p className="text-[10px] text-slate-600 font-extrabold">Instructional Work Begins</p>
                   </div>
 
                   {/* 3. Mid 1 Exams */}
-                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                      <Clock className="w-4 h-4" />
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-300 space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2 text-amber-900 text-xs font-black">
+                      <Clock className="w-4 h-4 text-amber-600" />
                       <span>Mid-I Examinations</span>
                     </div>
-                    <p className="text-xs text-white font-extrabold pt-1">
+                    <p className="text-xs text-slate-900 font-black pt-1">
                       {formatDateRange(cal.mid1_start_date, cal.mid1_end_date)}
                     </p>
-                    <p className="text-[10px] text-dark-400">First Internal Assessment</p>
+                    <p className="text-[10px] text-slate-600 font-extrabold">First Internal Assessment</p>
                   </div>
 
                   {/* 4. Mid 2 Exams */}
-                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                      <Clock className="w-4 h-4" />
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-300 space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2 text-amber-900 text-xs font-black">
+                      <Clock className="w-4 h-4 text-amber-600" />
                       <span>Mid-II Examinations</span>
                     </div>
-                    <p className="text-xs text-white font-extrabold pt-1">
+                    <p className="text-xs text-slate-900 font-black pt-1">
                       {formatDateRange(cal.mid2_start_date, cal.mid2_end_date)}
                     </p>
-                    <p className="text-[10px] text-dark-400">Second Internal Assessment</p>
+                    <p className="text-[10px] text-slate-600 font-extrabold">Second Internal Assessment</p>
                   </div>
 
                   {/* 5. End Sem Exams */}
-                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                    <div className="flex items-center gap-2 text-rose-400 text-xs font-bold">
-                      <Award className="w-4 h-4" />
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-300 space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2 text-rose-900 text-xs font-black">
+                      <Award className="w-4 h-4 text-rose-600" />
                       <span>End Semester Exams</span>
                     </div>
-                    <p className="text-xs text-white font-extrabold pt-1">
+                    <p className="text-xs text-slate-900 font-black pt-1">
                       {formatDateRange(cal.end_sem_exam_start_date, cal.end_sem_exam_end_date)}
                     </p>
-                    <p className="text-[10px] text-dark-400">Final Theory Examinations</p>
+                    <p className="text-[10px] text-slate-600 font-extrabold">Final Theory Examinations</p>
                   </div>
 
-                  {/* 6. External Examinations (Formerly Practical Exams - Conducted after End Sem) */}
-                  <div className="p-4 rounded-xl bg-dark-950/40 border border-dark-850 space-y-1">
-                    <div className="flex items-center gap-2 text-purple-400 text-xs font-bold">
-                      <Clock className="w-4 h-4" />
+                  {/* 6. External Examinations */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-300 space-y-1 shadow-sm">
+                    <div className="flex items-center gap-2 text-purple-900 text-xs font-black">
+                      <Clock className="w-4 h-4 text-purple-600" />
                       <span>External Examinations</span>
                     </div>
-                    <p className="text-xs text-white font-extrabold pt-1">
+                    <p className="text-xs text-slate-900 font-black pt-1">
                       {formatDateRange(cal.practical_exam_start_date, cal.practical_exam_end_date)}
                     </p>
-                    <p className="text-[10px] text-dark-400">Laboratory & External Viva Evaluation</p>
+                    <p className="text-[10px] text-slate-600 font-extrabold">Laboratory & External Viva Evaluation</p>
                   </div>
                 </div>
               </div>
@@ -1153,14 +1153,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
 
       {/* TAB 2: DEDICATED HOLIDAYS DATABASE VIEW */}
       {activeMainTab === 'HOLIDAYS_DB' && (
-        <div className="glass-panel p-6 border border-dark-800 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-dark-800 pb-4">
+        <div className="bg-white p-6 border border-slate-300 rounded-2xl shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <PartyPopper className="w-5 h-5 text-rose-400" />
+              <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <PartyPopper className="w-5 h-5 text-rose-600" />
                 Academic Holidays (`academic_holidays`)
               </h3>
-              <p className="text-xs text-dark-400 mt-1">
+              <p className="text-xs text-slate-600 font-semibold mt-1">
                 Central holiday schedule containing official holiday dates and reason for the holiday.
               </p>
             </div>
@@ -1168,28 +1168,28 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
 
           {/* Holiday List Table (2 Columns: Date & Reason for Holiday) */}
           {holidaysList.length === 0 ? (
-            <div className="p-12 text-center border border-dashed border-dark-800 rounded-xl text-dark-400 text-xs">
-              <CalendarOff className="w-10 h-10 mx-auto text-dark-500 mb-3" />
-              <p className="font-bold text-white text-sm mb-1">No Holiday Records Found</p>
-              <p>Upload a holiday CSV/Excel file (with columns: <code className="text-rose-300">date, reason</code>) or add holiday entries directly.</p>
+            <div className="p-12 text-center border border-dashed border-slate-300 rounded-2xl text-slate-600 text-xs font-bold">
+              <CalendarOff className="w-10 h-10 mx-auto text-slate-400 mb-3" />
+              <p className="font-black text-slate-900 text-sm mb-1">No Holiday Records Found</p>
+              <p>Upload a holiday CSV/Excel file (with columns: <code className="text-rose-700">date, reason</code>) or add holiday entries directly.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto border border-dark-800 rounded-xl">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-dark-900/90 text-dark-300 font-extrabold uppercase tracking-wider border-b border-dark-800">
+            <div className="overflow-x-auto border border-slate-300 rounded-2xl shadow-sm">
+              <table className="w-full text-left text-xs text-slate-900">
+                <thead className="bg-slate-100 text-slate-800 font-black uppercase tracking-wider border-b border-slate-300">
                   <tr>
                     <th className="p-3.5 pl-5 w-44">Holiday Date</th>
                     <th className="p-3.5">Reason for Holiday</th>
                     {isAdminOrHod && <th className="p-3.5 text-right pr-5 w-32">Actions</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-dark-850 text-dark-200">
+                <tbody className="divide-y divide-slate-200 bg-white font-bold text-slate-900">
                   {groupConsecutiveHolidays(holidaysList).map((group, idx) => (
-                    <tr key={idx} className="hover:bg-dark-900/40 transition-colors">
-                      <td className="p-3.5 pl-5 font-bold text-rose-300 whitespace-nowrap">
+                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3.5 pl-5 font-black text-rose-800 whitespace-nowrap">
                         {formatDateRange(group.startDate, group.endDate)}
                       </td>
-                      <td className="p-3.5 font-bold text-white">
+                      <td className="p-3.5 font-black text-slate-900">
                         {group.name}
                       </td>
                       {isAdminOrHod && (
@@ -1197,14 +1197,14 @@ export const AcademicCalendarView: React.FC<AcademicCalendarViewProps> = ({ onBa
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleEditGroupedHoliday(group)}
-                              className="p-1.5 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-white hover:border-dark-700 transition-all"
+                              className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 transition-all shadow-sm"
                               title="Edit Holiday"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteGroupedHoliday(group)}
-                              className="p-1.5 rounded-lg bg-dark-900 border border-dark-800 text-dark-300 hover:text-rose-400 hover:border-rose-500/30 transition-all"
+                              className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 hover:text-rose-600 transition-all shadow-sm"
                               title="Delete Holiday"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

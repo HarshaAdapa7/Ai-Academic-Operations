@@ -221,37 +221,41 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Header */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all font-bold shadow-sm"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-2xl font-extrabold text-white">Leave & Substitutions Desk</h2>
-            <p className="text-dark-400 text-sm">Request leaves, manage peer session coverages, and approve absences</p>
+            <h2 className="text-2xl font-black text-slate-900">Leave & Substitution Desk</h2>
+            <p className="text-slate-600 text-sm font-semibold">Faculty leave balances, substitution proposals, and auto-allocated class coverages</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={loadData}
-            className="p-3 rounded-xl bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all duration-300"
-            title="Refresh Ledger"
+            className="p-3 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all shadow-sm"
+            title="Refresh data"
           >
             <RefreshCw className="w-5 h-5" />
           </button>
           {user?.role === 'FACULTY' && (
             <button
               onClick={() => {
+                setFormLeaveType('Casual');
+                setFormStartDate('');
+                setFormEndDate('');
+                setFormReason('');
                 setSubProposals([]);
                 setFormError('');
                 setIsApplyOpen(true);
               }}
-              className="flex items-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-primary-500/15 transition-all duration-300"
+              className="flex items-center gap-2 py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-extrabold shadow-md shadow-blue-600/20 transition-all"
             >
               <Plus className="w-4 h-4" />
               Apply for Leave
@@ -266,22 +270,22 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
           {balances.map(bal => {
             const remaining = bal.total_allowed - bal.taken;
             return (
-              <div key={bal.id} className="glass-panel p-6 relative overflow-hidden">
-                <div className="absolute right-4 top-4 w-8 h-8 rounded-full bg-primary-500/5 flex items-center justify-center border border-primary-500/10">
-                  <Bookmark className="w-4 h-4 text-primary-400" />
+              <div key={bal.id} className="glass-panel p-6 relative overflow-hidden bg-white border border-slate-300 shadow-sm rounded-2xl">
+                <div className="absolute right-4 top-4 w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center border border-blue-200">
+                  <Bookmark className="w-4 h-4 text-blue-600" />
                 </div>
-                <h4 className="text-xs font-bold text-dark-400 uppercase tracking-widest">{bal.leave_type} Leave</h4>
+                <h4 className="text-xs font-black text-blue-800 uppercase tracking-widest">{bal.leave_type} Leave</h4>
                 <div className="flex items-baseline gap-2 mt-4">
-                  <span className="text-3xl font-extrabold text-white">{remaining}</span>
-                  <span className="text-xs font-medium text-dark-500">days left</span>
+                  <span className="text-3xl font-black text-slate-900">{remaining}</span>
+                  <span className="text-xs font-bold text-slate-600">days left</span>
                 </div>
-                <div className="w-full h-1.5 rounded-full bg-dark-900 border border-dark-850 mt-4 overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-slate-100 border border-slate-200 mt-4 overflow-hidden">
                   <div 
-                    className="h-full rounded-full bg-primary-500" 
+                    className="h-full rounded-full bg-blue-600" 
                     style={{ width: `${(bal.taken / bal.total_allowed) * 100}%` }}
                   ></div>
                 </div>
-                <div className="flex justify-between text-[10px] font-semibold mt-2 text-dark-500">
+                <div className="flex justify-between text-[10px] font-extrabold mt-2 text-slate-600">
                   <span>{bal.taken} Taken</span>
                   <span>{bal.total_allowed} Allowed</span>
                 </div>
@@ -293,28 +297,28 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
 
       {/* Tabs Switcher (Faculty Only) */}
       {user?.role === 'FACULTY' && balances.length > 0 && (
-        <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-sm mb-8">
+        <div className="flex gap-2 p-1 bg-slate-100 border border-slate-300 rounded-xl max-w-sm mb-8 shadow-inner">
           <button
             onClick={() => setActiveTab('leaves')}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+            className={`flex-1 py-2 rounded-lg text-xs font-extrabold transition-all ${
               activeTab === 'leaves' 
-                ? 'bg-primary-500 text-white' 
-                : 'text-dark-400 hover:text-white'
+                ? 'bg-blue-600 text-white shadow-sm' 
+                : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             My Applications
           </button>
           <button
             onClick={() => setActiveTab('inbox')}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'inbox' 
-                ? 'bg-primary-500 text-white' 
-                : 'text-dark-400 hover:text-white'
+                ? 'bg-blue-600 text-white shadow-sm' 
+                : 'text-slate-700 hover:text-slate-900'
             }`}
           >
             Substitutions Inbox
             {proposals.filter(p => p.status === 'PENDING').length > 0 && (
-              <span className="w-2 h-2 rounded-full bg-red-500"></span>
+              <span className="w-2 h-2 rounded-full bg-red-600"></span>
             )}
           </button>
         </div>
@@ -323,70 +327,70 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
       {/* Tab Panels */}
       {isLoading ? (
         <div className="text-center py-20">
-          <p className="text-dark-400 text-lg">Loading leave records...</p>
+          <p className="text-slate-600 text-lg font-bold">Loading leave records...</p>
         </div>
       ) : user?.role === 'FACULTY' ? (
         balances.length === 0 ? (
-          <div className="glass-panel p-8 text-center max-w-2xl mx-auto my-12 border-amber-500/20">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-400 mx-auto mb-6 border border-amber-500/20">
+          <div className="glass-panel p-8 text-center max-w-2xl mx-auto my-12 bg-white border border-slate-300 shadow-sm rounded-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 mx-auto mb-6 border border-amber-200">
               <AlertCircle className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Faculty Profile Setup Required</h3>
-            <p className="text-dark-400 text-sm leading-relaxed mb-6">
+            <h3 className="text-xl font-black text-slate-900 mb-2">Faculty Profile Setup Required</h3>
+            <p className="text-slate-600 text-sm font-semibold leading-relaxed mb-6">
               Your teaching profile has not been configured in the system yet. Please request your branch HOD or Administrator to set up your profile under the **Faculty Profiles** registry. Once set up, you will be able to manage leave applications and cover peer substitution arrangements.
             </p>
           </div>
         ) : activeTab === 'leaves' ? (
           /* My Applications Tab */
-          <div className="glass-panel p-6">
-            <h3 className="text-lg font-bold text-white mb-6">Leave Applications History</h3>
+          <div className="glass-panel p-6 bg-white border border-slate-300 shadow-sm rounded-2xl">
+            <h3 className="text-lg font-black text-slate-900 mb-6">Leave Applications History</h3>
             {requests.length === 0 ? (
-              <p className="text-sm text-dark-500 py-6">You have not submitted any leave requests yet.</p>
+              <p className="text-sm text-slate-500 py-6 italic font-semibold">You have not submitted any leave requests yet.</p>
             ) : (
               <div className="space-y-6">
                 {requests.map(req => {
                   const startStr = new Date(req.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
                   const endStr = new Date(req.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
                   
-                  let badgeColor = 'bg-dark-900 border-dark-800 text-dark-400';
-                  if (req.status === 'APPROVED') badgeColor = 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400';
-                  if (req.status === 'REJECTED') badgeColor = 'bg-red-500/10 border-red-500/25 text-red-400';
-                  if (req.status === 'PENDING') badgeColor = 'bg-amber-500/10 border-amber-500/25 text-amber-400';
+                  let badgeColor = 'bg-slate-100 border-slate-300 text-slate-800';
+                  if (req.status === 'APPROVED') badgeColor = 'bg-emerald-50 border-emerald-300 text-emerald-800 font-black';
+                  if (req.status === 'REJECTED') badgeColor = 'bg-red-50 border-red-300 text-red-800 font-black';
+                  if (req.status === 'PENDING') badgeColor = 'bg-amber-50 border-amber-300 text-amber-900 font-black';
 
                   return (
-                    <div key={req.id} className="p-5 rounded-xl border border-dark-850/60 bg-dark-950/20 space-y-4">
+                    <div key={req.id} className="p-5 rounded-xl border border-slate-300 bg-slate-50 space-y-4 shadow-sm">
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="flex items-center gap-3">
-                            <span className="text-sm font-bold text-white">{req.leave_type} Leave</span>
+                            <span className="text-sm font-black text-slate-900">{req.leave_type} Leave</span>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${badgeColor}`}>
                               {req.status}
                             </span>
                           </div>
-                          <p className="text-xs text-dark-400 mt-1">{startStr} - {endStr}</p>
+                          <p className="text-xs text-slate-600 font-bold mt-1">{startStr} - {endStr}</p>
                         </div>
-                        <span className="text-xs text-dark-500 font-semibold">Filed: {new Date(req.created_at).toLocaleDateString()}</span>
+                        <span className="text-xs text-slate-600 font-semibold">Filed: {new Date(req.created_at).toLocaleDateString()}</span>
                       </div>
                       
-                      <p className="text-xs text-dark-300 italic">" {req.reason} "</p>
+                      <p className="text-xs text-slate-800 font-bold italic">" {req.reason} "</p>
 
                       {/* Substitutes mappings summary */}
                       {req.substitution_proposals.length > 0 && (
-                        <div className="border-t border-dark-850/40 pt-4 mt-2">
-                          <h5 className="text-[10px] font-bold text-dark-500 uppercase tracking-wider mb-2">Class Coverage Arrangements</h5>
+                        <div className="border-t border-slate-200 pt-4 mt-2">
+                          <h5 className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider mb-2">Class Coverage Arrangements</h5>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {req.substitution_proposals.map(prop => {
-                              let propBadge = 'bg-dark-900 border-dark-800 text-dark-400';
-                              if (prop.status === 'ACCEPTED') propBadge = 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
-                              if (prop.status === 'DECLINED') propBadge = 'bg-red-500/10 border-red-500/20 text-red-400';
+                              let propBadge = 'bg-slate-100 border-slate-300 text-slate-700';
+                              if (prop.status === 'ACCEPTED') propBadge = 'bg-emerald-50 border-emerald-300 text-emerald-800 font-black';
+                              if (prop.status === 'DECLINED') propBadge = 'bg-red-50 border-red-300 text-red-800 font-black';
 
                               return (
-                                <div key={prop.id} className="flex justify-between items-center p-3 rounded-lg bg-dark-900/60 border border-dark-850/40">
+                                <div key={prop.id} className="flex justify-between items-center p-3 rounded-lg bg-white border border-slate-300 shadow-sm">
                                   <div>
-                                    <p className="text-xs font-semibold text-white">{prop.subject?.name} ({prop.subject?.code})</p>
-                                    <p className="text-[10px] text-dark-400 mt-0.5">{prop.day_of_week} Slot {prop.time_slot} | Sub: {getSubName(prop.substitute_faculty_id)}</p>
+                                    <p className="text-xs font-black text-slate-900">{prop.subject?.name} ({prop.subject?.code})</p>
+                                    <p className="text-[10px] text-slate-600 font-semibold mt-0.5">{prop.day_of_week} Slot {prop.time_slot} | Sub: {getSubName(prop.substitute_faculty_id)}</p>
                                   </div>
-                                  <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase ${propBadge}`}>
+                                  <span className={`text-[9px] px-2 py-0.5 rounded font-extrabold uppercase ${propBadge}`}>
                                     {prop.status}
                                   </span>
                                 </div>
@@ -403,23 +407,23 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
           </div>
         ) : (
           /* Substitutions Inbox Tab */
-          <div className="glass-panel p-6">
-            <h3 className="text-lg font-bold text-white mb-6">Class Coverage Substitution Inbox</h3>
+          <div className="glass-panel p-6 bg-white border border-slate-300 shadow-sm rounded-2xl">
+            <h3 className="text-lg font-black text-slate-900 mb-6">Class Coverage Substitution Inbox</h3>
             {proposals.length === 0 ? (
-              <p className="text-sm text-dark-500 py-6">No coverage requests proposed to you by peer faculty members.</p>
+              <p className="text-sm text-slate-500 py-6 italic font-semibold">No coverage requests proposed to you by peer faculty members.</p>
             ) : (
-              <div className="divide-y divide-dark-850/40">
+              <div className="divide-y divide-slate-200">
                 {proposals.map(prop => {
                   const applicant = facultyProfiles.find(p => p.id === prop.original_faculty_id);
                   return (
                     <div key={prop.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-4 gap-4">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-primary-400">{applicant?.user?.full_name}</span>
-                          <span className="text-xs text-dark-500 font-medium">requests coverage for</span>
+                          <span className="text-xs font-extrabold text-blue-700">{applicant?.user?.full_name}</span>
+                          <span className="text-xs text-slate-600 font-semibold">requests coverage for</span>
                         </div>
-                        <h4 className="text-sm font-bold text-white mt-1">{prop.subject?.name} ({prop.subject?.code})</h4>
-                        <div className="flex gap-4 text-xs text-dark-400 mt-1 font-semibold">
+                        <h4 className="text-sm font-black text-slate-900 mt-1">{prop.subject?.name} ({prop.subject?.code})</h4>
+                        <div className="flex gap-4 text-xs text-slate-600 mt-1 font-extrabold">
                           <span>Day: {prop.day_of_week}</span>
                           <span>Slot: {prop.time_slot}</span>
                         </div>
@@ -429,24 +433,24 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleRespondProposal(prop.id, 'ACCEPTED')}
-                            className="flex items-center gap-1.5 py-2 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all duration-300"
+                            className="flex items-center gap-1.5 py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm transition-all"
                           >
                             <Check className="w-4 h-4" />
                             Accept
                           </button>
                           <button
                             onClick={() => handleRespondProposal(prop.id, 'DECLINED')}
-                            className="flex items-center gap-1.5 py-2 px-4 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all duration-300"
+                            className="flex items-center gap-1.5 py-2 px-4 rounded-xl bg-red-50 border border-red-300 text-red-700 hover:bg-red-100 text-xs font-extrabold shadow-sm transition-all"
                           >
                             <X className="w-4 h-4" />
                             Decline
                           </button>
                         </div>
                       ) : (
-                        <span className={`text-xs font-bold px-3 py-1 rounded border uppercase ${
+                        <span className={`text-xs font-extrabold px-3 py-1 rounded border uppercase ${
                           prop.status === 'ACCEPTED' 
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                            : 'bg-red-500/10 border-red-500/20 text-red-400'
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                            : 'bg-red-50 border-red-300 text-red-800'
                         }`}>
                           {prop.status}
                         </span>
@@ -462,10 +466,10 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
         /* HOD Approval Dashboard */
         <div className="space-y-8">
           {/* 1. Pending Leave Requests */}
-          <div className="glass-panel p-6">
-            <h3 className="text-lg font-bold text-white mb-6">Pending Leave Requests Review</h3>
+          <div className="glass-panel p-6 bg-white border border-slate-300 shadow-sm rounded-2xl">
+            <h3 className="text-lg font-black text-slate-900 mb-6">Pending Leave Requests Review</h3>
             {requests.filter(r => r.status === 'PENDING').length === 0 ? (
-              <p className="text-sm text-dark-500 py-6">No pending leave applications to review in your department.</p>
+              <p className="text-sm text-slate-500 py-6 italic font-semibold">No pending leave applications to review in your department.</p>
             ) : (
               <div className="space-y-6">
                 {requests.filter(r => r.status === 'PENDING').map(req => {
@@ -474,29 +478,29 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                   const applicantProfile = facultyProfiles.find(p => p.id === req.faculty_id);
                   
                   return (
-                    <div key={req.id} className="p-5 rounded-xl border border-dark-800 bg-dark-900/30 space-y-4">
+                    <div key={req.id} className="p-5 rounded-xl border border-slate-300 bg-slate-50 space-y-4 shadow-sm">
                       <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                         <div>
                           <div className="flex items-center gap-3">
-                            <h4 className="text-sm font-bold text-white">{applicantProfile?.user?.full_name}</h4>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/25 font-bold uppercase tracking-wider">
+                            <h4 className="text-sm font-black text-slate-900">{applicantProfile?.user?.full_name}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-extrabold uppercase tracking-wider">
                               {req.leave_type} Leave
                             </span>
                           </div>
-                          <p className="text-xs text-dark-400 mt-1">{startStr} - {endStr}</p>
+                          <p className="text-xs text-slate-600 font-semibold mt-1">{startStr} - {endStr}</p>
                         </div>
 
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleHODDecision(req.id, 'APPROVED')}
-                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold transition-all duration-300"
+                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm transition-all"
                           >
                             <Check className="w-4 h-4" />
                             Approve
                           </button>
                           <button
                             onClick={() => handleHODDecision(req.id, 'REJECTED')}
-                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all duration-300"
+                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-red-50 border border-red-300 text-red-700 hover:bg-red-100 text-xs font-extrabold shadow-sm transition-all"
                           >
                             <X className="w-4 h-4" />
                             Reject
@@ -504,7 +508,7 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                         </div>
                       </div>
 
-                      <p className="text-xs text-dark-300 italic">" {req.reason} "</p>
+                      <p className="text-xs text-slate-800 font-bold italic">" {req.reason} "</p>
                     </div>
                   );
                 })}
@@ -513,10 +517,10 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
           </div>
 
           {/* 2. Approved Leaves & Coverage Control */}
-          <div className="glass-panel p-6">
-            <h3 className="text-lg font-bold text-white mb-6">Approved Leaves & Coverage Control</h3>
+          <div className="glass-panel p-6 bg-white border border-slate-300 shadow-sm rounded-2xl">
+            <h3 className="text-lg font-black text-slate-900 mb-6">Approved Leaves & Coverage Control</h3>
             {requests.filter(r => r.status === 'APPROVED').length === 0 ? (
-              <p className="text-sm text-dark-500 py-6">No approved leave requests to display.</p>
+              <p className="text-sm text-slate-500 py-6 italic font-semibold">No approved leave requests to display.</p>
             ) : (
               <div className="space-y-6">
                 {requests.filter(r => r.status === 'APPROVED').map(req => {
@@ -529,25 +533,25 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                   const isFullyCovered = totalSubs > 0 && acceptedSubs === totalSubs;
 
                   return (
-                    <div key={req.id} className="p-5 rounded-xl border border-dark-800 bg-dark-900/30 space-y-4">
+                    <div key={req.id} className="p-5 rounded-xl border border-slate-300 bg-slate-50 space-y-4 shadow-sm">
                       <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                         <div>
                           <div className="flex items-center gap-3">
-                            <h4 className="text-sm font-bold text-white">{applicantProfile?.user?.full_name}</h4>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-bold uppercase tracking-wider">
+                            <h4 className="text-sm font-black text-slate-900">{applicantProfile?.user?.full_name}</h4>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-300 font-extrabold uppercase tracking-wider">
                               Approved
                             </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded bg-dark-800 text-dark-300 border border-dark-700 font-medium">
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-300 font-bold">
                               {req.leave_type} Leave
                             </span>
                           </div>
-                          <p className="text-xs text-dark-400 mt-1">{startStr} - {endStr}</p>
+                          <p className="text-xs text-slate-600 font-semibold mt-1">{startStr} - {endStr}</p>
                         </div>
 
                         <div>
                           <button
                             onClick={() => handleAutoAllocate(req.id)}
-                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-primary-500/20 border border-primary-500/30 hover:bg-primary-500/30 text-primary-400 text-xs font-bold transition-all duration-300"
+                            className="flex items-center gap-1.5 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-sm transition-all"
                           >
                             <RefreshCw className="w-4 h-4" />
                             Auto Allocate Coverages
@@ -555,28 +559,28 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                         </div>
                       </div>
 
-                      <p className="text-xs text-dark-300 italic">" {req.reason} "</p>
+                      <p className="text-xs text-slate-800 font-bold italic">" {req.reason} "</p>
 
                       {/* Substitution Agreement Breakdown */}
                       {totalSubs > 0 ? (
-                        <div className="border-t border-dark-850/40 pt-4 mt-2">
+                        <div className="border-t border-slate-200 pt-4 mt-2">
                           <div className="flex justify-between items-center mb-3">
-                            <h5 className="text-[10px] font-bold text-dark-500 uppercase tracking-wider">Active Coverages Status</h5>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                              isFullyCovered ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                            <h5 className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">Active Coverages Status</h5>
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                              isFullyCovered ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-amber-50 text-amber-900 border border-amber-300'
                             }`}>
                               {acceptedSubs} of {totalSubs} Accepted
                             </span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {req.substitution_proposals.map(prop => (
-                              <div key={prop.id} className="flex justify-between items-center p-3 rounded-lg bg-dark-950/40 border border-dark-850/30">
+                              <div key={prop.id} className="flex justify-between items-center p-3 rounded-lg bg-white border border-slate-300 shadow-sm">
                                 <div>
-                                  <p className="text-xs font-semibold text-white">{prop.subject?.name} ({prop.subject?.code})</p>
-                                  <p className="text-[10px] text-dark-400 mt-0.5">{prop.day_of_week} Slot {prop.time_slot} | Sub: {getSubName(prop.substitute_faculty_id)}</p>
+                                  <p className="text-xs font-black text-slate-900">{prop.subject?.name} ({prop.subject?.code})</p>
+                                  <p className="text-[10px] text-slate-600 font-semibold mt-0.5">{prop.day_of_week} Slot {prop.time_slot} | Sub: {getSubName(prop.substitute_faculty_id)}</p>
                                 </div>
-                                <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase ${
-                                  prop.status === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                <span className={`text-[9px] px-2 py-0.5 rounded font-extrabold uppercase ${
+                                  prop.status === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' : 'bg-amber-50 text-amber-900 border border-amber-300'
                                 }`}>
                                   {prop.status}
                                 </span>
@@ -585,7 +589,7 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-dark-500 italic mt-2">No substitution coverages assigned yet. Click "Auto Allocate Coverages" above to assign them.</p>
+                        <p className="text-xs text-slate-500 italic font-semibold mt-2">No substitution coverages assigned yet. Click "Auto Allocate Coverages" above to assign them.</p>
                       )}
                     </div>
                   );
@@ -598,125 +602,125 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
 
       {/* Apply Leave Modal Wizard */}
       {isApplyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 relative bg-white border border-slate-300 shadow-2xl rounded-2xl text-slate-900">
             <button
               onClick={() => setIsApplyOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all duration-300"
+              className="absolute top-4 right-4 p-2 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 hover:bg-slate-200 transition-all"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-xl font-extrabold text-white mb-6">Leave & Coverage Setup</h3>
+            <h3 className="text-xl font-black text-slate-900 mb-6">Leave & Coverage Setup</h3>
 
             <form onSubmit={handleApplySubmit} className="space-y-6">
               
               {/* Type, Start, End Dates */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Leave Category</label>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Leave Category</label>
                   <select
                     value={formLeaveType}
                     onChange={e => setFormLeaveType(e.target.value)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none shadow-sm"
                   >
-                    <option value="Casual">Casual Leave</option>
-                    <option value="Sick">Sick Leave</option>
-                    <option value="Duty">Duty Leave</option>
+                    <option value="Casual" className="bg-white text-slate-900 font-bold">Casual Leave</option>
+                    <option value="Sick" className="bg-white text-slate-900 font-bold">Sick Leave</option>
+                    <option value="Duty" className="bg-white text-slate-900 font-bold">Duty Leave</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Start Date</label>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Start Date</label>
                   <input
                     type="date"
                     value={formStartDate}
                     onChange={e => setFormStartDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold focus:border-blue-600 outline-none shadow-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">End Date</label>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1.5">End Date</label>
                   <input
                     type="date"
                     value={formEndDate}
                     onChange={e => setFormEndDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold focus:border-blue-600 outline-none shadow-sm"
                   />
                 </div>
               </div>
 
               {/* Reason */}
               <div>
-                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Reason for absence</label>
+                <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Reason for absence</label>
                 <textarea
                   placeholder="Detail your reason for requesting leave..."
                   rows={2}
                   value={formReason}
                   onChange={e => setFormReason(e.target.value)}
-                  className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 outline-none shadow-sm"
                 ></textarea>
               </div>
 
               {/* Substitution Coverage Slot Builder */}
-              <div className="border-t border-dark-850/60 pt-6">
-                <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-primary-400" />
+              <div className="border-t border-slate-200 pt-6">
+                <h4 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-blue-600" />
                   Class Coverage Slot Builder
                 </h4>
-                <p className="text-xs text-dark-400 mb-4">Propose qualified teachers from your department who are available to cover your slot</p>
+                <p className="text-xs text-slate-600 font-semibold mb-4">Propose qualified teachers from your department who are available to cover your slot</p>
 
                 {/* Sub builder row picker */}
-                <div className="p-4 rounded-xl bg-dark-950/50 border border-dark-850 space-y-4">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-300 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-[10px] font-bold text-dark-450 block mb-1">Day of Week</label>
+                      <label className="text-[10px] font-extrabold text-slate-800 block mb-1">Day of Week</label>
                       <select
                         value={tempDay}
                         onChange={e => setTempDay(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-dark-900 border border-dark-800 rounded-lg text-white text-xs outline-none focus:border-primary-500/40"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-extrabold focus:border-blue-600"
                       >
-                        {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                        {DAYS.map(d => <option key={d} value={d} className="bg-white text-slate-900 font-bold">{d}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-dark-450 block mb-1">Class Time Slot</label>
+                      <label className="text-[10px] font-extrabold text-slate-800 block mb-1">Class Time Slot</label>
                       <select
                         value={tempSlot}
                         onChange={e => setTempSlot(parseInt(e.target.value) || 1)}
-                        className="w-full px-3 py-2.5 bg-dark-900 border border-dark-800 rounded-lg text-white text-xs outline-none focus:border-primary-500/40"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-extrabold focus:border-blue-600"
                       >
-                        {SLOTS.map(s => <option key={s} value={s}>Slot {s}</option>)}
+                        {SLOTS.map(s => <option key={s} value={s} className="bg-white text-slate-900 font-bold">Slot {s}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-dark-450 block mb-1">Subject</label>
+                      <label className="text-[10px] font-extrabold text-slate-800 block mb-1">Subject</label>
                       <select
                         value={tempSubjId}
                         onChange={e => setTempSubjId(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-dark-900 border border-dark-800 rounded-lg text-white text-xs outline-none focus:border-primary-500/40"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-extrabold focus:border-blue-600"
                       >
-                        <option value="">Select Subject</option>
-                        {subjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
+                        <option value="" className="bg-white text-slate-900">Select Subject</option>
+                        {subjects.map(s => <option key={s.id} value={s.id} className="bg-white text-slate-900 font-bold">{s.name} ({s.code})</option>)}
                       </select>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                     <div className="sm:col-span-3">
-                      <label className="text-[10px] font-bold text-dark-450 block mb-1">Available Qualified Substitutes</label>
+                      <label className="text-[10px] font-extrabold text-slate-800 block mb-1">Available Qualified Substitutes</label>
                       <select
                         value={tempSubId}
                         onChange={e => setTempSubId(e.target.value)}
                         disabled={tempLoadingSubs || !tempSubjId}
-                        className="w-full px-3 py-2.5 bg-dark-900 border border-dark-800 rounded-lg text-white text-xs outline-none focus:border-primary-500/40 disabled:opacity-50"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 text-xs font-extrabold focus:border-blue-600 disabled:opacity-50"
                       >
                         {tempLoadingSubs ? (
-                          <option>Querying schedules...</option>
+                          <option className="bg-white text-slate-900 font-bold">Querying schedules...</option>
                         ) : tempSubs.length === 0 ? (
-                          <option value="">No eligible free faculty found</option>
+                          <option value="" className="bg-white text-slate-900 font-bold">No eligible free faculty found</option>
                         ) : (
                           tempSubs.map(f => (
-                            <option key={f.id} value={f.id}>{f.user?.full_name} ({f.designation})</option>
+                            <option key={f.id} value={f.id} className="bg-white text-slate-900 font-bold">{f.user?.full_name} ({f.designation})</option>
                           ))
                         )}
                       </select>
@@ -724,7 +728,7 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                     <button
                       type="button"
                       onClick={addSubstitutionRow}
-                      className="py-2.5 px-4 rounded-lg bg-dark-900 border border-dark-800 text-white hover:bg-dark-800 text-xs font-bold flex items-center justify-center gap-1.5"
+                      className="py-2.5 px-4 rounded-lg bg-slate-100 border border-slate-300 text-slate-900 hover:bg-slate-200 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add Slot
@@ -735,19 +739,19 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                 {/* Sub builder row listings */}
                 {subProposals.length > 0 && (
                   <div className="mt-4 space-y-2">
-                    <h5 className="text-[10px] font-bold text-dark-500 uppercase tracking-wider">Scheduled Coverage List</h5>
+                    <h5 className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">Scheduled Coverage List</h5>
                     {subProposals.map((p, index) => {
                       const subject = subjects.find(s => s.id === p.subject_id);
                       return (
-                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-dark-900/60 border border-dark-850/40">
+                        <div key={index} className="flex justify-between items-center p-3 rounded-lg bg-white border border-slate-300 shadow-sm">
                           <div>
-                            <span className="text-[10px] font-bold text-primary-400">{p.day_of_week} Slot {p.time_slot}</span>
-                            <h6 className="text-xs font-bold text-white mt-0.5">{subject?.name} | Sub: {getSubName(p.substitute_faculty_id)}</h6>
+                            <span className="text-[10px] font-extrabold text-blue-700">{p.day_of_week} Slot {p.time_slot}</span>
+                            <h6 className="text-xs font-black text-slate-900 mt-0.5">{subject?.name} | Sub: {getSubName(p.substitute_faculty_id)}</h6>
                           </div>
                           <button
                             type="button"
                             onClick={() => removeSubstitutionRow(index)}
-                            className="p-1.5 rounded bg-dark-950 border border-dark-800 text-dark-500 hover:text-red-400 hover:border-red-500/25 transition-all"
+                            className="p-1.5 rounded bg-slate-100 border border-slate-300 text-red-700 hover:bg-red-50 transition-all shadow-sm"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -758,11 +762,11 @@ export const LeaveManagerView: React.FC<LeaveManagerViewProps> = ({ onBack }) =>
                 )}
               </div>
 
-              {formError && <p className="text-sm font-semibold text-red-400">{formError}</p>}
+              {formError && <p className="text-sm font-bold text-red-600">{formError}</p>}
 
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-primary-500/15 transition-all duration-300"
+                className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-extrabold shadow-md shadow-blue-600/20 transition-all"
               >
                 Submit Leave Application
               </button>

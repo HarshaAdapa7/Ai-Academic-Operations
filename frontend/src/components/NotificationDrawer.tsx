@@ -124,7 +124,7 @@ export const NotificationDrawer: React.FC = () => {
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-3 text-[11px] text-dark-400 text-center py-1">
+                  <div className="col-span-3 text-[11px] text-slate-500 font-extrabold text-center py-1">
                     All faculty present today
                   </div>
                 )}
@@ -134,15 +134,15 @@ export const NotificationDrawer: React.FC = () => {
 
           {/* Daily Schedule Email Dispatcher Action Bar (HOD/Admin) */}
           {user && ['ADMIN', 'DEAN', 'HOD'].includes(user.role) && (
-            <div className="px-4 py-2.5 bg-primary-950/30 border-b border-primary-500/20 flex items-center justify-between">
-              <span className="text-xs text-primary-300 font-medium flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-primary-400" />
+            <div className="px-4 py-2.5 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
+              <span className="text-xs text-blue-900 font-bold flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-blue-600" />
                 Automated Daily Email Dispatcher
               </span>
               <button
                 onClick={handleTriggerEmails}
                 disabled={isTriggeringEmails}
-                className="px-2.5 py-1 text-[11px] font-bold bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-all disabled:opacity-50"
+                className="px-2.5 py-1 text-[11px] font-extrabold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all shadow-sm disabled:opacity-50"
               >
                 {isTriggeringEmails ? 'Dispatching...' : 'Dispatch Daily Emails'}
               </button>
@@ -150,13 +150,13 @@ export const NotificationDrawer: React.FC = () => {
           )}
 
           {emailTriggerResult && (
-            <div className="px-4 py-2 bg-emerald-500/10 border-b border-emerald-500/20 text-xs text-emerald-400 font-medium text-center">
+            <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-200 text-xs text-emerald-800 font-bold text-center">
               {emailTriggerResult}
             </div>
           )}
 
           {/* Filter Tabs & Bulk Actions */}
-          <div className="p-4 border-b border-dark-800 bg-dark-950/40 space-y-3">
+          <div className="p-4 border-b border-slate-200 bg-slate-50 space-y-3">
             <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
               {[
                 { id: 'ALL', label: 'All' },
@@ -168,10 +168,10 @@ export const NotificationDrawer: React.FC = () => {
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap border ${
                     activeTab === t.id
-                      ? 'bg-primary-500 text-white shadow-md'
-                      : 'bg-dark-800/80 text-dark-300 hover:text-white hover:bg-dark-700'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   {t.label}
@@ -183,14 +183,14 @@ export const NotificationDrawer: React.FC = () => {
               <button
                 onClick={markAllAsRead}
                 disabled={unreadCount === 0}
-                className="text-primary-400 hover:text-primary-300 font-medium flex items-center gap-1 disabled:opacity-40"
+                className="text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 disabled:opacity-40"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Mark all as read
               </button>
               <button
                 onClick={fetchNotifications}
-                className="text-dark-400 hover:text-white font-medium flex items-center gap-1"
+                className="text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Refresh
@@ -208,38 +208,38 @@ export const NotificationDrawer: React.FC = () => {
                     key={n.id}
                     className={`p-4 rounded-2xl border transition-all duration-300 relative group ${
                       !n.is_read
-                        ? 'bg-dark-900/90 border-primary-500/40 shadow-lg shadow-primary-500/5'
-                        : 'bg-dark-950/40 border-dark-800/80 text-dark-300'
+                        ? 'bg-blue-50/50 border-blue-300 shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-800'
                     }`}
                   >
                     {!n.is_read && (
-                      <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-primary-500 animate-pulse" />
+                      <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
                     )}
 
                     <div className="flex items-start gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${badge.color}`}>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border ${badge.color}`}>
                             {badge.label}
                           </span>
-                          <span className="text-[10px] text-dark-400 font-medium">
+                          <span className="text-[10px] text-slate-500 font-bold">
                             {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
 
-                        <h4 className={`text-sm font-bold mb-1 ${!n.is_read ? 'text-white' : 'text-dark-200'}`}>
+                        <h4 className={`text-sm font-black mb-1 ${!n.is_read ? 'text-slate-900' : 'text-slate-800'}`}>
                           {n.title}
                         </h4>
-                        <p className="text-xs text-dark-300 leading-relaxed mb-3">
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed mb-3">
                           {n.message}
                         </p>
 
                         {/* Interactive Inline Action Payload */}
                         {n.action_payload && n.category === 'LEAVE_OPERATIONS' && (
-                          <div className="bg-dark-950 border border-dark-800 rounded-xl p-2.5 mb-3 text-xs space-y-1 text-dark-300">
-                            <div>Faculty: <strong className="text-white">{n.action_payload.faculty_name}</strong></div>
-                            <div>Date: <span className="text-primary-400 font-mono">{n.action_payload.date}</span></div>
-                            <div>Cover Substitute: <strong className="text-emerald-400">{n.action_payload.proposed_substitute || 'Pending'}</strong></div>
+                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 mb-3 text-xs space-y-1 text-slate-800 font-semibold">
+                            <div>Faculty: <strong className="text-slate-900 font-black">{n.action_payload.faculty_name}</strong></div>
+                            <div>Date: <span className="text-blue-700 font-bold">{n.action_payload.date}</span></div>
+                            <div>Cover Substitute: <strong className="text-emerald-700 font-bold">{n.action_payload.proposed_substitute || 'Pending'}</strong></div>
                           </div>
                         )}
 
@@ -248,7 +248,7 @@ export const NotificationDrawer: React.FC = () => {
                             {!n.is_read && (
                               <button
                                 onClick={() => markAsRead([n.id])}
-                                className="px-2.5 py-1 rounded-lg bg-dark-800 hover:bg-dark-700 text-dark-200 hover:text-white text-[11px] font-semibold transition-all"
+                                className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-800 text-[11px] font-extrabold transition-all shadow-sm"
                               >
                                 Mark Read
                               </button>
@@ -256,7 +256,7 @@ export const NotificationDrawer: React.FC = () => {
                           </div>
                           <button
                             onClick={() => deleteNotification(n.id)}
-                            className="p-1 text-dark-500 hover:text-rose-400 transition-all opacity-0 group-hover:opacity-100"
+                            className="p-1 text-slate-400 hover:text-rose-600 transition-all opacity-0 group-hover:opacity-100"
                             title="Delete"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -268,12 +268,12 @@ export const NotificationDrawer: React.FC = () => {
                 );
               })
             ) : (
-              <div className="py-16 text-center text-dark-400 space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-dark-800/50 flex items-center justify-center mx-auto text-dark-500">
+              <div className="py-16 text-center text-slate-500 space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
                   <Bell className="w-6 h-6" />
                 </div>
-                <div className="text-sm font-semibold">No notifications found</div>
-                <div className="text-xs text-dark-500">All alerts and daily schedule updates will appear here.</div>
+                <div className="text-sm font-black text-slate-800">No notifications found</div>
+                <div className="text-xs text-slate-500 font-semibold">All alerts and daily schedule updates will appear here.</div>
               </div>
             )}
           </div>

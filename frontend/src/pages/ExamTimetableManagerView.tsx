@@ -331,18 +331,18 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
         <div>
           <button 
             onClick={onBack}
-            className="flex items-center gap-2 text-xs font-semibold text-dark-400 hover:text-white transition-all mb-3"
+            className="flex items-center gap-2 text-xs font-extrabold text-slate-700 hover:text-slate-900 transition-all mb-3"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </button>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20">
+          <h2 className="text-2xl md:text-3xl font-black text-slate-900 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500 text-white shadow-md">
               <Calendar className="w-6 h-6" />
             </div>
             Examination Preparation & Invigilation Duty Portal
           </h2>
-          <p className="text-xs md:text-sm text-dark-300 mt-1">
+          <p className="text-xs md:text-sm text-slate-600 font-semibold mt-1">
             Directly schedule Mid & Semester End Examinations using uploaded subject details and Academic Calendar start dates.
           </p>
         </div>
@@ -351,7 +351,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
       {/* Main Examination View Content */}
       <div className="space-y-6">
         {/* Top Category Tabs: Mid Exams vs Semester End Exams */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-dark-900/60 p-2 border border-dark-800 rounded-2xl">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-100 p-2 border border-slate-300 rounded-2xl shadow-inner">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -361,8 +361,8 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
               }}
               className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
                 examTabCategory === 'MID'
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20'
-                  : 'bg-dark-950/60 text-dark-300 hover:text-white hover:bg-dark-850'
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                  : 'bg-white text-slate-700 hover:text-slate-900'
               }`}
             >
               <Calendar className="w-4 h-4" />
@@ -377,8 +377,8 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
               }}
               className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
                 examTabCategory === 'SEM_END'
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/20'
-                  : 'bg-dark-950/60 text-dark-300 hover:text-white hover:bg-dark-850'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                  : 'bg-white text-slate-700 hover:text-slate-900'
               }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -388,12 +388,12 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
 
           {/* Sub-toggle for Mid-1 vs Mid-2 if MID category active */}
           {examTabCategory === 'MID' && (
-            <div className="flex items-center gap-1.5 bg-dark-950/80 p-1 border border-dark-800 rounded-xl">
+            <div className="flex items-center gap-1.5 bg-white p-1 border border-slate-300 rounded-xl shadow-sm">
               <button
                 type="button"
                 onClick={() => setExamTabType('MID_1')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  examTabType === 'MID_1' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                  examTabType === 'MID_1' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
                 }`}
               >
                 Mid-1 Schedule
@@ -401,8 +401,8 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
               <button
                 type="button"
                 onClick={() => setExamTabType('MID_2')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  examTabType === 'MID_2' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                  examTabType === 'MID_2' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
                 }`}
               >
                 Mid-2 Schedule
@@ -412,15 +412,15 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
         </div>
 
         {/* Action Control Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-900/40 p-4 border border-dark-800 rounded-2xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 border border-slate-300 rounded-2xl shadow-sm">
           <div>
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
               {examTabCategory === 'MID'
                 ? `${examTabType === 'MID_1' ? 'First Mid-Term (Mid-1)' : 'Second Mid-Term (Mid-2)'} Examination Timetable`
                 : 'Semester End Examination Timetable (Staggered Day Rotation)'}
             </h3>
-            <p className="text-xs text-dark-400 mt-0.5">
+            <p className="text-xs text-slate-600 font-semibold mt-0.5">
               {examTabCategory === 'MID'
                 ? '2 Sessions Daily (Morning: 09:30-11:30 AM & Afternoon: 01:00-03:00 PM) — 2nd & 3rd Year write on same days together'
                 : 'Staggered 4-Day Rotation (Day 1: Yr 1, Day 2: Yr 2, Day 3: Yr 3, Day 4: Yr 4 Sem 1 only) — Skips Sundays & Public Holidays'}
@@ -430,13 +430,13 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
           <div className="flex items-center gap-2.5 flex-wrap">
             {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
               <>
-                <div className="flex items-center gap-1.5 bg-dark-950 border border-amber-500/40 rounded-xl px-2.5 py-1">
-                  <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-amber-300 rounded-xl px-2.5 py-1 shadow-sm">
+                  <Calendar className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <input
                     type="date"
                     value={directStartDate}
                     onChange={e => setDirectStartDate(e.target.value)}
-                    className="bg-transparent text-white text-xs outline-none font-semibold cursor-pointer"
+                    className="bg-transparent text-slate-900 text-xs outline-none font-extrabold cursor-pointer"
                     title="Exam Start Date"
                   />
                 </div>
@@ -445,7 +445,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                   type="button"
                   onClick={handleDirectGenerate}
                   disabled={isLoading}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-extrabold shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold shadow-md shadow-amber-600/20 transition-all disabled:opacity-50"
                 >
                   <Sparkles className="w-4 h-4" />
                   Generate Timetable
@@ -454,7 +454,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                 <button
                   type="button"
                   onClick={() => setIsUploadModalOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white text-xs font-bold shadow-lg shadow-blue-500/20 transition-all"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md shadow-blue-600/20 transition-all"
                 >
                   <Upload className="w-4 h-4" />
                   Upload File
@@ -466,29 +466,29 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                     setNewExamType(examTabType);
                     setIsAddExamModalOpen(true);
                   }}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-white text-xs font-bold transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 text-xs font-extrabold hover:bg-slate-200 transition-all shadow-sm"
                 >
-                  <Plus className="w-4 h-4 text-emerald-400" />
+                  <Plus className="w-4 h-4 text-emerald-600" />
                   Add Session
                 </button>
 
                 <button
                   type="button"
                   onClick={handleClearExams}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-white text-xs font-bold transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 text-xs font-extrabold hover:bg-slate-200 transition-all shadow-sm"
                   title="Clear entries for current active type"
                 >
-                  <Trash2 className="w-4 h-4 text-amber-400" />
+                  <Trash2 className="w-4 h-4 text-amber-600" />
                   Clear Type
                 </button>
 
                 <button
                   type="button"
                   onClick={handlePurgeExamDatabase}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-400 text-xs font-bold transition-all shadow-lg shadow-red-500/10"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-300 text-red-700 text-xs font-extrabold transition-all shadow-sm"
                   title="Purge all exam entries from the database"
                 >
-                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <Trash2 className="w-4 h-4 text-red-600" />
                   Delete DB
                 </button>
               </>
@@ -497,16 +497,16 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
             <button
               type="button"
               onClick={handleExportExamsCSV}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-dark-850 hover:bg-dark-800 border border-dark-750 text-white text-xs font-bold transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 text-xs font-extrabold hover:bg-slate-200 transition-all shadow-sm"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
               Export CSV
             </button>
 
             <button
               type="button"
               onClick={() => setIsPrintModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-500/20 transition-all"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all"
             >
               <Printer className="w-4 h-4" />
               Print {examTabCategory === 'MID' ? 'Mid Exam' : 'Sem End Exam'} Table
@@ -515,46 +515,46 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
         </div>
 
         {/* Search & View Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-dark-900/40 p-3 border border-dark-850 rounded-xl">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-3 border border-slate-300 rounded-xl shadow-sm">
           <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
             <input
               type="text"
               value={examFilterSearch}
               onChange={e => setExamFilterSearch(e.target.value)}
               placeholder="Search subject code, room, invigilator..."
-              className="px-3.5 py-1.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50 w-full sm:w-56"
+              className="px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-bold placeholder-slate-400 outline-none focus:border-amber-600 w-full sm:w-56"
             />
 
             <select
               value={examFilterDeptId}
               onChange={e => setExamFilterDeptId(e.target.value)}
-              className="px-3 py-1.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-extrabold outline-none focus:border-amber-600"
             >
-              <option value="ALL">All Departments</option>
+              <option value="ALL" className="bg-white text-slate-900 font-extrabold">All Departments</option>
               {departments.map(d => (
-                <option key={d.id} value={d.id}>{d.code} - {d.name}</option>
+                <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold">{d.code} - {d.name}</option>
               ))}
             </select>
 
             <select
               value={examFilterYear}
               onChange={e => setExamFilterYear(e.target.value)}
-              className="px-3 py-1.5 bg-dark-950 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-amber-500/50"
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-extrabold outline-none focus:border-amber-600"
             >
-              <option value="ALL">All Years</option>
-              <option value="1">1st Year</option>
-              <option value="2">2nd Year</option>
-              <option value="3">3rd Year</option>
-              <option value="4">4th Year</option>
+              <option value="ALL" className="bg-white text-slate-900 font-extrabold">All Years</option>
+              <option value="1" className="bg-white text-slate-900 font-bold">1st Year</option>
+              <option value="2" className="bg-white text-slate-900 font-bold">2nd Year</option>
+              <option value="3" className="bg-white text-slate-900 font-bold">3rd Year</option>
+              <option value="4" className="bg-white text-slate-900 font-bold">4th Year</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-dark-950 border border-dark-800 rounded-xl">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-300 rounded-xl shadow-inner">
             <button
               type="button"
               onClick={() => setExamViewMode('table')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                examViewMode === 'table' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                examViewMode === 'table' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
               }`}
             >
               <Table className="w-3.5 h-3.5" />
@@ -563,8 +563,8 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
             <button
               type="button"
               onClick={() => setExamViewMode('grid')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                examViewMode === 'grid' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                examViewMode === 'grid' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
               }`}
             >
               Cards Grid
@@ -572,8 +572,8 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
             <button
               type="button"
               onClick={() => setExamViewMode('roster')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                examViewMode === 'roster' ? 'bg-amber-500 text-white' : 'text-dark-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                examViewMode === 'roster' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
               }`}
             >
               Faculty Roster
@@ -606,19 +606,19 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
 
           if (filtered.length === 0) {
             return (
-              <div className="glass-panel p-12 text-center text-dark-500 border border-dark-800 rounded-2xl">
-                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-25 text-amber-400" />
-                <h4 className="text-base font-bold text-white mb-1">No Exam Sessions Found</h4>
-                <p className="text-xs text-dark-400 max-w-md mx-auto mb-6">
-                  Click "Direct Generate" to automatically schedule clash-free examinations directly from uploaded subject details and Academic Calendar start dates.
+              <div className="glass-panel p-12 text-center text-slate-500 bg-white border border-slate-300 rounded-2xl shadow-sm">
+                <Calendar className="w-12 h-12 mx-auto mb-3 text-amber-600 opacity-60" />
+                <h4 className="text-base font-black text-slate-900 mb-1">No Exam Sessions Found</h4>
+                <p className="text-xs text-slate-600 font-semibold max-w-md mx-auto mb-6">
+                  Click "Generate Timetable" to automatically schedule clash-free examinations directly from uploaded subject details and Academic Calendar start dates.
                 </p>
                 {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
                   <button
                     type="button"
                     onClick={handleDirectGenerate}
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-lg shadow-amber-500/20"
+                    className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold transition-all shadow-md shadow-amber-600/20"
                   >
-                    Direct Generate Exam Timetable Now
+                    Generate Exam Timetable Now
                   </button>
                 )}
               </div>
@@ -668,21 +668,21 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                   return (
                     <div key={yr} className="space-y-4">
                       {/* Year Section Header */}
-                      <div className="flex items-center justify-between bg-dark-900/90 px-5 py-3.5 border border-amber-500/30 rounded-2xl shadow-lg bg-gradient-to-r from-amber-500/10 via-dark-900 to-indigo-500/10">
+                      <div className="flex items-center justify-between bg-white px-5 py-3.5 border border-slate-300 rounded-2xl shadow-sm">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-sm shadow-md">
+                          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-300 flex items-center justify-center text-amber-800 font-black text-sm shadow-sm">
                             Y{yr}
                           </div>
                           <div>
-                            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                            <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                               🎓 {yrLabels[yr] || `Year ${yr}`} Examination Schedule
                             </h3>
-                            <p className="text-xs text-dark-300">
+                            <p className="text-xs text-slate-600 font-semibold">
                               Chronological Date-wise & Slot-wise Exam Timetable for {yrLabels[yr] || `Year ${yr}`}
                             </p>
                           </div>
                         </div>
-                        <span className="text-xs font-black px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        <span className="text-xs font-black px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-300">
                           {totalYrExams} Exam Sessions
                         </span>
                       </div>
@@ -690,20 +690,20 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                       {/* Datewise Cards for this Year */}
                       <div className="space-y-4 pl-0 md:pl-2">
                         {Array.from(datesMap.entries()).map(([dateStr, entries]) => (
-                          <div key={dateStr} className="glass-panel overflow-hidden border border-dark-800 rounded-2xl">
-                            <div className="bg-gradient-to-r from-amber-500/15 via-dark-900 to-dark-950 px-5 py-3 border-b border-dark-800 flex items-center justify-between">
+                          <div key={dateStr} className="glass-panel overflow-hidden border border-slate-300 bg-white rounded-2xl shadow-sm">
+                            <div className="bg-slate-50 px-5 py-3 border-b border-slate-300 flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-amber-400" />
-                                <h4 className="text-sm font-black text-white">{dateStr}</h4>
+                                <Calendar className="w-4 h-4 text-amber-600" />
+                                <h4 className="text-sm font-black text-slate-900">{dateStr}</h4>
                               </div>
-                              <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300">
                                 {entries.length} Sessions
                               </span>
                             </div>
 
                             <div className="overflow-x-auto">
                               <table className="w-full text-left text-xs">
-                                <thead className="bg-dark-950/80 text-dark-400 uppercase text-[10px] font-black tracking-wider border-b border-dark-850">
+                                <thead className="bg-slate-100 text-slate-800 uppercase text-[10px] font-black tracking-wider border-b border-slate-300">
                                   <tr>
                                     <th className="py-3 px-4">Session / Time Slot</th>
                                     <th className="py-3 px-4">Dept & Year</th>
@@ -715,38 +715,38 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                                     )}
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-dark-850/60 text-dark-200">
+                                <tbody className="divide-y divide-slate-200 text-slate-900 font-bold">
                                   {entries.map(ex => (
-                                    <tr key={ex.id} className="hover:bg-dark-850/40 transition-colors">
+                                    <tr key={ex.id} className="hover:bg-slate-50 transition-colors">
                                       <td className="py-3 px-4 whitespace-nowrap">
-                                        <span className="font-extrabold text-amber-400 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px]">
+                                        <span className="font-extrabold text-amber-900 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-[11px]">
                                           Slot {ex.time_slot} ({examTabCategory === 'SEM_END' ? (ex.time_slot === 1 ? '09:30 AM - 12:30 PM (3 Hours)' : '01:30 PM - 04:30 PM (3 Hours)') : (ex.time_slot === 1 ? '09:30 AM - 11:30 AM' : '01:00 PM - 03:00 PM')})
                                         </span>
                                       </td>
                                       <td className="py-3 px-4 whitespace-nowrap">
                                         <div className="flex items-center gap-1.5">
-                                          <span className="text-[10px] font-black px-2 py-0.5 rounded bg-primary-500/20 text-primary-300">
+                                          <span className="text-[10px] font-black px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200">
                                             {ex.subject?.department?.code || 'DEPT'}
                                           </span>
-                                          <span className="text-[10px] font-bold text-indigo-400 px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">
+                                          <span className="text-[10px] font-black text-indigo-900 px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200">
                                             Year {ex.academic_year}
                                           </span>
                                         </div>
                                       </td>
                                       <td className="py-3 px-4">
                                         <div>
-                                          <span className="font-extrabold text-white text-xs block">{ex.subject?.name}</span>
-                                          <span className="text-[10px] text-dark-400 font-mono font-semibold">{ex.subject?.code}</span>
+                                          <span className="font-black text-slate-900 text-xs block">{ex.subject?.name}</span>
+                                          <span className="text-[10px] text-slate-600 font-mono font-bold">{ex.subject?.code}</span>
                                         </div>
                                       </td>
                                       <td className="py-3 px-4 whitespace-nowrap">
-                                        <span className="text-xs font-black text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                                        <span className="text-xs font-black text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
                                           Hall {ex.classroom?.room_number || 'TBA'}
                                         </span>
                                       </td>
                                       <td className="py-3 px-4 whitespace-nowrap">
-                                        <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
-                                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                        <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-black">
+                                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                                           <span>{ex.invigilator?.user?.full_name || 'Unassigned'}</span>
                                         </div>
                                       </td>

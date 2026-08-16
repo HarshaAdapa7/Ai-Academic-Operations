@@ -4,7 +4,7 @@ import type { Department } from '../services/facultyService';
 import { facultyService } from '../services/facultyService';
 import { aiService } from '../services/aiService';
 import type { AnalyticsDashboardOutput } from '../services/aiService';
-import { ChevronLeft, BarChart3, Building2, Users, CheckCircle2, RefreshCw, Activity, ShieldCheck, Search, Download, Layers } from 'lucide-react';
+import { ChevronLeft, BarChart3, Building2, Users, CheckCircle2, RefreshCw, Activity, ShieldCheck, Search, Download } from 'lucide-react';
 import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface AcademicAnalyticsViewProps {
@@ -232,23 +232,28 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
           {/* Department Breakdown Bar */}
           {analyticsData?.department_metrics && analyticsData.department_metrics.length > 0 && (
             <div className="glass-panel p-6 space-y-4">
-              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                <Layers className="w-5 h-5 text-indigo-400" />
-                Department-Wise Workload Overview
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-blue-600" />
+                Department Teaching Capacity & Utilization Breakdown
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {analyticsData.department_metrics.map(dept => (
-                  <div key={dept.department_id} className="p-4 rounded-xl bg-dark-950/60 border border-dark-850 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-black text-white">{dept.department_code}</span>
-                      <span className="text-xs font-bold text-indigo-400">{dept.avg_utilization}% Util</span>
+                  <div key={dept.department_id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-extrabold text-slate-900">{dept.department_code}</span>
+                      <span className="text-xs font-black px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-300">{dept.avg_utilization}% Avg Load</span>
                     </div>
-                    <div className="text-xs text-dark-400 space-y-1">
-                      <div>Faculty: <strong className="text-white">{dept.total_faculty}</strong> | Hours: <strong className="text-white">{dept.total_teaching_hours}</strong></div>
-                      <div className="flex gap-2 text-[10px]">
-                        <span className="text-red-400 font-bold">Over: {dept.overutilized_count}</span>
-                        <span className="text-amber-400 font-bold">Under: {dept.underutilized_count}</span>
-                      </div>
+                    <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-500 ${
+                          dept.avg_utilization > 100 ? 'bg-red-600' : dept.avg_utilization < 50 ? 'bg-amber-500' : 'bg-emerald-600'
+                        }`}
+                        style={{ width: `${Math.min(dept.avg_utilization, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[11px] font-bold text-slate-700">
+                      <span>Faculty: {dept.total_faculty}</span>
+                      <span>Assigned: {dept.total_teaching_hours} hrs</span>
                     </div>
                   </div>
                 ))}
@@ -256,34 +261,34 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
             </div>
           )}
 
-          {/* Detailed Faculty Workload Table & Controls */}
+          {/* Roster & Detail Table */}
           <div className="glass-panel p-6 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-dark-850 pb-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-4">
               <div>
-                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-primary-400" />
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-600" />
                   Faculty Workload & Duty Roster
                 </h3>
-                <p className="text-xs text-dark-400">Theory hours, lab hours, substitution cover duties & invigilation load</p>
+                <p className="text-xs text-slate-600 font-semibold">Theory hours, lab hours, substitution cover duties & invigilation load</p>
               </div>
 
               {/* Filters & Search */}
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-3 text-dark-400" />
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Search faculty name or dept..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="glass-input pl-9 pr-3 py-1.5 text-xs w-48 sm:w-64"
+                    className="glass-input pl-9 pr-3 py-1.5 text-xs w-48 sm:w-64 bg-white border border-slate-300 text-slate-900 font-bold"
                   />
                 </div>
 
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className="bg-dark-900 border border-dark-800 text-white text-xs font-bold rounded-xl px-3 py-2 outline-none"
+                  className="bg-white border border-slate-300 text-slate-900 text-xs font-extrabold rounded-xl px-3 py-2 outline-none shadow-sm"
                 >
                   <option value="ALL">All Statuses</option>
                   <option value="OVERUTILIZED">Overutilized (&gt;100%)</option>
@@ -294,11 +299,11 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
             </div>
 
             {filteredWorkload.length === 0 ? (
-              <p className="text-center py-10 text-dark-500 text-sm">No matching faculty workload records found.</p>
+              <p className="text-center py-10 text-slate-500 font-semibold text-sm">No matching faculty workload records found.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-dark-200">
-                  <thead className="bg-dark-950 text-dark-400 font-bold uppercase tracking-wider border-b border-dark-800">
+                <table className="w-full text-left text-xs text-slate-800">
+                  <thead className="bg-slate-100 text-slate-900 font-extrabold uppercase tracking-wider border-b border-slate-300">
                     <tr>
                       <th className="p-3">Faculty Name</th>
                       <th className="p-3">Dept</th>
@@ -311,24 +316,24 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
                       <th className="p-3 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-dark-850">
+                  <tbody className="divide-y divide-slate-200">
                     {filteredWorkload.map(fac => (
-                      <tr key={fac.faculty_id} className="hover:bg-dark-900/50 transition-colors">
-                        <td className="p-3 font-extrabold text-white">{fac.faculty_name}</td>
-                        <td className="p-3"><span className="px-2 py-0.5 rounded bg-dark-900 text-primary-400 font-bold border border-dark-800">{fac.department_code}</span></td>
-                        <td className="p-3 font-semibold text-blue-300">{fac.theory_hours || 0} hrs</td>
-                        <td className="p-3 font-semibold text-purple-300">{fac.lab_hours || 0} hrs</td>
-                        <td className="p-3 font-semibold text-indigo-300">{fac.substitution_hours || 0} hrs</td>
-                        <td className="p-3 font-semibold text-amber-300">{fac.invigilation_hours || 0} hrs</td>
-                        <td className="p-3 font-black text-white">{fac.total_active_hours || fac.assigned_slots} / {fac.max_weekly_workload} hrs</td>
-                        <td className="p-3 font-bold text-white">{fac.utilization_percentage}%</td>
+                      <tr key={fac.faculty_id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3 font-extrabold text-slate-900">{fac.faculty_name}</td>
+                        <td className="p-3"><span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 font-black border border-blue-200">{fac.department_code}</span></td>
+                        <td className="p-3 font-extrabold text-blue-700">{fac.theory_hours || 0} hrs</td>
+                        <td className="p-3 font-extrabold text-purple-700">{fac.lab_hours || 0} hrs</td>
+                        <td className="p-3 font-extrabold text-indigo-700">{fac.substitution_hours || 0} hrs</td>
+                        <td className="p-3 font-extrabold text-amber-700">{fac.invigilation_hours || 0} hrs</td>
+                        <td className="p-3 font-black text-slate-900">{fac.total_active_hours || fac.assigned_slots} / {fac.max_weekly_workload} hrs</td>
+                        <td className="p-3 font-black text-slate-900">{fac.utilization_percentage}%</td>
                         <td className="p-3 text-center">
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${
                             fac.status === 'OVERUTILIZED'
-                              ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                              ? 'bg-red-50 text-red-800 border-red-300'
                               : fac.status === 'UNDERUTILIZED'
-                              ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              ? 'bg-amber-50 text-amber-900 border-amber-300'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-300'
                           }`}>
                             {fac.status}
                           </span>

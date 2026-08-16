@@ -161,18 +161,18 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all shadow-md"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all shadow-sm font-bold"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <Brain className="w-6 h-6 text-rose-500" />
-              <h2 className="text-2xl font-extrabold text-white">
+              <Brain className="w-6 h-6 text-rose-600" />
+              <h2 className="text-2xl font-extrabold text-slate-900">
                 AI Decision Center & Assistant
               </h2>
             </div>
-            <p className="text-dark-400 text-sm">Consult scheduling assistant engines and search RAG academic policies</p>
+            <p className="text-slate-600 text-sm font-semibold">Consult scheduling assistant engines and search RAG academic policies</p>
           </div>
         </div>
 
@@ -194,7 +194,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
                 }
               ]);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-dark-900 border border-dark-800 hover:border-rose-500/40 rounded-xl text-dark-300 hover:text-white text-xs font-bold transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 border border-slate-300 hover:bg-slate-200 rounded-xl text-slate-800 text-xs font-extrabold transition-all shadow-sm"
             title="Start new conversation"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -204,7 +204,7 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
             <select
               value={selectedDeptId}
               onChange={e => setSelectedDeptId(e.target.value)}
-              className="w-full px-3 py-2 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50"
+              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-extrabold outline-none focus:border-rose-600 shadow-sm"
             >
               <option value="">All Departments</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
@@ -214,13 +214,13 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
       </div>
 
       {/* Main Tabs */}
-      <div className="flex gap-2 p-1 bg-dark-900 border border-dark-800 rounded-xl max-w-sm mb-8">
+      <div className="flex gap-2 p-1.5 bg-slate-100 border border-slate-300 rounded-xl max-w-sm mb-8 shadow-inner">
         <button
           onClick={() => setActiveTab('assistant')}
-          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 rounded-lg text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'assistant' 
-              ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20' 
-              : 'text-dark-400 hover:text-white'
+              ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20' 
+              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
           }`}
         >
           <Sparkles className="w-3.5 h-3.5" />
@@ -260,19 +260,19 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
 
                   <div className={`max-w-xl rounded-2xl p-4 text-xs leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-primary-600 text-white rounded-tr-none shadow-md'
-                      : 'bg-dark-900 border border-dark-800 text-dark-100 rounded-tl-none space-y-3'
+                      ? 'bg-blue-600 text-white rounded-tr-none shadow-md font-semibold'
+                      : 'bg-slate-50 border border-slate-200 text-slate-900 rounded-tl-none space-y-3 shadow-sm font-medium'
                   }`}>
-                    <div className="whitespace-pre-wrap font-medium">{msg.content}</div>
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
 
                     {/* Suggested Action Buttons */}
                     {msg.actions && msg.actions.length > 0 && (
-                      <div className="pt-3 border-t border-dark-800/80 flex flex-wrap gap-2 mt-2">
+                      <div className="pt-3 border-t border-slate-200 flex flex-wrap gap-2 mt-2">
                         {msg.actions.map((act, idx) => (
                           <button
                             key={idx}
                             onClick={() => handleExecuteAction(act.action_type)}
-                            className="py-1.5 px-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 hover:bg-rose-500 hover:text-white transition-all text-[10px] font-extrabold flex items-center gap-1.5 shadow-sm"
+                            className="py-1.5 px-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 hover:bg-rose-600 hover:text-white transition-all text-[10px] font-extrabold flex items-center gap-1.5 shadow-sm"
                           >
                             <span>{act.label}</span>
                             <ArrowRight className="w-3 h-3" />
@@ -286,11 +286,11 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
 
               {isLoading && (
                 <div className="flex gap-3 justify-start items-center">
-                  <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center animate-pulse">
+                  <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center animate-pulse">
                     <Sparkles className="w-4 h-4" />
                   </div>
-                  <div className="bg-dark-900 border border-dark-800 rounded-2xl p-4 text-xs text-dark-400 flex items-center gap-2">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 font-bold flex items-center gap-2 shadow-sm">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-600" />
                     <span>AI assistant is evaluating schedule constraints & policy RAG...</span>
                   </div>
                 </div>
@@ -299,19 +299,19 @@ export const AIDecisionCenterView: React.FC<AIDecisionCenterViewProps> = ({ onBa
             </div>
 
             {/* Input Bar */}
-            <div className="pt-4 border-t border-dark-800/80 flex gap-3">
+            <div className="pt-4 border-t border-slate-200 flex gap-3">
               <input
                 type="text"
                 value={inputPrompt}
                 onChange={e => setInputPrompt(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
                 placeholder="Ask AI assistant about teacher availability, leaves, room allocations..."
-                className="flex-1 px-4 py-3 bg-dark-900 border border-dark-800 rounded-xl text-white text-xs outline-none focus:border-rose-500/50 shadow-inner"
+                className="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl text-slate-900 text-xs font-bold outline-none focus:border-rose-600 shadow-sm placeholder-slate-400"
               />
               <button
                 onClick={() => handleSendMessage()}
                 disabled={isLoading || !inputPrompt.trim()}
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 disabled:opacity-50"
+                className="px-5 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center gap-2 transition-all shadow-md shadow-rose-600/20 disabled:opacity-50"
               >
                 <span>Send</span>
                 <Send className="w-3.5 h-3.5" />

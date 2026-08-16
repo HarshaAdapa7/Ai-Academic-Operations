@@ -12,7 +12,7 @@
     min-height: 100vh;
   }
 
-  /* Custom Scrollbar */
+  /* Scrollbar Styling */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -30,17 +30,17 @@
 }
 
 /* =========================================================
-   WORLD-CLASS EXECUTIVE ACADEMIC LIGHT THEME
+   EXECUTIVE ACADEMIC PROFESSIONAL DESIGN SYSTEM (LIGHT MODE)
    ========================================================= */
 
-/* Main page background */
+/* Main Page Container */
 .min-h-screen,
 body {
   background-color: #f8fafc !important;
   color: #0f172a !important;
 }
 
-/* Glass Panels & Cards -> Pure White with Slate Borders */
+/* Cards & Panels: Crisp White with Slate Borders */
 .glass-panel,
 .bg-dark-900,
 .bg-dark-950,
@@ -51,43 +51,73 @@ body {
 .bg-dark-950\/50 {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05) !important;
 }
 
-/* Hover Cards */
-.glass-panel-hover:hover {
-  border-color: #2563eb !important;
-  box-shadow: 0 12px 28px -4px rgba(37, 99, 235, 0.12) !important;
-}
-
-/* Top Navbar */
-nav.glass-panel,
-nav {
-  background-color: #ffffff !important;
-  border-bottom: 1px solid #cbd5e1 !important;
-  box-shadow: 0 2px 8px 0 rgba(15, 23, 42, 0.06) !important;
-}
-
-/* Headings & Title Legibility */
-h1, h2, h3, h4, h5, h6 {
-  color: #0f172a !important;
-}
-
-p, span, div, label {
-  color: #334155;
-}
-
-/* Inset Boxes inside cards */
+/* Card Insets */
 .bg-dark-950\/40,
 .bg-dark-950\/60,
 .bg-dark-950\/80,
 .bg-dark-850,
 .bg-dark-800 {
   background-color: #f8fafc !important;
-  border-color: #cbd5e1 !important;
+  border-color: #e2e8f0 !important;
 }
 
-/* Input Fields & Select Controls */
+/* Hover Cards */
+.glass-panel-hover:hover {
+  border-color: #2563eb !important;
+  box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Top Header Navbar */
+nav.glass-panel,
+nav {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  box-shadow: 0 1px 4px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+/* =========================================================
+   HIGH-CONTRAST TYPOGRAPHY RULES
+   ========================================================= */
+
+h1, h2, h3, h4, h5, h6,
+.text-heading {
+  color: #0f172a !important;
+  font-weight: 800 !important;
+}
+
+.text-dark-100,
+.text-dark-200 {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.text-dark-300,
+.text-dark-400 {
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+.text-dark-500,
+.text-dark-600 {
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+
+/* White Text Elements (Inside Solid Buttons & Dark Badges) */
+.text-white,
+button.text-white,
+a.text-white,
+.bg-blue-600 .text-white,
+.bg-blue-700 .text-white,
+.bg-indigo-600 .text-white,
+.bg-emerald-600 .text-white {
+  color: #ffffff !important;
+}
+
+/* Input Controls */
 .glass-input,
 input,
 select,
@@ -100,7 +130,7 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: #64748b !important;
+  color: #94a3b8 !important;
 }
 
 input:focus,
@@ -114,21 +144,20 @@ textarea:focus {
 select option {
   background-color: #ffffff !important;
   color: #0f172a !important;
-  font-weight: 600 !important;
 }
 
 /* =========================================================
-   HIGH-CONTRAST BUTTONS & NAVIGATION TABS
+   BUTTON SYSTEM
    ========================================================= */
 
-/* Primary Solid Blue Buttons */
+/* Solid Primary Buttons */
 .btn-primary,
 button.bg-primary-500,
 button.bg-primary-600,
 button.bg-blue-600,
+button.bg-blue-700,
 .bg-gradient-to-r.from-primary-600,
-.bg-gradient-to-r.from-blue-600,
-.active-nav-btn {
+.bg-gradient-to-r.from-blue-600 {
   background-color: #1d4ed8 !important;
   background-image: linear-gradient(to right, #1d4ed8, #2563eb) !important;
   color: #ffffff !important;
@@ -141,15 +170,14 @@ button.bg-blue-600,
 button.bg-primary-500 *,
 button.bg-primary-600 *,
 button.bg-blue-600 *,
-.bg-gradient-to-r.from-primary-600 * {
+button.bg-blue-700 * {
   color: #ffffff !important;
 }
 
 /* Secondary / Inactive Navigation Buttons */
 .btn-secondary,
 button.bg-dark-900,
-button.bg-dark-800,
-.inactive-nav-btn {
+button.bg-dark-800 {
   background-color: #f1f5f9 !important;
   border: 1px solid #cbd5e1 !important;
   color: #1e293b !important;
@@ -158,73 +186,106 @@ button.bg-dark-800,
 
 button.bg-dark-900:hover,
 button.bg-dark-800:hover,
-.btn-secondary:hover,
-.inactive-nav-btn:hover {
+.btn-secondary:hover {
   background-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
 /* =========================================================
-   DROPDOWNS, POPOVERS & DIALOGS
+   DROPDOWNS, POPOVERS & MODALS
    ========================================================= */
 .z-50,
 .absolute.right-0,
 div[class*="backdrop-blur"] {
   background-color: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
-  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.2) !important;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18) !important;
   color: #0f172a !important;
 }
 
-div[class*="backdrop-blur"] span,
-div[class*="backdrop-blur"] button {
-  color: #0f172a;
+div[class*="backdrop-blur"] h1,
+div[class*="backdrop-blur"] h2,
+div[class*="backdrop-blur"] h3,
+div[class*="backdrop-blur"] p,
+div[class*="backdrop-blur"] label {
+  color: #0f172a !important;
 }
 
-div[class*="backdrop-blur"] button:hover {
-  background-color: #eff6ff !important;
-  color: #1d4ed8 !important;
+/* Modal overlays */
+.fixed.inset-0.bg-black\/80,
+.fixed.inset-0.bg-black\/60,
+.fixed.inset-0.bg-dark-950\/80 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
-/* Status Badges */
+/* =========================================================
+   COLOR STATUS BADGES & ACCENTS
+   ========================================================= */
 .bg-primary-500\/10,
 .bg-blue-500\/10,
-.bg-indigo-500\/10 {
+.bg-blue-50 {
   background-color: #eff6ff !important;
   color: #1d4ed8 !important;
   border-color: #bfdbfe !important;
   font-weight: 700 !important;
 }
 
+.text-primary-400,
+.text-primary-300 {
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+}
+
 .bg-emerald-500\/10,
-.bg-emerald-500\/20 {
+.bg-emerald-500\/20,
+.bg-emerald-50 {
   background-color: #ecfdf5 !important;
   color: #047857 !important;
   border-color: #a7f3d0 !important;
   font-weight: 700 !important;
 }
 
+.text-emerald-400 {
+  color: #047857 !important;
+  font-weight: 700 !important;
+}
+
 .bg-amber-500\/10,
-.bg-amber-500\/20 {
+.bg-amber-500\/20,
+.bg-amber-50 {
   background-color: #fffbeb !important;
   color: #b45309 !important;
   border-color: #fde68a !important;
   font-weight: 700 !important;
 }
 
+.text-amber-400 {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+}
+
 .bg-red-500\/10,
-.bg-red-500\/20 {
+.bg-red-500\/20,
+.bg-red-50 {
   background-color: #fef2f2 !important;
   color: #b91c1c !important;
   border-color: #fecaca !important;
   font-weight: 700 !important;
 }
 
-/* Table Styling */
+.text-red-400 {
+  color: #b91c1c !important;
+  font-weight: 700 !important;
+}
+
+/* =========================================================
+   TABLE STYLING
+   ========================================================= */
 table thead,
 thead tr {
   background-color: #f1f5f9 !important;
-  color: #1e293b !important;
+  color: #0f172a !important;
   font-weight: 800 !important;
   border-bottom: 2px solid #cbd5e1 !important;
 }

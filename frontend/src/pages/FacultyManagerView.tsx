@@ -196,27 +196,27 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-2 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all duration-300"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all font-bold shadow-sm"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-2xl font-extrabold text-white">Faculty Registry</h2>
-            <p className="text-dark-400 text-sm">Assign workloads, department designations and subject experts</p>
+            <h2 className="text-2xl font-black text-slate-900">Faculty Registry</h2>
+            <p className="text-slate-600 text-sm font-semibold">Assign workloads, department designations and subject experts</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={loadData}
-            className="p-3 rounded-xl bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all duration-300"
+            className="p-3 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all shadow-sm"
             title="Refresh Registry"
           >
             <RefreshCw className="w-5 h-5" />
           </button>
           <button
             onClick={openAddModal}
-            className="flex items-center gap-2 py-3 px-5 rounded-xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-primary-500/15 transition-all duration-300"
+            className="flex items-center gap-2 py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-extrabold shadow-md shadow-blue-600/20 transition-all"
           >
             <Plus className="w-4 h-4" />
             Add Faculty Profile
@@ -225,15 +225,15 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
       </div>
 
       {/* Filter and Search Registry */}
-      <div className="glass-panel p-4 mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="glass-panel p-4 mb-8 flex flex-col md:flex-row gap-4 items-center justify-between bg-white border border-slate-300 shadow-sm rounded-2xl">
         <div className="relative w-full md:w-96">
-          <Search className="w-5 h-5 text-dark-500 absolute left-4 top-1/2 -translate-y-1/2" />
+          <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search by faculty name or email..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 outline-none transition-all"
           />
         </div>
 
@@ -246,15 +246,15 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
               }
             }}
             disabled={user?.role !== 'ADMIN' && user?.role !== 'DEAN'}
-            className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300 disabled:opacity-80 cursor-not-allowed"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none transition-all disabled:opacity-80 cursor-not-allowed shadow-sm"
           >
             {user?.role === 'ADMIN' || user?.role === 'DEAN' ? (
-              <option value="">All Departments</option>
+              <option value="" className="bg-white text-slate-900 font-extrabold py-1">All Departments</option>
             ) : null}
             {departments
               .filter(d => (user?.role === 'ADMIN' || user?.role === 'DEAN') ? true : d.id === deptFilter)
               .map(d => (
-                <option key={d.id} value={d.id}>{d.name} ({d.code})</option>
+                <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1">{d.name} ({d.code})</option>
               ))}
           </select>
         </div>
@@ -263,11 +263,11 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
       {/* Faculty Cards Grid */}
       {isLoading ? (
         <div className="text-center py-20">
-          <p className="text-dark-400 text-lg">Loading faculty registry...</p>
+          <p className="text-slate-600 text-lg font-bold">Loading faculty registry...</p>
         </div>
       ) : filteredProfiles.length === 0 ? (
-        <div className="text-center py-20 glass-panel">
-          <p className="text-dark-500 text-lg font-medium">No faculty members matched the search filters.</p>
+        <div className="text-center py-20 glass-panel bg-white border border-slate-300 rounded-2xl shadow-sm">
+          <p className="text-slate-600 text-lg font-semibold">No faculty members matched the search filters.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -276,58 +276,58 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
             const workloadPct = Math.round(rawRatio * 100);
             
             // Workload warning color classes
-            let progressColor = 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-emerald-500/30';
-            let badgeBg = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+            let progressColor = 'bg-emerald-600';
+            let badgeBg = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-black';
             let statusText = `${workloadPct}% Capacity`;
 
             if (rawRatio > 1.0) {
-              progressColor = 'bg-gradient-to-r from-red-500 to-rose-500 shadow-red-500/30';
-              badgeBg = 'bg-red-500/10 text-red-400 border-red-500/30';
+              progressColor = 'bg-red-600';
+              badgeBg = 'bg-red-50 text-red-800 border-red-300 font-black';
               statusText = `${workloadPct}% Overutilized`;
             } else if (rawRatio >= 0.8) {
-              progressColor = 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/30';
-              badgeBg = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+              progressColor = 'bg-amber-500';
+              badgeBg = 'bg-amber-50 text-amber-900 border-amber-300 font-black';
               statusText = `${workloadPct}% Heavy Load`;
             } else if (p.current_weekly_workload === 0) {
-              progressColor = 'bg-dark-700';
-              badgeBg = 'bg-dark-900 text-dark-400 border-dark-800';
+              progressColor = 'bg-slate-300';
+              badgeBg = 'bg-slate-100 text-slate-700 border-slate-300 font-bold';
               statusText = 'Unassigned';
             }
 
             return (
-              <div key={p.id} className="glass-panel glass-panel-hover p-6 flex flex-col justify-between">
+              <div key={p.id} className="glass-panel glass-panel-hover p-6 flex flex-col justify-between bg-white border border-slate-300 shadow-sm rounded-2xl hover:border-blue-600 transition-all">
                 <div>
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-lg font-bold text-white leading-tight">{p.user?.full_name}</h3>
-                      <p className="text-xs text-dark-400 font-medium mt-1">{p.user?.email}</p>
+                      <h3 className="text-lg font-black text-slate-900 leading-tight">{p.user?.full_name}</h3>
+                      <p className="text-xs text-slate-600 font-semibold mt-1">{p.user?.email}</p>
                     </div>
                     {p.department && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold uppercase tracking-wider">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 font-black uppercase tracking-wider">
                         {p.department.code}
                       </span>
                     )}
                   </div>
 
                   <div className="space-y-1 mb-5">
-                    <p className="text-xs text-dark-300 font-semibold">{p.designation}</p>
+                    <p className="text-xs text-slate-800 font-extrabold">{p.designation}</p>
                     {p.office_hours && (
-                      <p className="text-xs text-dark-500">Office: {p.office_hours}</p>
+                      <p className="text-xs text-slate-600 font-semibold">Office: {p.office_hours}</p>
                     )}
                   </div>
 
                   {/* Workload Progress Bar */}
                   <div className="space-y-2 mb-6">
-                    <div className="flex justify-between items-center text-xs font-semibold">
-                      <span className="text-dark-300 font-bold">Weekly Workload</span>
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-slate-700">Weekly Workload</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-white font-extrabold">{p.current_weekly_workload} / {p.max_weekly_workload} hrs</span>
-                        <span className={`text-[9px] px-2 py-0.5 rounded font-extrabold border ${badgeBg}`}>
+                        <span className="text-slate-900 font-black">{p.current_weekly_workload} / {p.max_weekly_workload} hrs</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded border ${badgeBg}`}>
                           {statusText}
                         </span>
                       </div>
                     </div>
-                    <div className="w-full h-2.5 rounded-full bg-dark-950 overflow-hidden border border-dark-800 p-0.5">
+                    <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden border border-slate-300 p-0.5">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
                         style={{ width: `${Math.min(workloadPct, 100)}%` }}
@@ -337,15 +337,15 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
 
                   {/* Expertise Subjects */}
                   <div className="mb-6">
-                    <h4 className="text-[10px] font-bold text-dark-500 uppercase tracking-wider mb-2">Subject Expertise</h4>
+                    <h4 className="text-[10px] font-extrabold text-slate-600 uppercase tracking-wider mb-2">Subject Expertise</h4>
                     {p.subjects.length === 0 ? (
-                      <span className="text-xs text-dark-500 italic">No subjects mapped yet</span>
+                      <span className="text-xs text-slate-500 italic font-semibold">No subjects mapped yet</span>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {p.subjects.map(s => (
                           <span 
                             key={s.id} 
-                            className="text-[10px] px-2 py-0.5 rounded bg-dark-900 border border-dark-800 text-dark-300 font-medium"
+                            className="text-[10px] px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-800 font-extrabold"
                             title={s.name}
                           >
                             {s.code}
@@ -357,10 +357,10 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
                 </div>
 
                 {/* Card footer controls */}
-                <div className="flex items-center justify-between pt-4 border-t border-dark-800/40 mt-auto">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-200 mt-auto">
                   <button
                     onClick={() => onOpenAvailability(p.id, p.user?.full_name)}
-                    className="flex items-center gap-1.5 text-xs text-primary-400 hover:text-primary-300 font-bold transition-all duration-300"
+                    className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-900 font-extrabold transition-all"
                   >
                     <CalendarDays className="w-4 h-4" />
                     Availability
@@ -369,14 +369,14 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
                   <div className="flex gap-2">
                     <button
                       onClick={() => openEditModal(p)}
-                      className="p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-400 hover:text-white hover:border-dark-700 transition-all duration-300"
+                      className="p-2 rounded-lg bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all font-bold shadow-sm"
                       title="Edit Profile"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(p.id)}
-                      className="p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-400 hover:text-red-400 hover:border-red-500/30 transition-all duration-300"
+                      className="p-2 rounded-lg bg-slate-100 border border-slate-300 text-red-700 hover:bg-red-50 hover:border-red-300 transition-all font-bold shadow-sm"
                       title="Delete Profile"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -391,36 +391,36 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
 
       {/* Slide-in Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 relative bg-white border border-slate-300 shadow-2xl rounded-2xl text-slate-900">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-lg bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all duration-300"
+              className="absolute top-4 right-4 p-2 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 hover:bg-slate-200 transition-all"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-xl font-extrabold text-white mb-6">
+            <h3 className="text-xl font-black text-slate-900 mb-6">
               {editingProfile ? 'Edit Faculty Profile' : 'Create Faculty Profile'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* User Account Selection */}
               <div>
-                <label className="text-xs font-semibold text-dark-300 block mb-1.5">Linked User Account</label>
+                <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Linked User Account</label>
                 {editingProfile ? (
-                  <div className="px-4 py-3 bg-dark-900/60 border border-dark-800 rounded-xl text-dark-400 text-sm font-semibold">
+                  <div className="px-4 py-3 bg-slate-100 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold">
                     {editingProfile.user?.full_name} ({editingProfile.user?.email})
                   </div>
                 ) : (
                   <select
                     value={formUserId}
                     onChange={e => setFormUserId(e.target.value)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none transition-all shadow-sm"
                   >
-                    <option value="">Select a user account</option>
+                    <option value="" className="bg-white text-slate-900">Select a user account</option>
                     {availableUsers.map(u => (
-                      <option key={u.id} value={u.id}>
+                      <option key={u.id} value={u.id} className="bg-white text-slate-900 font-bold">
                         {u.full_name} ({u.email} - {u.role})
                       </option>
                     ))}
@@ -431,51 +431,51 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
               {/* Department and Designation */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Department</label>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Department</label>
                   <select
                     value={formDeptId}
                     onChange={e => setFormDeptId(e.target.value)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none transition-all shadow-sm"
                   >
-                    <option value="">Unassigned</option>
+                    <option value="" className="bg-white text-slate-900">Unassigned</option>
                     {departments.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
+                      <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold">{d.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Designation</label>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Designation</label>
                   <input
                     type="text"
                     placeholder="e.g. Associate Professor"
                     value={formDesignation}
                     onChange={e => setFormDesignation(e.target.value)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold focus:border-blue-600 outline-none transition-all shadow-sm"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-dark-950/40 border border-dark-850">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-300">
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={formIsHod}
                       onChange={e => setFormIsHod(e.target.checked)}
-                      className="w-4 h-4 rounded border-dark-800 text-primary-500 accent-primary-500"
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 accent-blue-600"
                     />
-                    <span className="text-xs font-bold text-white">HOD Status (Rules 1 & 2)</span>
+                    <span className="text-xs font-extrabold text-slate-900">HOD Status (Rules 1 & 2)</span>
                   </label>
                 </div>
-                <div className="p-3 rounded-xl bg-dark-950/40 border border-dark-850">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-300">
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={formIsDean}
                       onChange={e => setFormIsDean(e.target.checked)}
-                      className="w-4 h-4 rounded border-dark-800 text-indigo-500 accent-indigo-500"
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-600 accent-indigo-600"
                     />
-                    <span className="text-xs font-bold text-white">Academic Dean Status (Rule 21)</span>
+                    <span className="text-xs font-extrabold text-slate-900">Academic Dean Status (Rule 21)</span>
                   </label>
                 </div>
               </div>
@@ -483,55 +483,55 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
               {/* Workload and Office Hours */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Max Weekly Workload (hrs)</label>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Max Weekly Workload (hrs)</label>
                   <input
                     type="number"
                     min="1"
                     max="40"
                     value={formMaxWorkload}
                     onChange={e => setFormMaxWorkload(parseInt(e.target.value) || 16)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold focus:border-blue-600 outline-none transition-all shadow-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-dark-300 block mb-1.5">Office Hours Schedule</label>
+                  <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Office Hours Schedule</label>
                   <input
                     type="text"
                     placeholder="e.g. Mon/Wed 2 PM - 4 PM"
                     value={formOfficeHours}
                     onChange={e => setFormOfficeHours(e.target.value)}
-                    className="w-full px-4 py-3 bg-dark-950/50 border border-dark-800 rounded-xl text-white text-sm focus:border-primary-500/50 outline-none transition-all duration-300"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold focus:border-blue-600 outline-none transition-all shadow-sm"
                   />
                 </div>
               </div>
 
               {/* Subject Expertise Mappings */}
               <div>
-                <label className="text-xs font-semibold text-dark-300 block mb-3">Subject Expertise Mappings</label>
+                <label className="text-xs font-extrabold text-slate-800 block mb-3">Subject Expertise Mappings</label>
                 {subjects.length === 0 ? (
-                  <p className="text-xs text-dark-500 italic">Please add subjects first in the Departments & Subjects tab.</p>
+                  <p className="text-xs text-slate-500 italic font-semibold">Please add subjects first in the Departments & Subjects tab.</p>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-3 bg-dark-950/50 border border-dark-850 rounded-xl pr-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-3 bg-slate-50 border border-slate-300 rounded-xl pr-2">
                     {subjects.map(s => {
                       const isChecked = formSubjectIds.includes(s.id);
                       return (
                         <div 
                           key={s.id} 
                           onClick={() => handleSubjectToggle(s.id)}
-                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer select-none transition-all duration-200 ${
+                          className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer select-none transition-all ${
                             isChecked 
-                              ? 'bg-primary-500/10 border-primary-500/35 text-white' 
-                              : 'bg-dark-900 border-dark-800/80 text-dark-400 hover:bg-dark-850/80 hover:text-white'
+                              ? 'bg-blue-50 border-blue-300 text-blue-900 shadow-sm' 
+                              : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
                           }`}
                         >
                           <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                            isChecked ? 'bg-primary-500 border-primary-500 text-white' : 'border-dark-700'
+                            isChecked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300'
                           }`}>
                             {isChecked && <Plus className="w-3 h-3 stroke-[3]" />}
                           </div>
                           <div>
                             <p className="text-xs font-bold leading-none">{s.name}</p>
-                            <span className="text-[9px] text-dark-500 mt-1 inline-block font-semibold">{s.code}</span>
+                            <span className="text-[9px] text-slate-500 mt-1 inline-block font-bold">{s.code}</span>
                           </div>
                         </div>
                       );
@@ -540,11 +540,11 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
                 )}
               </div>
 
-              {formError && <p className="text-sm font-semibold text-red-400">{formError}</p>}
+              {formError && <p className="text-sm font-bold text-red-600">{formError}</p>}
 
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-primary-500/15 transition-all duration-300"
+                className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-extrabold shadow-md shadow-blue-600/20 transition-all"
               >
                 Save Profile
               </button>

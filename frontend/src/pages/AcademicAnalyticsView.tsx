@@ -104,33 +104,33 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-300 hover:text-white transition-all shadow-md"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all shadow-sm font-bold"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-primary-400" />
-              <h2 className="text-2xl font-extrabold text-white tracking-tight">Academic Analytics & Workload Engine</h2>
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Academic Analytics & Workload Engine</h2>
             </div>
-            <p className="text-dark-400 text-sm">Real-time timetable workload calculations, room capacity & department-wise metrics</p>
+            <p className="text-slate-600 text-sm font-semibold">Real-time timetable workload calculations, room capacity & department-wise metrics</p>
           </div>
         </div>
 
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Branch Selector */}
-          <div className="flex items-center gap-2 bg-dark-900 border border-dark-800 rounded-xl px-3 py-2">
-            <Building2 className="w-4 h-4 text-primary-400" />
+          <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-xl px-3 py-2 shadow-sm">
+            <Building2 className="w-4 h-4 text-blue-600" />
             <select
               value={selectedDeptId}
               onChange={e => setSelectedDeptId(e.target.value)}
               disabled={!isUserAdminOrDean(user)}
-              className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer disabled:cursor-not-allowed"
+              className="bg-white text-slate-900 text-xs font-extrabold outline-none cursor-pointer disabled:cursor-not-allowed"
             >
-              <option value="ALL" className="bg-dark-950 text-white">All Departments</option>
+              <option value="ALL" className="bg-white text-slate-900 font-extrabold py-1">All Departments</option>
               {availableDepartments.map(d => (
-                <option key={d.id} value={d.id} className="bg-dark-950 text-white">
+                <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1">
                   {d.name} ({d.code})
                 </option>
               ))}
@@ -139,7 +139,7 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
 
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
           >
             <Download className="w-4 h-4" />
             Export CSV
@@ -147,7 +147,7 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
 
           <button
             onClick={loadAnalyticsData}
-            className="p-2.5 rounded-xl bg-dark-900 border border-dark-800 text-dark-400 hover:text-white transition-all"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:bg-slate-200 transition-all shadow-sm"
             title="Refresh analytics data"
           >
             <RefreshCw className="w-4 h-4" />
@@ -157,74 +157,74 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
 
       {isLoading ? (
         <div className="text-center py-20">
-          <RefreshCw className="w-8 h-8 text-primary-400 animate-spin mx-auto mb-3" />
-          <p className="text-dark-400 text-lg">Computing academic metrics and workload heatmaps...</p>
+          <RefreshCw className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
+          <p className="text-slate-600 text-sm font-bold">Computing academic metrics and workload heatmaps...</p>
         </div>
       ) : (
         <div className="space-y-8">
           {/* Top Metric Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Metric 1 */}
-            <div className="glass-panel p-6 border border-primary-500/20 bg-gradient-to-br from-primary-500/10 via-dark-900 to-dark-950 relative overflow-hidden">
+            <div className="glass-panel p-6 border border-slate-300 bg-white shadow-sm rounded-2xl relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <span className="text-[10px] uppercase font-extrabold text-primary-400 tracking-wider">Average Faculty Utilization</span>
-                  <h3 className="text-3xl font-black text-white mt-1">{analyticsData?.average_faculty_utilization || 0}%</h3>
+                  <span className="text-[10px] uppercase font-black text-blue-800 tracking-wider">Average Faculty Utilization</span>
+                  <h3 className="text-3xl font-black text-slate-900 mt-1">{analyticsData?.average_faculty_utilization || 0}%</h3>
                 </div>
-                <div className="p-3 rounded-2xl bg-primary-500/20 border border-primary-500/30 text-primary-300">
+                <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700">
                   <Users className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-xs text-dark-400">
-                Tracked across <strong className="text-white">{analyticsData?.total_faculty || 0}</strong> Active Faculty Roster Profiles
+              <p className="text-xs text-slate-600 font-semibold">
+                Tracked across <strong className="text-slate-900 font-black">{analyticsData?.total_faculty || 0}</strong> Active Faculty Roster Profiles
               </p>
-              <div className="w-full bg-dark-950 h-2 rounded-full mt-3 overflow-hidden border border-dark-800">
+              <div className="w-full bg-slate-200 h-2 rounded-full mt-3 overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-primary-500 to-indigo-500 h-full rounded-full transition-all duration-500" 
+                  className="bg-blue-600 h-full rounded-full transition-all duration-500" 
                   style={{ width: `${Math.min(analyticsData?.average_faculty_utilization || 0, 100)}%` }}
                 />
               </div>
             </div>
 
             {/* Metric 2 */}
-            <div className="glass-panel p-6 border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-dark-900 to-dark-950 relative overflow-hidden">
+            <div className="glass-panel p-6 border border-slate-300 bg-white shadow-sm rounded-2xl relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <span className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider">Campus Room Occupancy</span>
-                  <h3 className="text-3xl font-black text-white mt-1">{analyticsData?.average_room_occupancy || 0}%</h3>
+                  <span className="text-[10px] uppercase font-black text-emerald-800 tracking-wider">Campus Room Occupancy</span>
+                  <h3 className="text-3xl font-black text-slate-900 mt-1">{analyticsData?.average_room_occupancy || 0}%</h3>
                 </div>
-                <div className="p-3 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300">
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700">
                   <Building2 className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-xs text-dark-400">
-                Tracked across <strong className="text-white">{analyticsData?.total_classrooms || 0}</strong> Classrooms & Labs
+              <p className="text-xs text-slate-600 font-semibold">
+                Tracked across <strong className="text-slate-900 font-black">{analyticsData?.total_classrooms || 0}</strong> Classrooms & Labs
               </p>
-              <div className="w-full bg-dark-950 h-2 rounded-full mt-3 overflow-hidden border border-dark-800">
+              <div className="w-full bg-slate-200 h-2 rounded-full mt-3 overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500" 
+                  className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
                   style={{ width: `${Math.min(analyticsData?.average_room_occupancy || 0, 100)}%` }}
                 />
               </div>
             </div>
 
             {/* Metric 3 */}
-            <div className="glass-panel p-6 border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-dark-900 to-dark-950 relative overflow-hidden">
+            <div className="glass-panel p-6 border border-slate-300 bg-white shadow-sm rounded-2xl relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <span className="text-[10px] uppercase font-extrabold text-amber-400 tracking-wider">Total Timetable Slots</span>
-                  <h3 className="text-3xl font-black text-white mt-1">{analyticsData?.total_timetable_slots || 0}</h3>
+                  <span className="text-[10px] uppercase font-black text-amber-800 tracking-wider">Total Timetable Slots</span>
+                  <h3 className="text-3xl font-black text-slate-900 mt-1">{analyticsData?.total_timetable_slots || 0}</h3>
                 </div>
-                <div className="p-3 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-300">
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-                <ShieldCheck className="w-4 h-4" />
-                <span>100% Constraint Compliant (B.Tech Rules Compliant)</span>
+              <p className="text-xs text-emerald-800 font-extrabold flex items-center gap-1">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>100% Constraint Compliant (17 B.Tech Rules Compliant)</span>
               </p>
-              <div className="w-full bg-dark-950 h-2 rounded-full mt-3 overflow-hidden border border-dark-800">
-                <div className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full w-full" />
+              <div className="w-full bg-slate-200 h-2 rounded-full mt-3 overflow-hidden">
+                <div className="bg-amber-500 h-full rounded-full w-full" />
               </div>
             </div>
           </div>

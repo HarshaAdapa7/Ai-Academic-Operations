@@ -11,13 +11,23 @@ else:
     # Disable prepared statements for Supabase transaction pooler (pgbouncer) compatibility
     connect_args["statement_cache_size"] = 0
 
-# Create Async Engine
+# Create Async Engine with optimized connection pooling
+engine_kwargs = {
+    "echo": False,
+    "connect_args": connect_args,
+    "pool_pre_ping": True,
+    "pool_recycle": 1800,
+}
+if not settings.DATABASE_URL.startswith("sqlite"):
+    engine_kwargs.update({
+        "pool_size": 20,
+        "max_overflow": 30,
+        "pool_timeout": 30,
+    })
+
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=False,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-    pool_recycle=300
+    **engine_kwargs
 )
 
 # Async Sessionmaker

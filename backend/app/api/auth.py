@@ -60,7 +60,8 @@ async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     email_clean = user_in.email.strip().lower()
     
     # Check if user already exists
-    result = await db.execute(select(User).where(User.email == email_clean))
+    from sqlalchemy import func
+    result = await db.execute(select(User).where(func.lower(User.email) == email_clean))
     existing_user = result.scalars().first()
     if existing_user:
         raise HTTPException(
@@ -99,8 +100,9 @@ async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
 async def login(login_data: UserLogin, db: AsyncSession = Depends(get_db)):
     email_clean = login_data.email.strip().lower()
     
-    # Find user by email
-    result = await db.execute(select(User).where(User.email == email_clean))
+    # Find user by email (case-insensitive)
+    from sqlalchemy import func
+    result = await db.execute(select(User).where(func.lower(User.email) == email_clean))
     user = result.scalars().first()
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
@@ -232,8 +234,9 @@ async def reset_password(req: ResetPasswordRequest, db: AsyncSession = Depends(g
             detail="OTP verification has expired or was not completed. Please request a new OTP."
         )
 
-    # Fetch user
-    user_result = await db.execute(select(User).where(User.email == email_clean))
+    # Fetch user (case-insensitive)
+    from sqlalchemy import func
+    user_result = await db.execute(select(User).where(func.lower(User.email) == email_clean))
     user = user_result.scalars().first()
     if not user:
         raise HTTPException(

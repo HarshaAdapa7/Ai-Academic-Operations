@@ -82,12 +82,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [token]);
 
+const formatAuthError = (error: any, fallback: string): string => {
+  if (!error) return fallback;
+  const detail = error.response?.data?.detail;
+  if (!detail) {
+    if (error.code === 'ERR_NETWORK') return 'Network Error: Cannot connect to API server at http://127.0.0.1:8002.';
+    return error.message || fallback;
+  }
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d: any) => d.msg || d.detail || JSON.stringify(d)).join(', ');
+  }
+  if (typeof detail === 'object') {
+    return detail.msg || detail.detail || JSON.stringify(detail);
+  }
+  return fallback;
+};
+
   const login = async (email: string, password: string) => {
     try {
       const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password,
-        full_name: 'Login Form' // matching schema structure or ignored on backend
+        full_name: 'Login Form'
       });
       
       const { access_token } = response.data;
@@ -96,11 +113,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(access_token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       
-      // Fetch details
       await fetchCurrentUser(access_token);
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.detail || 'Login failed. Please check credentials.';
+      throw formatAuthError(error, 'Login failed. Please check credentials.');
     }
   };
 
@@ -114,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.detail || 'Registration failed.';
+      throw formatAuthError(error, 'Registration failed.');
     }
   };
 
@@ -130,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await axios.post(`${API_URL}/auth/forgot-password`, { email });
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.detail || 'Failed to request OTP code.';
+      throw formatAuthError(error, 'Failed to request OTP code.');
     }
   };
 
@@ -142,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.detail || 'Invalid or expired OTP code.';
+      throw formatAuthError(error, 'Invalid or expired OTP code.');
     }
   };
 
@@ -155,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       return response.data;
     } catch (error: any) {
-      throw error.response?.data?.detail || 'Failed to reset password.';
+      throw formatAuthError(error, 'Failed to reset password.');
     }
   };
 

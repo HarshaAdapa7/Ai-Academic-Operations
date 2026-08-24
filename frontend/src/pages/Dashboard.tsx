@@ -1,25 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, LayoutGrid, Users, CalendarDays, MonitorPlay, MapPin, Brain, Bell, Calendar, BarChart3 } from 'lucide-react';
-import { FacultyManagerView } from './FacultyManagerView';
-import { DeptSubjectManager } from './DeptSubjectManager';
-import { FacultyAvailabilityView } from './FacultyAvailabilityView';
-import { LeaveManagerView } from './LeaveManagerView';
-import { ClassroomManagerView } from './ClassroomManagerView';
-import { TimetableManagerView } from './TimetableManagerView';
-import { ExamTimetableManagerView } from './ExamTimetableManagerView';
-import { AIDecisionCenterView } from './AIDecisionCenterView';
-import { AcademicAnalyticsView } from './AcademicAnalyticsView';
-import { FacultyWeeklyTimetable } from './FacultyWeeklyTimetable';
-import { FacultyAnalyticsRecordsView } from './FacultyAnalyticsRecordsView';
-import { AcademicCalendarView } from './AcademicCalendarView';
+import { Loader2 } from 'lucide-react';
 import { leaveService } from '../services/leaveService';
-import { DepartmentDataImportView } from './DepartmentDataImportView';
 import type { DailyBulletin } from '../services/leaveService';
 import { academicCalendarService } from '../services/academicCalendarService';
 import type { AcademicCalendar } from '../services/academicCalendarService';
 import { NotificationDrawer } from '../components/NotificationDrawer';
 import { useNotifications } from '../context/NotificationContext';
+
+// Dynamic Lazy Loading of Sub-View Modules for maximum speed and initial bundle reduction
+const FacultyManagerView = React.lazy(() => import('./FacultyManagerView').then(m => ({ default: m.FacultyManagerView })));
+const DeptSubjectManager = React.lazy(() => import('./DeptSubjectManager').then(m => ({ default: m.DeptSubjectManager })));
+const FacultyAvailabilityView = React.lazy(() => import('./FacultyAvailabilityView').then(m => ({ default: m.FacultyAvailabilityView })));
+const LeaveManagerView = React.lazy(() => import('./LeaveManagerView').then(m => ({ default: m.LeaveManagerView })));
+const ClassroomManagerView = React.lazy(() => import('./ClassroomManagerView').then(m => ({ default: m.ClassroomManagerView })));
+const TimetableManagerView = React.lazy(() => import('./TimetableManagerView').then(m => ({ default: m.TimetableManagerView })));
+const ExamTimetableManagerView = React.lazy(() => import('./ExamTimetableManagerView').then(m => ({ default: m.ExamTimetableManagerView })));
+const AIDecisionCenterView = React.lazy(() => import('./AIDecisionCenterView').then(m => ({ default: m.AIDecisionCenterView })));
+const AcademicAnalyticsView = React.lazy(() => import('./AcademicAnalyticsView').then(m => ({ default: m.AcademicAnalyticsView })));
+const FacultyWeeklyTimetable = React.lazy(() => import('./FacultyWeeklyTimetable').then(m => ({ default: m.FacultyWeeklyTimetable })));
+const FacultyAnalyticsRecordsView = React.lazy(() => import('./FacultyAnalyticsRecordsView').then(m => ({ default: m.FacultyAnalyticsRecordsView })));
+const AcademicCalendarView = React.lazy(() => import('./AcademicCalendarView').then(m => ({ default: m.AcademicCalendarView })));
+const DepartmentDataImportView = React.lazy(() => import('./DepartmentDataImportView').then(m => ({ default: m.DepartmentDataImportView })));
 
 type ActiveView = 'dashboard' | 'faculty_profiles' | 'dept_subjects' | 'faculty_avail' | 'leave_operations' | 'classrooms_seating' | 'timetable_ops' | 'exam_timetable_ops' | 'ai_decision_center' | 'academic_analytics' | 'faculty_weekly_timetable' | 'faculty_analytics_records' | 'dept_data_import' | 'academic_calendar';
 
@@ -373,95 +376,101 @@ export const Dashboard: React.FC = () => {
         </main>
       )}
 
-      {/* Render Sub-Views based on active state */}
-      {activeView === 'faculty_profiles' && user?.role !== 'FACULTY' && (
-        <FacultyManagerView 
-          onBack={() => setActiveView('dashboard')}
-          onOpenAvailability={handleOpenFacultyAvailability}
-        />
-      )}
+      {/* Render Sub-Views based on active state with React.Suspense fallback */}
+      <React.Suspense fallback={
+        <div className="max-w-7xl mx-auto px-6 mt-16 flex flex-col items-center justify-center min-h-[300px]">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+          <p className="text-slate-600 font-bold text-sm">Loading Module Sector...</p>
+        </div>
+      }>
+        {activeView === 'faculty_profiles' && user?.role !== 'FACULTY' && (
+          <FacultyManagerView 
+            onBack={() => setActiveView('dashboard')}
+            onOpenAvailability={handleOpenFacultyAvailability}
+          />
+        )}
 
-      {activeView === 'dept_subjects' && (
-        <DeptSubjectManager 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'dept_subjects' && (
+          <DeptSubjectManager 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'faculty_avail' && (
-        <FacultyAvailabilityView 
-          facultyId={editFacultyId}
-          facultyName={editFacultyName}
-          onBack={() => {
-            if (user?.role === 'FACULTY') {
-              setActiveView('dashboard');
-            } else {
-              setActiveView('faculty_profiles');
-            }
-          }}
-        />
-      )}
+        {activeView === 'faculty_avail' && (
+          <FacultyAvailabilityView 
+            facultyId={editFacultyId}
+            facultyName={editFacultyName}
+            onBack={() => {
+              if (user?.role === 'FACULTY') {
+                setActiveView('dashboard');
+              } else {
+                setActiveView('faculty_profiles');
+              }
+            }}
+          />
+        )}
 
-      {activeView === 'leave_operations' && (
-        <LeaveManagerView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'leave_operations' && (
+          <LeaveManagerView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'classrooms_seating' && user?.role !== 'FACULTY' && (
-        <ClassroomManagerView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'classrooms_seating' && user?.role !== 'FACULTY' && (
+          <ClassroomManagerView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'timetable_ops' && user?.role !== 'FACULTY' && (
-        <TimetableManagerView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'timetable_ops' && user?.role !== 'FACULTY' && (
+          <TimetableManagerView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'exam_timetable_ops' && user?.role !== 'FACULTY' && (
-        <ExamTimetableManagerView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'exam_timetable_ops' && user?.role !== 'FACULTY' && (
+          <ExamTimetableManagerView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
+        {activeView === 'ai_decision_center' && (
+          <AIDecisionCenterView 
+            onBack={() => setActiveView('dashboard')}
+            onNavigate={(targetView) => setActiveView(targetView)}
+          />
+        )}
 
-      {activeView === 'ai_decision_center' && (
-        <AIDecisionCenterView 
-          onBack={() => setActiveView('dashboard')}
-          onNavigate={(targetView) => setActiveView(targetView)}
-        />
-      )}
+        {activeView === 'academic_analytics' && (
+          <AcademicAnalyticsView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'academic_analytics' && (
-        <AcademicAnalyticsView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'faculty_weekly_timetable' && (
+          <FacultyWeeklyTimetable 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'faculty_weekly_timetable' && (
-        <FacultyWeeklyTimetable 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'faculty_analytics_records' && (
+          <FacultyAnalyticsRecordsView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'faculty_analytics_records' && (
-        <FacultyAnalyticsRecordsView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'dept_data_import' && (
+          <DepartmentDataImportView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
 
-      {activeView === 'dept_data_import' && (
-        <DepartmentDataImportView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
-
-      {activeView === 'academic_calendar' && (
-        <AcademicCalendarView 
-          onBack={() => setActiveView('dashboard')}
-        />
-      )}
+        {activeView === 'academic_calendar' && (
+          <AcademicCalendarView 
+            onBack={() => setActiveView('dashboard')}
+          />
+        )}
+      </React.Suspense>
 
       {/* Daily Task Bulletin Modal */}
       {isBulletinOpen && bulletin && (

@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import { facultyService } from '../services/facultyService';
 import type { FacultyProfile, Department, Subject, UserMini } from '../services/facultyService';
 import { Search, Plus, Edit, Trash2, CalendarDays, RefreshCw, X, ChevronLeft } from 'lucide-react';
-import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface FacultyManagerViewProps {
   onBack: () => void;
@@ -52,15 +51,7 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
       setUsers(usersData);
 
       // Security Scoping: HODs get strictly scoped profiles for their department only
-      let targetDeptId: string | undefined = undefined;
-      if (!isUserAdminOrDean(user)) {
-        targetDeptId = getUserDeptId(user, deptsData);
-        if (targetDeptId) {
-          setDeptFilter(targetDeptId);
-        }
-      }
-
-      const profilesData = await facultyService.getFacultyProfiles(targetDeptId);
+      const profilesData = await facultyService.getFacultyProfiles();
       setProfiles(profilesData);
     } catch (err) {
       console.error('Failed to load faculty registry data:', err);
@@ -240,22 +231,13 @@ export const FacultyManagerView: React.FC<FacultyManagerViewProps> = ({ onBack, 
         <div className="w-full md:w-64">
           <select
             value={deptFilter}
-            onChange={e => {
-              if (user?.role === 'ADMIN' || user?.role === 'DEAN') {
-                setDeptFilter(e.target.value);
-              }
-            }}
-            disabled={user?.role !== 'ADMIN' && user?.role !== 'DEAN'}
-            className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none transition-all disabled:opacity-80 cursor-not-allowed shadow-sm"
+            onChange={e => setDeptFilter(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none transition-all shadow-sm cursor-pointer"
           >
-            {user?.role === 'ADMIN' || user?.role === 'DEAN' ? (
-              <option value="" className="bg-white text-slate-900 font-extrabold py-1">All Departments</option>
-            ) : null}
-            {departments
-              .filter(d => (user?.role === 'ADMIN' || user?.role === 'DEAN') ? true : d.id === deptFilter)
-              .map(d => (
-                <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1">{d.name} ({d.code})</option>
-              ))}
+            <option value="" className="bg-white text-slate-900 font-extrabold py-1">All Departments</option>
+            {departments.map(d => (
+              <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1">{d.name} ({d.code})</option>
+            ))}
           </select>
         </div>
       </div>

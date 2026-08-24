@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import { facultyService } from '../services/facultyService';
 import type { Department, Subject } from '../services/facultyService';
 import { Plus, Trash2, FolderPlus, BookOpen, RefreshCw, ChevronLeft, Upload, FileSpreadsheet, Image as ImageIcon, CheckCircle, AlertTriangle, X } from 'lucide-react';
-import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface DeptSubjectManagerProps {
   onBack: () => void;
@@ -46,17 +45,11 @@ export const DeptSubjectManager: React.FC<DeptSubjectManagerProps> = ({ onBack }
       const deptsData = await facultyService.getDepartments();
       setDepartments(deptsData);
 
-      let targetDeptId: string | undefined = undefined;
-      if (!isUserAdminOrDean(user)) {
-        targetDeptId = getUserDeptId(user, deptsData);
-        if (targetDeptId) {
-          setSubjDeptId(targetDeptId);
-        }
-      } else if (deptsData.length > 0 && !subjDeptId) {
+      if (deptsData.length > 0 && !subjDeptId) {
         setSubjDeptId(deptsData[0].id);
       }
 
-      const subjsData = await facultyService.getSubjects(targetDeptId);
+      const subjsData = await facultyService.getSubjects();
       setSubjects(subjsData);
     } catch (err: any) {
       console.error('Failed to load subjects data:', err);
@@ -328,19 +321,12 @@ export const DeptSubjectManager: React.FC<DeptSubjectManagerProps> = ({ onBack }
                 <label className="text-xs font-extrabold text-slate-800 block mb-1.5">Department</label>
                 <select
                   value={subjDeptId}
-                  onChange={e => {
-                    if (user?.role === 'ADMIN' || user?.role === 'DEAN') {
-                      setSubjDeptId(e.target.value);
-                    }
-                  }}
-                  disabled={user?.role !== 'ADMIN' && user?.role !== 'DEAN'}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none transition-all disabled:opacity-80 cursor-not-allowed shadow-sm"
+                  onChange={e => setSubjDeptId(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-extrabold focus:border-blue-600 outline-none transition-all shadow-sm cursor-pointer"
                 >
-                  {departments
-                    .filter(d => (user?.role === 'ADMIN' || user?.role === 'DEAN') ? true : d.id === subjDeptId)
-                    .map(d => (
-                      <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1">{d.name} ({d.code})</option>
-                    ))}
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1">{d.name} ({d.code})</option>
+                  ))}
                 </select>
               </div>
 

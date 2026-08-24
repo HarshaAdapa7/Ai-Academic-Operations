@@ -235,15 +235,20 @@ export const PrintableTimetableTemplate: React.FC<PrintableTimetableTemplateProp
                       return null; // Skip lunch cells for other days as rowSpan=6 handles it
                     }
 
+                    const subObj = entry ? (entry.subject || subjects.find(s => s.id === entry.subject_id)) : null;
+                    const subjectDisplayName = subObj?.name || subObj?.code || '';
+
                     return (
-                      <td key={slotNum} className="border border-black p-1 font-semibold text-[10px] align-middle">
+                      <td key={slotNum} className="border border-black p-1 font-semibold text-[9.5px] align-middle">
                         {isSatAfternoon ? (
                           <span className="text-gray-400 font-serif italic text-[9px]">HALF DAY</span>
                         ) : entry ? (
-                          <div className="leading-tight">
-                            <strong className="block font-black text-black">{entry.subject?.code || entry.subject?.name}</strong>
+                          <div className="leading-tight px-0.5">
+                            <strong className="block font-black text-black uppercase text-[9px] leading-snug break-words">
+                              {subjectDisplayName}
+                            </strong>
                             {entry.lab_batch && entry.lab_batch !== 'ALL' && (
-                              <span className="text-[8px] font-bold text-gray-700">({entry.lab_batch})</span>
+                              <span className="text-[8px] font-bold text-gray-700 block mt-0.5">({entry.lab_batch})</span>
                             )}
                           </div>
                         ) : (

@@ -147,10 +147,11 @@ async def validation_exception_handler(request, exc):
     print(f"Errors: {exc.errors()}")
     print(f"Body: {body.decode('utf-8', errors='ignore')}")
     print(f"--------------------------------")
+    from fastapi.encoders import jsonable_encoder
     origin = request.headers.get("origin") or "http://localhost:5173"
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()},
+        content={"detail": jsonable_encoder(exc.errors())},
         headers={
             "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",

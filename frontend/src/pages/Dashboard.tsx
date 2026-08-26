@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, LayoutGrid, Users, CalendarDays, MonitorPlay, MapPin, Brain, Bell, Calendar, BarChart3 } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
+import { 
+  LogOut, LayoutGrid, Users, CalendarDays, MonitorPlay, MapPin, Brain, Bell, Calendar, BarChart3,
+  Sun, Moon, ShieldCheck, GraduationCap, Building, Sparkles, Loader2
+} from 'lucide-react';
 import { leaveService } from '../services/leaveService';
 import type { DailyBulletin } from '../services/leaveService';
 import { academicCalendarService } from '../services/academicCalendarService';
@@ -211,6 +213,88 @@ export const Dashboard: React.FC = () => {
     setActiveView('faculty_avail');
   };
 
+  // Helper for dynamic time-based greeting & icons
+  const getGreetingData = () => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 12) {
+      return { 
+        text: 'Good morning', 
+        icon: Sun, 
+        badgeColor: 'bg-amber-50 border-amber-200 text-amber-900' 
+      };
+    }
+    if (hour >= 12 && hour < 17) {
+      return { 
+        text: 'Good afternoon', 
+        icon: Sun, 
+        badgeColor: 'bg-orange-50 border-orange-200 text-orange-900' 
+      };
+    }
+    return { 
+      text: 'Good evening', 
+      icon: Moon, 
+      badgeColor: 'bg-indigo-50 border-indigo-200 text-indigo-900' 
+    };
+  };
+
+  // Helper for formatted capitalized user name
+  const getFormattedName = (name?: string | null) => {
+    if (!name) return 'Colleague';
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Helper for dynamic role welcome config
+  const getRoleWelcomeConfig = (role?: string) => {
+    switch (role) {
+      case 'ADMIN':
+        return {
+          badge: 'Institutional Administration • Master Governance Scope',
+          subtitle: 'Welcome to your administrative control center. You have institutional authority over multi-department scheduling rules, AI solver engines, faculty registries, and academic calendar operations.',
+          icon: ShieldCheck,
+          roleTitle: 'System Administrator'
+        };
+      case 'DEAN':
+        return {
+          badge: 'Academic Dean Office • Cross-Departmental Oversight',
+          subtitle: "Welcome to the Academic Dean's portal. Monitor college-wide faculty workload distributions, cross-department scheduling rules, and institutional examination schedules.",
+          icon: GraduationCap,
+          roleTitle: 'Academic Dean'
+        };
+      case 'HOD':
+        return {
+          badge: 'Department Head • Branch Operations Center',
+          subtitle: 'Welcome to the Department Head operations desk. Manage branch faculty rosters, course teaching assignments, 17-rule weekly timetable generation, and duty leave approvals.',
+          icon: Building,
+          roleTitle: 'Head of Department (HOD)'
+        };
+      case 'FACULTY':
+        return {
+          badge: 'Faculty Member Portal • Teaching & Analytics',
+          subtitle: 'Welcome to your teaching workspace. View your assigned weekly lectures, room allocations, leave applications, and student mentoring roster in real-time.',
+          icon: Sparkles,
+          roleTitle: 'Faculty Member'
+        };
+      case 'STUDENT':
+        return {
+          badge: 'Student Academic Portal • Class & Exam Timelines',
+          subtitle: "Welcome to the Student Academic Portal. Access your section's weekly schedule, upcoming exam session rooms, and institutional academic milestones.",
+          icon: CalendarDays,
+          roleTitle: 'Student'
+        };
+      default:
+        return {
+          badge: 'Academic Operations Platform • ANITS Autonomous',
+          subtitle: 'Welcome back to the unified academic management console. Access your operational modules and constraint solver tools below.',
+          icon: Sparkles,
+          roleTitle: role || 'Academic Member'
+        };
+    }
+  };
+
   return (
     <div className="min-h-screen pb-12">
       {/* Navbar */}
@@ -290,7 +374,7 @@ export const Dashboard: React.FC = () => {
             )}
 
             <div className="text-right hidden sm:block">
-              <span className="block text-xs font-extrabold text-slate-900">{user?.full_name}</span>
+              <span className="block text-xs font-extrabold text-slate-900">{getFormattedName(user?.full_name)}</span>
               <span className="text-[10px] font-black text-blue-700 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block">
                 {user?.role}
               </span>
@@ -323,20 +407,70 @@ export const Dashboard: React.FC = () => {
       {/* Main View Router */}
       {activeView === 'dashboard' && (
         <main className="max-w-7xl mx-auto px-6 mt-10">
-          {/* Welcome Banner */}
-          <div className="glass-panel p-8 md:p-10 relative overflow-hidden mb-8 bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-white border border-slate-300 shadow-sm">
-            <div className="relative z-10 max-w-2xl">
-              <span className="text-xs font-black text-blue-800 uppercase tracking-widest bg-blue-100 border border-blue-300 px-3 py-1 rounded-full">
-                System Bootstrapped
-              </span>
-              <h2 className="text-3xl md:text-4xl font-black text-slate-900 mt-4 tracking-tight leading-tight">
-                Hello, {user?.full_name}
-              </h2>
-              <p className="text-slate-700 mt-3 text-base md:text-lg font-semibold leading-relaxed">
-                Your system environment has been initialized. You are currently logged in with the role of <strong className="text-blue-700 font-extrabold">{user?.role}</strong>. Below is your dynamic module registry.
-              </p>
-            </div>
-          </div>
+          {/* Executive Dynamic Welcome Banner */}
+          {(() => {
+            const greeting = getGreetingData();
+            const GreetingIcon = greeting.icon;
+            const roleConfig = getRoleWelcomeConfig(user?.role);
+            const RoleIcon = roleConfig.icon;
+            const formattedName = getFormattedName(user?.full_name);
+            const formattedDate = new Date().toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric' 
+            });
+
+            return (
+              <div className="relative overflow-hidden mb-8 rounded-3xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border border-slate-300 p-8 md:p-10 shadow-sm">
+                {/* Subtle Decorative Background Accents */}
+                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+                <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-300/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  {/* Left Column: Greeting, Formatted Name & Role Description */}
+                  <div className="max-w-3xl">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full border shadow-xs ${greeting.badgeColor}`}>
+                        <GreetingIcon className="w-3.5 h-3.5" />
+                        {greeting.text}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-blue-900 bg-blue-100/80 border border-blue-300 px-3 py-1 rounded-full uppercase tracking-wider">
+                        <RoleIcon className="w-3.5 h-3.5 text-blue-700" />
+                        {roleConfig.badge}
+                      </span>
+                    </div>
+
+                    <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                      {greeting.text}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-indigo-800 to-slate-900">{formattedName}</span>
+                    </h2>
+
+                    <p className="text-slate-700 mt-3 text-sm md:text-base font-semibold leading-relaxed">
+                      {roleConfig.subtitle}
+                    </p>
+                  </div>
+
+                  {/* Right Column: Institutional Operational Status Pill */}
+                  <div className="flex-shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3 bg-white/90 backdrop-blur-sm border border-slate-300/90 rounded-2xl p-4 shadow-sm">
+                    <div className="flex items-center gap-2 text-xs font-black text-slate-800">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <span>{formattedDate}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 pt-2 sm:pt-0 lg:pt-2 border-t sm:border-t-0 lg:border-t border-slate-200 text-[11px]">
+                      <span className="font-extrabold text-slate-500 uppercase tracking-wider">Active Term</span>
+                      <span className="font-black text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                        A.Y. 2026–27 (Sem-I)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] font-extrabold text-emerald-700 pt-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span>ANITS Engine Online</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
 
 

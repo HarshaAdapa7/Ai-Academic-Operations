@@ -220,12 +220,15 @@ export const Dashboard: React.FC = () => {
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => setActiveView('dashboard')}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-extrabold shadow-lg shadow-primary-500/10">
-              <LayoutGrid className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 flex items-center justify-center text-white font-black text-xs shadow-md border border-blue-900/30 tracking-wider">
+              ANITS
             </div>
             <div>
-              <h1 className="text-lg font-black text-slate-900 leading-none">AcadOps</h1>
-              <span className="text-[10px] text-slate-600 font-extrabold tracking-wider uppercase">Startup V1</span>
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-lg font-black text-slate-900 leading-none tracking-tight">ANITS</h1>
+                <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-800 text-[9px] font-black uppercase tracking-wider">Autonomous</span>
+              </div>
+              <span className="text-[10px] text-slate-600 font-extrabold tracking-wider uppercase block mt-0.5">Academic Operations</span>
             </div>
           </div>
           

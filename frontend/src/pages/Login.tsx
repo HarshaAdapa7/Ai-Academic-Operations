@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Eye, EyeOff, Loader2, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -46,11 +46,14 @@ export const Login: React.FC = () => {
           
           {/* Logo/Brand Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/20 mb-4">
-              <ShieldCheck className="w-7 h-7 stroke-[2.5]" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 text-white font-black text-base shadow-xl shadow-blue-900/20 mb-4 border border-blue-900/30 tracking-wider">
+              ANITS
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">AcadOps Portal</h2>
-            <p className="text-slate-600 mt-1.5 text-xs sm:text-sm font-semibold">AI-First Academic Operations Platform</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">ANITS Portal</h2>
+            <p className="text-slate-600 mt-1.5 text-xs sm:text-sm font-bold">Anil Neerukonda Institute of Technology & Sciences</p>
+            <span className="inline-block mt-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[10px] font-black uppercase tracking-wider">
+              Autonomous • Academic Operations Platform
+            </span>
           </div>
 
           {error && (
@@ -153,7 +156,7 @@ export const Login: React.FC = () => {
         {/* Security Badge */}
         <div className="text-center mt-6">
           <p className="text-[11px] font-extrabold text-slate-600 tracking-wider uppercase">
-            Encrypted End-to-End • Startup Academic Platform V1
+            Encrypted End-to-End • ANITS Academic Operations Platform
           </p>
         </div>
       </div>

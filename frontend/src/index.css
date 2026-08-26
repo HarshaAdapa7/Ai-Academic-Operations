@@ -119,13 +119,21 @@ a.text-white,
 
 /* Input Controls */
 .glass-input,
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
-  background-color: #ffffff !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #0f172a !important;
-  font-weight: 600 !important;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+select.bg-transparent,
+select.border-0,
+select[style*="border: none"] {
+  border: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 input::placeholder,
@@ -136,7 +144,6 @@ textarea::placeholder {
 input:focus,
 select:focus,
 textarea:focus {
-  background-color: #ffffff !important;
   border-color: #2563eb !important;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
 }

@@ -4,7 +4,7 @@ import type { Department } from '../services/facultyService';
 import { facultyService } from '../services/facultyService';
 import { aiService } from '../services/aiService';
 import type { AnalyticsDashboardOutput } from '../services/aiService';
-import { ChevronLeft, BarChart3, Building2, Users, CheckCircle2, RefreshCw, Activity, ShieldCheck, Search, Download } from 'lucide-react';
+import { ChevronLeft, ChevronDown, BarChart3, Building2, Users, CheckCircle2, RefreshCw, Activity, ShieldCheck, Search, Download } from 'lucide-react';
 import { getUserDeptId, isUserAdminOrDean } from '../utils/security';
 
 interface AcademicAnalyticsViewProps {
@@ -120,21 +120,27 @@ export const AcademicAnalyticsView: React.FC<AcademicAnalyticsViewProps> = ({ on
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Branch Selector */}
-          <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-xl px-3 py-2 shadow-sm">
-            <Building2 className="w-4 h-4 text-blue-600" />
+          <div className="relative flex items-center bg-white border border-slate-300 rounded-xl shadow-sm hover:border-blue-500 transition-all">
+            <div className="pl-3.5 pr-1 flex items-center pointer-events-none text-blue-600">
+              <Building2 className="w-4 h-4" />
+            </div>
             <select
               value={selectedDeptId}
               onChange={e => setSelectedDeptId(e.target.value)}
               disabled={!isUserAdminOrDean(user)}
-              className="bg-white text-slate-900 text-xs font-extrabold outline-none cursor-pointer disabled:cursor-not-allowed"
+              className="bg-transparent border-0 text-slate-900 text-xs font-black py-2.5 pr-8 pl-1.5 rounded-xl outline-none cursor-pointer disabled:cursor-not-allowed appearance-none"
+              style={{ border: 'none', background: 'transparent' }}
             >
-              <option value="ALL" className="bg-white text-slate-900 font-extrabold py-1">All Departments</option>
+              <option value="ALL" className="bg-white text-slate-900 font-black py-1.5">All Departments</option>
               {availableDepartments.map(d => (
-                <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1">
+                <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold py-1.5">
                   {d.name} ({d.code})
                 </option>
               ))}
             </select>
+            <div className="absolute right-3 pointer-events-none text-slate-400">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </div>
           </div>
 
           <button

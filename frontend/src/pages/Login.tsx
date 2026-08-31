@@ -42,7 +42,7 @@ export const Login: React.FC = () => {
 
       <div className="w-full max-w-md relative z-10">
         {/* Main Card */}
-        <div className="bg-white border border-slate-300 shadow-xl rounded-3xl p-8 sm:p-10 backdrop-blur-md">
+        <div className="bg-white border border-slate-300 shadow-xl rounded-2xl sm:rounded-3xl p-6 sm:p-10 backdrop-blur-md">
           
           {/* Logo/Brand Header */}
           <div className="text-center mb-8">

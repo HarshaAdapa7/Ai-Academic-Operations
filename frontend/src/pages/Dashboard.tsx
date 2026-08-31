@@ -298,31 +298,31 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen pb-12">
       {/* Navbar */}
-      <nav className="glass-panel rounded-none border-t-0 border-x-0 bg-dark-950/70 backdrop-blur-md sticky top-0 z-40 px-6 py-4">
+      <nav className="glass-panel rounded-none border-t-0 border-x-0 bg-dark-950/70 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-6 py-3 sm:py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div 
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer"
             onClick={() => setActiveView('dashboard')}
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 flex items-center justify-center text-white font-black text-xs shadow-md border border-blue-900/30 tracking-wider">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 flex items-center justify-center text-white font-black text-xs shadow-md border border-blue-900/30 tracking-wider flex-shrink-0">
               ANITS
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="text-lg font-black text-slate-900 leading-none tracking-tight">ANITS</h1>
-                <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-800 text-[9px] font-black uppercase tracking-wider">Autonomous</span>
+                <h1 className="text-base sm:text-lg font-black text-slate-900 leading-none tracking-tight">ANITS</h1>
+                <span className="px-1.5 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-800 text-[8px] sm:text-[9px] font-black uppercase tracking-wider">Autonomous</span>
               </div>
-              <span className="text-[10px] text-slate-600 font-extrabold tracking-wider uppercase block mt-0.5">Academic Operations</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-600 font-extrabold tracking-wider uppercase block mt-0.5">Academic Operations</span>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* HOD sub-navigation options shown in Navbar when inside Module 2 */}
             {(user?.role === 'HOD' || user?.role === 'ADMIN') && activeView !== 'dashboard' && (
-              <div className="hidden md:flex items-center gap-1.5 mr-6 bg-slate-100 p-1.5 rounded-xl border border-slate-300 shadow-inner">
+              <div className="hidden lg:flex items-center gap-1.5 mr-4 bg-slate-100 p-1.5 rounded-xl border border-slate-300 shadow-inner">
                 <button
                   onClick={() => setActiveView('faculty_profiles')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'faculty_profiles' 
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
@@ -332,7 +332,7 @@ export const Dashboard: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveView('dept_subjects')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'dept_subjects' 
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
@@ -342,7 +342,7 @@ export const Dashboard: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveView('timetable_ops')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'timetable_ops' 
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
@@ -352,7 +352,7 @@ export const Dashboard: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveView('exam_timetable_ops')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'exam_timetable_ops' 
                       ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30' 
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
@@ -362,7 +362,7 @@ export const Dashboard: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveView('academic_analytics')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
                     activeView === 'academic_analytics' 
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30' 
                       : 'text-slate-700 hover:text-slate-900 hover:bg-slate-200'
@@ -382,12 +382,12 @@ export const Dashboard: React.FC = () => {
             
             <button
               onClick={() => setIsDrawerOpen(true)}
-              className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition-all relative"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition-all relative"
               title="Notification Center"
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center shadow-md">
+                <span className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-blue-600 text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center shadow-md">
                   {unreadCount}
                 </span>
               )}
@@ -395,18 +395,70 @@ export const Dashboard: React.FC = () => {
 
             <button
               onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:text-red-700 hover:border-red-300 hover:bg-red-50 transition-all font-extrabold shadow-sm"
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 hover:text-red-700 hover:border-red-300 hover:bg-red-50 transition-all font-extrabold shadow-sm"
             >
               <LogOut className="w-4 h-4" />
-              <span className="text-xs font-bold hidden sm:inline">Sign Out</span>
+              <span className="text-xs font-bold hidden md:inline">Sign Out</span>
             </button>
           </div>
         </div>
+
+        {/* Mobile sub-navigation bar when inside a sub-module */}
+        {(user?.role === 'HOD' || user?.role === 'ADMIN') && activeView !== 'dashboard' && (
+          <div className="lg:hidden flex items-center gap-1.5 pt-3 pb-1 border-t border-slate-200 mt-3 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setActiveView('dashboard')}
+              className="px-3 py-1.5 rounded-lg text-xs font-black bg-slate-200 text-slate-900 border border-slate-300 whitespace-nowrap"
+            >
+              ← Overview
+            </button>
+            <button
+              onClick={() => setActiveView('faculty_profiles')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeView === 'faculty_profiles' ? 'bg-blue-600 text-white shadow-xs font-black' : 'bg-white text-slate-700 border border-slate-300'
+              }`}
+            >
+              Faculty
+            </button>
+            <button
+              onClick={() => setActiveView('dept_subjects')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeView === 'dept_subjects' ? 'bg-blue-600 text-white shadow-xs font-black' : 'bg-white text-slate-700 border border-slate-300'
+              }`}
+            >
+              Subjects
+            </button>
+            <button
+              onClick={() => setActiveView('timetable_ops')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeView === 'timetable_ops' ? 'bg-blue-600 text-white shadow-xs font-black' : 'bg-white text-slate-700 border border-slate-300'
+              }`}
+            >
+              Timetable
+            </button>
+            <button
+              onClick={() => setActiveView('exam_timetable_ops')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeView === 'exam_timetable_ops' ? 'bg-amber-600 text-white shadow-xs font-black' : 'bg-white text-slate-700 border border-slate-300'
+              }`}
+            >
+              Exams
+            </button>
+            <button
+              onClick={() => setActiveView('academic_analytics')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeView === 'academic_analytics' ? 'bg-blue-600 text-white shadow-xs font-black' : 'bg-white text-slate-700 border border-slate-300'
+              }`}
+            >
+              Analytics
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Main View Router */}
       {activeView === 'dashboard' && (
-        <main className="max-w-7xl mx-auto px-6 mt-10">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-10">
           {/* Executive Dynamic Welcome Banner */}
           {(() => {
             const greeting = getGreetingData();
@@ -422,7 +474,7 @@ export const Dashboard: React.FC = () => {
             });
 
             return (
-              <div className="relative overflow-hidden mb-8 rounded-3xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border border-slate-300 p-8 md:p-10 shadow-sm">
+              <div className="relative overflow-hidden mb-8 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border border-slate-300 p-5 sm:p-8 md:p-10 shadow-sm">
                 {/* Subtle Decorative Background Accents */}
                 <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
                 <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-300/10 rounded-full blur-2xl pointer-events-none"></div>
@@ -441,17 +493,17 @@ export const Dashboard: React.FC = () => {
                       </span>
                     </div>
 
-                    <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">
                       {greeting.text}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-indigo-800 to-slate-900">{formattedName}</span>
                     </h2>
 
-                    <p className="text-slate-700 mt-3 text-sm md:text-base font-semibold leading-relaxed">
+                    <p className="text-slate-700 mt-3 text-xs sm:text-sm md:text-base font-semibold leading-relaxed">
                       {roleConfig.subtitle}
                     </p>
                   </div>
 
                   {/* Right Column: Institutional Operational Status Pill */}
-                  <div className="flex-shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3 bg-white/90 backdrop-blur-sm border border-slate-300/90 rounded-2xl p-4 shadow-sm">
+                  <div className="flex-shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2.5 sm:gap-3 bg-white/90 backdrop-blur-sm border border-slate-300/90 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 shadow-sm w-full lg:w-auto">
                     <div className="flex items-center gap-2 text-xs font-black text-slate-800">
                       <Calendar className="w-4 h-4 text-blue-600" />
                       <span>{formattedDate}</span>

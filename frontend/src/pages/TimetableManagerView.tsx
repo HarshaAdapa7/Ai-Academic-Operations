@@ -739,8 +739,8 @@ export const TimetableManagerView: React.FC<TimetableManagerViewProps> = ({ onBa
               ))}
           </div>
 
-          <div className="flex justify-between items-center gap-4 bg-white p-4 border border-slate-300 rounded-2xl shadow-sm">
-            <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 bg-white p-3.5 sm:p-4 border border-slate-300 rounded-2xl shadow-sm">
+            <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <label className="text-xs font-extrabold text-slate-800">Cohort Section:</label>
                 <select

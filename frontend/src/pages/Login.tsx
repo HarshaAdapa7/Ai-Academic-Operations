@@ -34,19 +34,21 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 overflow-hidden font-sans">
-      {/* Background Soft Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-100/50 via-indigo-50/30 to-transparent pointer-events-none rounded-b-[4rem]"></div>
-      <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div 
+      className="relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-10 overflow-hidden font-sans bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/anits_campus_bg.jpg')" }}
+    >
+      {/* High-grade Executive Institutional Backdrop Overlay */}
+      <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-xs"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/30"></div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Main Card */}
-        <div className="bg-white border border-slate-300 shadow-xl rounded-2xl sm:rounded-3xl p-6 sm:p-10 backdrop-blur-md">
+        <div className="bg-white/95 backdrop-blur-md border border-white/60 shadow-2xl rounded-2xl sm:rounded-3xl p-6 sm:p-10">
           
           {/* Logo/Brand Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 text-white font-black text-base shadow-xl shadow-blue-900/20 mb-4 border border-blue-900/30 tracking-wider">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 text-white font-black text-base shadow-xl shadow-blue-950/30 mb-4 border border-blue-900/30 tracking-wider">
               ANITS
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">ANITS Portal</h2>
@@ -94,13 +96,13 @@ export const Login: React.FC = () => {
                   Forgot Password?
                 </Link>
               </div>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+              <div className="relative flex items-center">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 pointer-events-none">
                   <Lock className="w-5 h-5" />
                 </span>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  className="w-full pl-11 pr-11 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 focus:bg-white outline-none transition-all shadow-sm"
+                  className="w-full pl-11 pr-12 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 focus:bg-white outline-none transition-all shadow-sm"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -109,10 +111,12 @@ export const Login: React.FC = () => {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-700 transition-colors"
+                  className="absolute right-0 pr-3.5 pl-2 h-full flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors cursor-pointer bg-transparent border-0 outline-none"
+                  style={{ background: 'transparent', border: 'none', boxShadow: 'none' }}
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isSubmitting}
                   tabIndex={-1}
+                  title={showPassword ? "Hide Password" : "Show Password"}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -155,7 +159,7 @@ export const Login: React.FC = () => {
 
         {/* Security Badge */}
         <div className="text-center mt-6">
-          <p className="text-[11px] font-extrabold text-slate-600 tracking-wider uppercase">
+          <p className="text-[11px] font-extrabold text-white/90 drop-shadow-md tracking-wider uppercase">
             Encrypted End-to-End • ANITS Academic Operations Platform
           </p>
         </div>

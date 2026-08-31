@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Mail, Lock, User, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Loader2, ArrowRight } from 'lucide-react';
 
 export const Signup: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -40,143 +40,155 @@ export const Signup: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
-      {/* Background Neon Glows */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-primary-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
+    <div 
+      className="relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-10 overflow-hidden font-sans bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/anits_campus_bg.jpg')" }}
+    >
+      {/* High-grade Executive Institutional Backdrop Overlay */}
+      <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-xs"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/30"></div>
 
-      <div className="w-full max-w-md glass-panel p-8 md:p-10 relative z-10 animate-slide-up">
-        {/* Logo/Brand Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 text-white shadow-xl shadow-primary-500/20 mb-4">
-            <UserPlus className="w-7 h-7" />
+      <div className="w-full max-w-md relative z-10">
+        <div className="bg-white/95 backdrop-blur-md border border-white/60 shadow-2xl rounded-2xl sm:rounded-3xl p-6 sm:p-10">
+          {/* Logo/Brand Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 text-white font-black text-base shadow-xl shadow-blue-950/30 mb-4 border border-blue-900/30 tracking-wider">
+              ANITS
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Create Account</h2>
+            <p className="text-slate-600 mt-1 text-xs sm:text-sm font-bold">ANITS Academic Operations Platform</p>
           </div>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight">Create Account</h2>
-          <p className="text-dark-400 mt-2 text-sm">Join the Academic Operations Platform</p>
+
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-300 text-red-700 text-xs font-bold leading-relaxed shadow-sm">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold leading-relaxed shadow-sm">
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">Full Name</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                  <User className="w-5 h-5" />
+                </span>
+                <input
+                  type="text"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 focus:bg-white outline-none transition-all shadow-sm"
+                  placeholder="Prof. John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">Email Address</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                  <Mail className="w-5 h-5" />
+                </span>
+                <input
+                  type="email"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 focus:bg-white outline-none transition-all shadow-sm"
+                  placeholder="professor@anits.edu.in"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">Password</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                  <Lock className="w-5 h-5" />
+                </span>
+                <input
+                  type="password"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 focus:bg-white outline-none transition-all shadow-sm"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Role Select */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">System Role</label>
+              <div className="grid grid-cols-3 gap-2">
+                {['FACULTY', 'HOD', 'ADMIN'].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    disabled={isSubmitting}
+                    className={`py-2 px-3 text-xs font-extrabold rounded-xl border transition-all ${
+                      role === r
+                        ? 'bg-blue-600 border-blue-700 text-white shadow-md shadow-blue-600/20'
+                        : 'bg-slate-50 border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-sm shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 mt-6 transition-all cursor-pointer disabled:opacity-70"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Registering...</span>
+                </>
+              ) : (
+                <>
+                  <span>Create Account</span>
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer Link */}
+          <div className="text-center mt-8 pt-6 border-t border-slate-200">
+            <p className="text-xs sm:text-sm font-bold text-slate-600">
+              Already have an account?{' '}
+              <Link 
+                to="/login" 
+                className="font-extrabold text-blue-600 hover:text-blue-800 transition-colors ml-1"
+              >
+                Sign In
+              </Link>
+            </p>
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-sm">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Full Name Input */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-dark-300 uppercase tracking-wider block">Full Name</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-dark-400">
-                <User className="w-5 h-5" />
-              </span>
-              <input
-                type="text"
-                className="glass-input pl-11"
-                placeholder="Dr. Harsh Vardhan"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                disabled={isSubmitting}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Email Input */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-dark-300 uppercase tracking-wider block">Email Address</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-dark-400">
-                <Mail className="w-5 h-5" />
-              </span>
-              <input
-                type="email"
-                className="glass-input pl-11"
-                placeholder="professor@university.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Password Input */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-dark-300 uppercase tracking-wider block">Password</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-dark-400">
-                <Lock className="w-5 h-5" />
-              </span>
-              <input
-                type="password"
-                className="glass-input pl-11"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Role Select */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-dark-300 uppercase tracking-wider block">System Role</label>
-            <div className="grid grid-cols-3 gap-2">
-              {['FACULTY', 'HOD', 'ADMIN'].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  disabled={isSubmitting}
-                  className={`py-2 px-3 text-xs font-semibold rounded-lg border transition-all duration-300 ${
-                    role === r
-                      ? 'bg-primary-600/20 border-primary-500 text-primary-300 shadow-md shadow-primary-500/5'
-                      : 'bg-dark-900/30 border-dark-800 text-dark-400 hover:border-dark-700 hover:text-dark-200'
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full btn-primary flex items-center justify-center gap-2 mt-6"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Registering...
-              </>
-            ) : (
-              <>
-                Create Account
-                <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Footer Link */}
-        <div className="text-center mt-8 pt-6 border-t border-dark-800/60">
-          <p className="text-sm text-dark-400">
-            Already have an account?{' '}
-            <Link 
-              to="/login" 
-              className="font-semibold text-primary-400 hover:text-primary-300 transition-colors"
-            >
-              Sign In
-            </Link>
+        {/* Security Badge */}
+        <div className="text-center mt-6">
+          <p className="text-[11px] font-extrabold text-white/90 drop-shadow-md tracking-wider uppercase">
+            Encrypted End-to-End • ANITS Academic Operations Platform
           </p>
         </div>
       </div>

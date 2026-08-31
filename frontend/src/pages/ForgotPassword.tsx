@@ -66,159 +66,171 @@ export const ForgotPassword: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4 overflow-hidden">
-      {/* Background Neon Glows */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-primary-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px] animate-pulse-slow"></div>
+    <div 
+      className="relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-10 overflow-hidden font-sans bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/anits_campus_bg.jpg')" }}
+    >
+      {/* High-grade Executive Institutional Backdrop Overlay */}
+      <div className="absolute inset-0 bg-slate-950/45 backdrop-blur-xs"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/30"></div>
 
-      <div className="w-full max-w-md glass-panel p-8 md:p-10 relative z-10 animate-slide-up">
-        {step === 'REQUEST' ? (
-          <>
-            {/* Header for Email Request */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-indigo-600 text-white shadow-xl shadow-primary-500/20 mb-4">
-                <KeyRound className="w-7 h-7" />
+      <div className="w-full max-w-md relative z-10">
+        <div className="bg-white/95 backdrop-blur-md border border-white/60 shadow-2xl rounded-2xl sm:rounded-3xl p-6 sm:p-10">
+          {step === 'REQUEST' ? (
+            <>
+              {/* Header for Email Request */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-700 via-indigo-800 to-blue-900 text-white font-black text-base shadow-xl shadow-blue-950/30 mb-4 border border-blue-900/30 tracking-wider">
+                  <KeyRound className="w-7 h-7" />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Recover Password</h2>
+                <p className="text-slate-600 mt-1 text-xs sm:text-sm font-bold">Enter your registered email to receive OTP code</p>
               </div>
-              <h2 className="text-3xl font-extrabold text-white tracking-tight">Recover Password</h2>
-              <p className="text-dark-400 mt-2 text-sm">Enter email to receive verification code</p>
-            </div>
 
-            {error && (
-              <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm">
-                {error}
+              {error && (
+                <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-300 text-red-700 text-xs font-bold leading-relaxed shadow-sm">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleRequestOtp} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block">Email Address</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                      <Mail className="w-5 h-5" />
+                    </span>
+                    <input
+                      type="email"
+                      className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm font-bold placeholder-slate-400 focus:border-blue-600 focus:bg-white outline-none transition-all shadow-sm"
+                      placeholder="professor@anits.edu.in"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isSubmitting}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-sm shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 mt-6 transition-all cursor-pointer disabled:opacity-70"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Sending OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send OTP Code</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              {/* Header for OTP Verification */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-800 text-white font-black text-base shadow-xl shadow-emerald-950/30 mb-4 border border-emerald-800/30 tracking-wider">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Verify Identity</h2>
+                <p className="text-slate-600 mt-1 text-xs sm:text-sm font-bold">We dispatched a 6-digit code to {email}</p>
               </div>
-            )}
 
-            <form onSubmit={handleRequestOtp} className="space-y-5">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-dark-300 uppercase tracking-wider block">Email Address</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-dark-400">
-                    <Mail className="w-5 h-5" />
-                  </span>
+              {error && (
+                <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-300 text-red-700 text-xs font-bold leading-relaxed shadow-sm">
+                  {error}
+                </div>
+              )}
+
+              {success && (
+                <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold leading-relaxed shadow-sm">
+                  {success}
+                </div>
+              )}
+
+              {devOtp && (
+                <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold space-y-1 shadow-sm">
+                  <div className="font-extrabold flex items-center gap-2 text-amber-800">
+                    ⚡ Intranet / Dev Mode OTP Dispatch
+                  </div>
+                  <div>
+                    Your 6-digit OTP code is: <span className="font-mono text-base font-black text-amber-950 underline tracking-widest">{devOtp}</span>
+                  </div>
+                  <div className="text-[11px] text-amber-800/90">
+                    (Auto-filled into verification input below & saved as an In-App Notification)
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyOtp} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider block text-center">Verification OTP Code</label>
                   <input
-                    type="email"
-                    className="glass-input pl-11"
-                    placeholder="professor@university.edu"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="text"
+                    maxLength={6}
+                    className="w-full py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-2xl font-mono font-black text-center tracking-[0.5em] focus:tracking-[0.5em] focus:border-emerald-600 focus:bg-white outline-none transition-all shadow-sm"
+                    placeholder="000000"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                     disabled={isSubmitting}
                     required
                   />
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                className="w-full btn-primary flex items-center justify-center gap-2 mt-4"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Sending OTP...
-                  </>
-                ) : (
-                  <>
-                    Send OTP Code
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            {/* Header for OTP Verification */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/20 mb-4">
-                <ShieldCheck className="w-7 h-7" />
-              </div>
-              <h2 className="text-3xl font-extrabold text-white tracking-tight">Verify Identity</h2>
-              <p className="text-dark-400 mt-2 text-sm">We sent a 6-digit code to {email}</p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 text-sm">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-sm">
-                {success}
-              </div>
-            )}
-
-            {devOtp && (
-              <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm space-y-1">
-                <div className="font-bold flex items-center gap-2 text-amber-400">
-                  ⚡ Intranet / Dev Mode OTP Dispatch
-                </div>
-                <div>
-                  Your 6-digit OTP code is: <span className="font-mono text-base font-black text-amber-300 underline tracking-widest">{devOtp}</span>
-                </div>
-                <div className="text-xs text-amber-300/80">
-                  (Auto-filled into verification input below & saved as an In-App Notification)
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-dark-300 uppercase tracking-wider block">Verification OTP Code</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  className="glass-input text-center text-2xl font-mono tracking-[0.5em] focus:tracking-[0.5em]"
-                  placeholder="000000"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full btn-primary bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-500/20 hover:from-emerald-500 hover:to-teal-500 flex items-center justify-center gap-2 mt-4"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  <>
-                    Verify OTP
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-
-              <div className="text-center mt-2">
                 <button
-                  type="button"
-                  onClick={() => setStep('REQUEST')}
-                  className="text-xs font-medium text-dark-400 hover:text-white transition-colors"
+                  type="submit"
+                  className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 mt-6 transition-all cursor-pointer disabled:opacity-70"
                   disabled={isSubmitting}
                 >
-                  Change Email Address
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Verify OTP</span>
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
                 </button>
-              </div>
-            </form>
-          </>
-        )}
 
-        {/* Footer Link */}
-        <div className="text-center mt-8 pt-6 border-t border-dark-800/60">
-          <Link 
-            to="/login" 
-            className="text-sm font-semibold text-primary-400 hover:text-primary-300 transition-colors"
-          >
-            Back to Sign In
-          </Link>
+                <div className="text-center mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setStep('REQUEST')}
+                    className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                    disabled={isSubmitting}
+                  >
+                    ← Change Email Address
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
+
+          {/* Footer Link */}
+          <div className="text-center mt-8 pt-6 border-t border-slate-200">
+            <Link 
+              to="/login" 
+              className="text-xs sm:text-sm font-extrabold text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              Back to Sign In
+            </Link>
+          </div>
+        </div>
+
+        {/* Security Badge */}
+        <div className="text-center mt-6">
+          <p className="text-[11px] font-extrabold text-white/90 drop-shadow-md tracking-wider uppercase">
+            Encrypted End-to-End • ANITS Academic Operations Platform
+          </p>
         </div>
       </div>
     </div>

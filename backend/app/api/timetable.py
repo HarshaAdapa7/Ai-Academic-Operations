@@ -463,6 +463,8 @@ async def generate_master_timetable(
         if not sec_subjs:
             sec_subjs = [s for s in subjects if s.department_id == sec_dept_id]
 
+        sec_tasks = []
+        theory_subjs = []
         for s in sec_subjs:
             spec = subjs_rules[s.id]
 
@@ -475,60 +477,95 @@ async def generate_master_timetable(
                 task_teachers = [p for p in faculty_profiles if p.department_id == sec_dept_id]
 
             if s.subject_type == "ELECTIVE":
-                periods_count = max(4, spec.lectures_per_week)
-                for _ in range(periods_count):
-                    tasks.append({
-                        "section": sec, "subject_id": s.id, "type": "ELECTIVE",
-                        "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
-                        "teachers": task_teachers
-                    })
+                periods_count = max(4, spec.lectures_per_week or 4)
+                theory_subjs.append((s, periods_count, task_teachers))
             elif s.subject_type == "LAB":
                 if s.is_parallel_lab and s.parallel_subject_id:
-                    tasks.append({
+                    sec_tasks.append({
                         "section": sec, "subject_id": s.id, "parallel_id": s.parallel_subject_id,
-                        "type": "DUAL_LAB", "session_num": 1, "duration": spec.lab_duration,
+                        "type": "DUAL_LAB", "session_num": 1, "duration": spec.lab_duration or 3,
                         "year": sec_yr, "dept_id": sec_dept_id, "teachers": task_teachers
                     })
-                    tasks.append({
+                    sec_tasks.append({
                         "section": sec, "subject_id": s.id, "parallel_id": s.parallel_subject_id,
-                        "type": "DUAL_LAB", "session_num": 2, "duration": spec.lab_duration,
+                        "type": "DUAL_LAB", "session_num": 2, "duration": spec.lab_duration or 3,
                         "year": sec_yr, "dept_id": sec_dept_id, "teachers": task_teachers
                     })
                 else:
-                    for _ in range(spec.labs_per_week):
-                        tasks.append({
+                    labs_count = spec.labs_per_week or 1
+                    for _ in range(labs_count):
+                        sec_tasks.append({
                             "section": sec, "subject_id": s.id, "type": "LAB",
-                            "duration": spec.lab_duration, "year": sec_yr, "dept_id": sec_dept_id,
+                            "duration": spec.lab_duration or 3, "year": sec_yr, "dept_id": sec_dept_id,
                             "teachers": task_teachers
                         })
             elif s.subject_type == "COUNSELLING":
-                for _ in range(max(1, spec.lectures_per_week)):
-                    tasks.append({
+                counsel_count = max(1, spec.lectures_per_week or 1)
+                for _ in range(counsel_count):
+                    sec_tasks.append({
                         "section": sec, "subject_id": s.id, "type": "COUNSELLING",
                         "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
                         "teachers": task_teachers
                     })
             elif s.subject_type == "SPORTS_LIBRARY":
-                for _ in range(max(1, spec.lectures_per_week)):
-                    tasks.append({
+                sports_count = max(1, spec.lectures_per_week or 1)
+                for _ in range(sports_count):
+                    sec_tasks.append({
                         "section": sec, "subject_id": s.id, "type": "SPORTS_LIBRARY",
                         "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
                         "teachers": task_teachers
                     })
+            else: # THEORY
+                periods_count = max(4, spec.lectures_per_week or 4)
+                theory_subjs.append((s, periods_count, task_teachers))
+
+        # Calculate available slots
+        dept_slots = rules_map[sec_dept_id].slots_per_day if (sec_dept_id in rules_map) else 8
+        total_available_slots = (dept_slots - 1) * 5 + 4
+        # We reserve 4 slots for post-processing Counselling (1), Sports/Library (1), and Activities (2)
+        target_slots = total_available_slots - 4
+        
+        # Calculate slots used by labs and other predefined subjects
+        used_slots = sum(t["duration"] for t in sec_tasks)
+        
+        # We need the theory periods to sum up to target_slots - used_slots
+        theory_target = target_slots - used_slots
+        
+        if theory_subjs and theory_target > 0:
+            default_sum = sum(item[1] for item in theory_subjs)
+            
+            if default_sum < theory_target:
+                extra_slots = theory_target - default_sum
+                base_extra = extra_slots // len(theory_subjs)
+                remainder = extra_slots % len(theory_subjs)
+                
+                for idx, (s, default_count, task_teachers) in enumerate(theory_subjs):
+                    added = base_extra + (1 if idx < remainder else 0)
+                    total_count = default_count + added
+                    for _ in range(total_count):
+                        sec_tasks.append({
+                            "section": sec, "subject_id": s.id, "type": "ELECTIVE" if s.subject_type == "ELECTIVE" else "THEORY",
+                            "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
+                            "teachers": task_teachers
+                        })
             else:
-                periods_count = max(4, spec.lectures_per_week)
-                for _ in range(periods_count):
-                    tasks.append({
-                        "section": sec, "subject_id": s.id, "type": "THEORY",
+                for s, default_count, task_teachers in theory_subjs:
+                    for _ in range(default_count):
+                        sec_tasks.append({
+                            "section": sec, "subject_id": s.id, "type": "ELECTIVE" if s.subject_type == "ELECTIVE" else "THEORY",
+                            "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
+                            "teachers": task_teachers
+                        })
+        else:
+            for s, default_count, task_teachers in theory_subjs:
+                for _ in range(default_count):
+                    sec_tasks.append({
+                        "section": sec, "subject_id": s.id, "type": "ELECTIVE" if s.subject_type == "ELECTIVE" else "THEORY",
                         "duration": 1, "year": sec_yr, "dept_id": sec_dept_id,
                         "teachers": task_teachers
                     })
-                if (spec.labs_per_week or 0) > 0:
-                    for _ in range(spec.labs_per_week):
-                        tasks.append({
-                            "section": sec, "subject_id": s.id, "type": "LAB",
-                            "duration": spec.lab_duration or 3, "year": sec_yr, "dept_id": sec_dept_id
-                        })
+                    
+        tasks.extend(sec_tasks)
 
     type_priority = {"ELECTIVE": 0, "DUAL_LAB": 1, "LAB": 2, "COUNSELLING": 3, "SPORTS_LIBRARY": 4, "THEORY": 5}
     tasks.sort(key=lambda t: (type_priority.get(t["type"], 9), t["section"]))

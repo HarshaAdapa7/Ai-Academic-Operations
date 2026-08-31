@@ -62,7 +62,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
-    const wsUrl = `${protocol}//${host}:8002/api/v1/ws/notifications?user_id=${user.id || 'usr'}&role=${user.role}`;
+    const wsUrl = `${protocol}//${host}:8002/api/v1/notifications/ws/notifications?user_id=${user.id || 'usr'}&role=${user.role}`;
 
     let socket: WebSocket | null = null;
     try {

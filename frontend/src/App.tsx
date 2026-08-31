@@ -7,7 +7,8 @@ import { Signup } from './pages/Signup';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
-import { Loader2 } from 'lucide-react';
+import { useNotifications } from './context/NotificationContext';
+import { Loader2, Bell, X } from 'lucide-react';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -47,6 +48,17 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 function AppContent() {
+  const { latestToast, clearToast } = useNotifications();
+
+  React.useEffect(() => {
+    if (latestToast) {
+      const timer = setTimeout(() => {
+        clearToast();
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [latestToast, clearToast]);
+
   return (
     <Router>
       <Routes>
@@ -92,6 +104,25 @@ function AppContent() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
+      {/* Floating Neon Toast Notification Alert */}
+      {latestToast && (
+        <div className="fixed bottom-6 right-6 z-[9999] max-w-sm w-full bg-dark-900/90 border border-primary-500/30 rounded-xl shadow-2xl backdrop-blur-md p-4 animate-slide-up flex gap-3 text-white">
+          <div className="p-2 bg-primary-500/10 rounded-lg text-primary-400 self-start">
+            <Bell className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <div className="font-semibold text-sm">{latestToast.title}</div>
+            <div className="text-xs text-dark-300 mt-1">{latestToast.message}</div>
+          </div>
+          <button 
+            onClick={clearToast}
+            className="text-dark-400 hover:text-white transition-colors self-start p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </Router>
   );
 }

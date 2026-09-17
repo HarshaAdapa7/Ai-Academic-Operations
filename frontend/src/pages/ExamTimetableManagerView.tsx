@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { facultyService } from '../services/facultyService';
 import { classroomService } from '../services/classroomService';
@@ -8,11 +8,18 @@ import { importService } from '../services/importService';
 import type { Department, Subject, FacultyProfile } from '../services/facultyService';
 import type { Classroom } from '../services/classroomService';
 import type { ExamTimetableEntry } from '../services/timetableService';
-import { PrintableExamTimetableTemplate } from '../components/PrintableExamTimetableTemplate';
+import { 
+  PrintableExamTimetableTemplate, 
+  OfficialCircularSheet, 
+  getDeptOfficialTitle, 
+  getRomanYear,
+  type DeptYearCircularGroup,
+  type CircularRowItem
+} from '../components/PrintableExamTimetableTemplate';
 import { 
   Calendar, Sparkles, ShieldCheck, FileSpreadsheet, Plus, X, 
   AlertTriangle, CheckCircle2, ArrowLeft, Upload, UploadCloud,
-  Trash2, Table, Printer
+  Trash2, Table, Printer, FileText, Building2, CalendarDays
 } from 'lucide-react';
 
 interface ExamTimetableManagerViewProps {
@@ -81,11 +88,170 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
   const [uploadSuccess, setUploadSuccess] = useState('');
 
   // View Filters
-  const [examViewMode, setExamViewMode] = useState<'table' | 'grid' | 'roster'>('table');
+  const [examViewMode, setExamViewMode] = useState<'daywise' | 'circular' | 'table' | 'grid' | 'roster'>('daywise');
   const [examFilterDeptId, setExamFilterDeptId] = useState('ALL');
   const [examFilterYear, setExamFilterYear] = useState('ALL');
+  const [examFilterSemester, setExamFilterSemester] = useState<number>(1);
   const [examFilterSearch, setExamFilterSearch] = useState('');
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+  // Helper for accurate department exam matching
+  const isExamMatchDept = (ex: ExamTimetableEntry, deptId: string, deptCode: string) => {
+    // 1. Primary authority: subject's explicit department ID
+    const subjDeptId = ex.subject?.department_id || ex.subject?.department?.id;
+    if (subjDeptId) {
+      return subjDeptId === deptId;
+    }
+    // 2. Secondary authority: subject's department code
+    if (ex.subject?.department?.code) {
+      return ex.subject.department.code.toUpperCase() === deptCode.toUpperCase();
+    }
+    // 3. Strict fallback only if subject has no department ID at all
+    const code = ex.subject?.code?.toUpperCase() || '';
+    if (deptCode === 'CSD') return code.startsWith('23CD') || ex.subject?.name?.toLowerCase().includes('data science') || false;
+    if (deptCode === 'CSE') return code.startsWith('CS') && !code.startsWith('CSD');
+    if (deptCode === 'IT') return code.startsWith('IT');
+    if (deptCode === 'EEE') return code.startsWith('EE');
+    if (deptCode === 'CIVIL') return code.startsWith('CIV') || code.startsWith('CE');
+    if (deptCode === 'CHE') return code.startsWith('CHE') || code.startsWith('CH');
+    if (deptCode === 'BT') return code.startsWith('BT');
+    return false;
+  };
+
+  const getDeptExamsCount = (deptId: string, deptCode: string) => {
+    return exams.filter(ex => {
+      if (examTabCategory === 'MID' && !ex.exam_type?.includes('MID')) return false;
+      if (examTabCategory === 'SEM_END' && ex.exam_type !== 'SEM_END') return false;
+      if (examTabType && ex.exam_type !== examTabType) return false;
+      if (ex.semester && ex.semester !== examFilterSemester) return false;
+      return isExamMatchDept(ex, deptId, deptCode);
+    }).length;
+  };
+
+  const totalCategoryExamsCount = exams.filter(ex => {
+    if (examTabCategory === 'MID' && !ex.exam_type?.includes('MID')) return false;
+    if (examTabCategory === 'SEM_END' && ex.exam_type !== 'SEM_END') return false;
+    if (examTabType && ex.exam_type !== examTabType) return false;
+    if (ex.semester && ex.semester !== examFilterSemester) return false;
+    return true;
+  }).length;
+
+
+  // Memoized Department-Wise, Year-Wise, Day-Wise Circular Groups
+  const printCircularGroups = useMemo<DeptYearCircularGroup[]>(() => {
+    let targetDepts = departments;
+    if (examFilterDeptId !== 'ALL') {
+      targetDepts = departments.filter(d => d.id === examFilterDeptId);
+    }
+
+    let targetYears = [1, 2, 3, 4];
+    if (examFilterYear !== 'ALL') {
+      targetYears = [parseInt(examFilterYear)];
+    }
+
+    const result: DeptYearCircularGroup[] = [];
+
+    targetDepts.forEach(dept => {
+      targetYears.forEach(yr => {
+        const deptExams = exams.filter(ex => {
+          if (examTabCategory === 'MID' && !ex.exam_type?.includes('MID')) return false;
+          if (examTabCategory === 'SEM_END' && ex.exam_type !== 'SEM_END') return false;
+          if (examTabType && ex.exam_type !== examTabType) return false;
+          if (ex.semester && ex.semester !== examFilterSemester) return false;
+
+          const matchDept = isExamMatchDept(ex, dept.id, dept.code);
+          if (!matchDept) return false;
+
+          const exYr = ex.academic_year || 1;
+          if (exYr !== yr) return false;
+
+          return true;
+        });
+
+
+        if (deptExams.length === 0) return;
+
+        const slotMap = new Map<string, {
+          date: string;
+          dayName: string;
+          rawDate: Date | null;
+          slot: number;
+          timeStr: string;
+          subjectName: string;
+          subjectCode: string;
+        }>();
+
+        deptExams.forEach(ex => {
+          const dObj = ex.exam_date ? new Date(ex.exam_date) : null;
+          let dateFormatted = 'TBA';
+          let dayName = '';
+          if (dObj && !isNaN(dObj.getTime())) {
+            const dd = String(dObj.getDate()).padStart(2, '0');
+            const mm = String(dObj.getMonth() + 1).padStart(2, '0');
+            const yyyy = dObj.getFullYear();
+            dateFormatted = `${dd}-${mm}-${yyyy}`;
+            dayName = dObj.toLocaleDateString('en-US', { weekday: 'short' });
+          }
+
+          let timeStr = '09:30 AM - 11:30 AM';
+          if (examTabCategory === 'SEM_END') {
+            timeStr = ex.time_slot === 1 ? '09:30 AM - 12:30 PM' : '01:30 PM - 04:30 PM';
+          } else {
+            if (ex.time_slot === 1) timeStr = '09:30 AM - 11:30 AM';
+            else if (ex.time_slot === 2) timeStr = '01:00 PM - 03:00 PM';
+            else if (ex.time_slot === 3) timeStr = '02:15 PM - 03:15 PM';
+          }
+
+          const sName = (ex.subject?.name || 'SUBJECT').toUpperCase();
+          const sCode = (ex.subject?.code || '').toUpperCase();
+          const key = `${dateFormatted}_${ex.time_slot}_${sCode || sName}`;
+
+          if (!slotMap.has(key)) {
+            slotMap.set(key, {
+              date: dateFormatted,
+              dayName,
+              rawDate: dObj,
+              slot: ex.time_slot || 1,
+              timeStr,
+              subjectName: sName,
+              subjectCode: sCode
+            });
+          }
+        });
+
+        const sortedRows = Array.from(slotMap.values()).sort((a, b) => {
+          const tA = a.rawDate ? a.rawDate.getTime() : 0;
+          const tB = b.rawDate ? b.rawDate.getTime() : 0;
+          if (tA !== tB) return tA - tB;
+          return a.slot - b.slot;
+        });
+
+        const uniqueDates = Array.from(new Set(sortedRows.map(r => r.date).filter(d => d !== 'TBA')));
+        const dateToDayIndex = new Map<string, number>();
+        uniqueDates.forEach((d, idx) => {
+          dateToDayIndex.set(d, idx + 1);
+        });
+
+        const daywiseRows: CircularRowItem[] = sortedRows.map(r => ({
+          ...r,
+          dayNumber: dateToDayIndex.get(r.date) || 1
+        }));
+
+        result.push({
+          deptId: dept.id,
+          deptCode: dept.code,
+          deptName: dept.name,
+          deptOfficialTitle: getDeptOfficialTitle(dept.code, dept.name),
+          academicYear: yr,
+          romanYear: getRomanYear(yr),
+          rows: daywiseRows
+        });
+      });
+    });
+
+    return result;
+  }, [departments, exams, examFilterDeptId, examFilterYear, examFilterSemester, examTabCategory, examTabType]);
+
 
   const handleUploadScheduleFile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +292,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
         classroomService.getClassrooms(),
         facultyService.getFacultyProfiles(),
         timetableService.getExamSchedule(),
-        timetableService.getExamCalendarDates()
+        timetableService.getExamCalendarDates(examFilterSemester)
       ]);
 
       setDepartments(deptsData);
@@ -145,6 +311,19 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
   useEffect(() => {
     loadBaseData();
   }, []);
+
+  useEffect(() => {
+    const updateDates = async () => {
+      try {
+        const calData = await timetableService.getExamCalendarDates(examFilterSemester);
+        setCalExamDates(calData);
+      } catch (err) {
+        console.error('Failed to reload calendar dates for semester:', err);
+      }
+    };
+    updateDates();
+  }, [examFilterSemester]);
+
 
   const [directStartDate, setDirectStartDate] = useState('');
 
@@ -189,22 +368,24 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
     try {
       const targetDeptIds = genTargetDeptId === 'ALL' ? undefined : [genTargetDeptId];
       const startIso = genStartDate ? `${genStartDate}T00:00:00` : undefined;
-      const res = await timetableService.generateExamSchedule({
+      await timetableService.generateExamSchedule({
         category: genCategory,
         exam_type: genExamType,
         start_date: startIso,
         semester: genSemester,
         department_ids: targetDeptIds
       });
+      const allExams = await timetableService.getExamSchedule();
+      setExams(allExams);
       setExamTabCategory(genCategory);
       setExamTabType(genExamType);
-      setExams(res);
-      const label = genCategory === 'MID' ? `Mid Exam (${genExamType.replace('_', ' ')})` : `Semester ${genSemester} End Exam`;
-      setGenSuccess(`Successfully generated ${res.length} ${label} sessions directly from uploaded subjects & start date!`);
-      setTimeout(() => {
-        setIsGenerateExamModalOpen(false);
-        setGenSuccess('');
-      }, 1500);
+      setExamFilterSemester(genSemester);
+      if (genTargetDeptId !== 'ALL') {
+        setExamFilterDeptId(genTargetDeptId);
+      }
+      setIsGenerateExamModalOpen(false);
+      setExamViewMode('daywise');
+      setIsPrintModalOpen(false);
     } catch (err: any) {
       setGenError(err.response?.data?.detail || 'Failed to generate exam schedule.');
     } finally {
@@ -216,14 +397,19 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
     try {
       setIsLoading(true);
       const targetDeptIds = examFilterDeptId && examFilterDeptId !== 'ALL' ? [examFilterDeptId] : undefined;
-      const res = await timetableService.generateExamSchedule({
+      const targetYear = examFilterYear && examFilterYear !== 'ALL' ? parseInt(examFilterYear) : undefined;
+      await timetableService.generateExamSchedule({
         category: examTabCategory,
         exam_type: examTabType,
-        semester: 1,
-        department_ids: targetDeptIds
+        start_date: directStartDate ? `${directStartDate}T00:00:00` : undefined,
+        semester: examFilterSemester,
+        department_ids: targetDeptIds,
+        academic_year: targetYear
       });
-      setExams(res);
-      alert(`Successfully generated ${res.length} exam sessions dynamically using year-specific Academic Calendar DB dates (4th Year starting Sept 1, 2nd/3rd Year starting Aug 20)!`);
+      const allExams = await timetableService.getExamSchedule();
+      setExams(allExams);
+      setExamViewMode('daywise');
+      setIsPrintModalOpen(false);
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Direct exam generation failed.');
     } finally {
@@ -232,15 +418,17 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
   };
 
   const handleClearExams = async () => {
-    const label = examTabCategory === 'MID' ? `Mid Exam (${examTabType})` : 'Semester End Exam';
-    if (!window.confirm(`Are you sure you want to purge all scheduled ${label} entries?`)) return;
+    const semLabel = examFilterSemester === 2 ? 'Semester 2' : 'Semester 1';
+    const label = examTabCategory === 'MID' ? `Mid Exam (${examTabType} - ${semLabel})` : `Semester End Exam (${semLabel})`;
+    if (!window.confirm(`Are you sure you want to purge scheduled ${label} entries?`)) return;
     try {
       setIsLoading(true);
       await timetableService.clearExamSchedule({
         exam_type: examTabType,
+        semester: examFilterSemester,
         department_id: examFilterDeptId === 'ALL' ? undefined : examFilterDeptId
       });
-      const updated = await timetableService.getExamSchedule({ category: examTabCategory });
+      const updated = await timetableService.getExamSchedule();
       setExams(updated);
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to clear exam schedule.');
@@ -248,6 +436,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
       setIsLoading(false);
     }
   };
+
 
   const handlePurgeExamDatabase = async () => {
     if (!window.confirm('⚠️ WARNING: Are you sure you want to PERMANENTLY PURGE ALL exam entries from the database? This cannot be undone.')) return;
@@ -306,27 +495,43 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
   };
 
   const handleExportExamsCSV = () => {
-    if (exams.length === 0) {
-      alert('No exam sessions scheduled to export.');
+    const selectedDept = departments.find(d => d.id === examFilterDeptId);
+    const targetExams = exams.filter(ex => {
+      if (examTabCategory === 'MID' && !ex.exam_type?.includes('MID')) return false;
+      if (examTabCategory === 'SEM_END' && ex.exam_type !== 'SEM_END') return false;
+      if (examTabType && ex.exam_type !== examTabType) return false;
+      if (selectedDept && !isExamMatchDept(ex, selectedDept.id, selectedDept.code)) return false;
+      if (examFilterYear !== 'ALL' && ex.academic_year !== parseInt(examFilterYear)) return false;
+      return true;
+    });
+
+    if (targetExams.length === 0) {
+      alert('No exam sessions scheduled to export for current selection.');
       return;
     }
     let csv = "Category,Type,Year,Semester,Date,Slot,Time,Department,Subject Code,Subject Name,Classroom,Invigilator\n";
-    exams.forEach(ex => {
+    targetExams.forEach(ex => {
       const dateStr = ex.exam_date ? new Date(ex.exam_date).toLocaleDateString() : 'TBA';
-      const slotTime = ex.time_slot === 1 ? "09:30 - 11:30 AM" : ex.time_slot === 2 ? "01:30 - 03:30 PM" : ex.time_slot === 3 ? "03:45 - 05:45 PM" : `Slot ${ex.time_slot}`;
+      const slotTime = ex.time_slot === 1 ? "09:30 - 11:30 AM" : ex.time_slot === 2 ? "01:00 - 03:00 PM" : ex.time_slot === 3 ? "03:45 - 05:45 PM" : `Slot ${ex.time_slot}`;
       csv += `"${ex.exam_type?.includes('MID') ? 'MID' : 'SEM_END'}","${ex.exam_type || 'MID_1'}","Year ${ex.academic_year || 1}","Sem ${ex.semester || 1}","${dateStr}","Slot ${ex.time_slot}","${slotTime}","${ex.subject?.department?.code || ''}","${ex.subject?.code || ''}","${ex.subject?.name || ''}","${ex.classroom?.room_number || ''}","${ex.invigilator?.user?.full_name || 'Unassigned'}"\n`;
     });
+
+    const filename = selectedDept 
+      ? `${selectedDept.code}_${examTabType || 'Mid'}_Examination_Timetable.csv`
+      : `All_Departments_${examTabType || 'Mid'}_Examination_Timetable.csv`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `Examination_Schedule_Roster.csv`;
+    link.download = filename;
     link.click();
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Top Page Header */}
+    <div className="max-w-7xl mx-auto px-6 py-8 print:p-0 print:m-0 print:max-w-none">
+      {/* Interactive Web UI (Hidden completely when printing) */}
+      <div className="print:hidden">
+        {/* Top Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <button 
@@ -409,6 +614,35 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
               </button>
             </div>
           )}
+
+          {/* Semester Selector Pill (2 Semesters Per Academic Year) */}
+          <div className="flex items-center gap-1.5 bg-white p-1 border border-slate-300 rounded-xl shadow-sm">
+            <span className="text-[11px] font-black text-slate-500 pl-2 pr-1 flex items-center gap-1">
+              <CalendarDays className="w-3.5 h-3.5 text-indigo-600" /> Sem:
+            </span>
+            <button
+              type="button"
+              onClick={() => setExamFilterSemester(1)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1 ${
+                examFilterSemester === 1
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              Semester-I (Odd)
+            </button>
+            <button
+              type="button"
+              onClick={() => setExamFilterSemester(2)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1 ${
+                examFilterSemester === 2
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              Semester-II (Even)
+            </button>
+          </div>
         </div>
 
         {/* Action Control Bar */}
@@ -417,15 +651,16 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
             <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-600" />
               {examTabCategory === 'MID'
-                ? `${examTabType === 'MID_1' ? 'First Mid-Term (Mid-1)' : 'Second Mid-Term (Mid-2)'} Examination Timetable`
-                : 'Semester End Examination Timetable (Staggered Day Rotation)'}
+                ? `${examTabType === 'MID_1' ? 'First Mid-Term (Mid-1)' : 'Second Mid-Term (Mid-2)'} • Semester ${examFilterSemester} Timetable`
+                : `Semester ${examFilterSemester === 2 ? 'II' : 'I'} End Examination Timetable (Interleaved Gap Schedule)`}
             </h3>
             <p className="text-xs text-slate-600 font-semibold mt-0.5">
               {examTabCategory === 'MID'
-                ? '2 Sessions Daily (Morning: 09:30-11:30 AM & Afternoon: 01:00-03:00 PM) — 2nd & 3rd Year write on same days together'
-                : 'Staggered 4-Day Rotation (Day 1: Yr 1, Day 2: Yr 2, Day 3: Yr 3, Day 4: Yr 4 Sem 1 only) — Skips Sundays & Public Holidays'}
+                ? '2 Sessions Daily (Morning: 09:30-11:30 AM & Afternoon: 01:00-03:00 PM) • Skips Sundays & DB Holidays'
+                : 'Mandatory 1-Day Preparation Gap Between Consecutive Exams • Alternate Days Interleaving • Skips Sundays & Public Holidays from DB'}
             </p>
           </div>
+
 
           <div className="flex items-center gap-2.5 flex-wrap">
             {(user?.role === 'HOD' || user?.role === 'ADMIN') && (
@@ -498,6 +733,7 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
               type="button"
               onClick={handleExportExamsCSV}
               className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-900 text-xs font-extrabold hover:bg-slate-200 transition-all shadow-sm"
+              title="Export schedule as CSV"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
               Export CSV
@@ -505,51 +741,145 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
 
             <button
               type="button"
-              onClick={() => setIsPrintModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all"
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-xs font-extrabold shadow-md shadow-amber-600/20 transition-all"
+              title="Print current timetable"
             >
               <Printer className="w-4 h-4" />
-              Print {examTabCategory === 'MID' ? 'Mid Exam' : 'Sem End Exam'} Table
+              Print Timetable
             </button>
           </div>
         </div>
 
-        {/* Search & View Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-3 border border-slate-300 rounded-xl shadow-sm">
-          <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
-            <input
-              type="text"
-              value={examFilterSearch}
-              onChange={e => setExamFilterSearch(e.target.value)}
-              placeholder="Search subject code, room, invigilator..."
-              className="px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-bold placeholder-slate-400 outline-none focus:border-amber-600 w-full sm:w-56"
-            />
+        {/* Department-Wise Timetable Navigator (Option for Showing Each Dept Separately) */}
+        <div className="bg-white border border-slate-300 p-5 rounded-2xl shadow-sm space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-700">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">
+                  Department-Wise Examination Timetables
+                </h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                  Separate Branch Views
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-semibold mt-1">
+                Select any branch below to display its {examTabCategory === 'MID' ? (examTabType === 'MID_2' ? 'Mid-II' : 'Mid-I') : 'End-Sem'} timetable separately, or choose All Branches for combined view.
+              </p>
+            </div>
 
-            <select
-              value={examFilterDeptId}
-              onChange={e => setExamFilterDeptId(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-extrabold outline-none focus:border-amber-600"
-            >
-              <option value="ALL" className="bg-white text-slate-900 font-extrabold">All Departments</option>
-              {departments.map(d => (
-                <option key={d.id} value={d.id} className="bg-white text-slate-900 font-bold">{d.code} - {d.name}</option>
-              ))}
-            </select>
-
-            <select
-              value={examFilterYear}
-              onChange={e => setExamFilterYear(e.target.value)}
-              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-extrabold outline-none focus:border-amber-600"
-            >
-              <option value="ALL" className="bg-white text-slate-900 font-extrabold">All Years</option>
-              <option value="1" className="bg-white text-slate-900 font-bold">1st Year</option>
-              <option value="2" className="bg-white text-slate-900 font-bold">2nd Year</option>
-              <option value="3" className="bg-white text-slate-900 font-bold">3rd Year</option>
-              <option value="4" className="bg-white text-slate-900 font-bold">4th Year</option>
-            </select>
+            {/* Quick Search */}
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <input
+                type="text"
+                value={examFilterSearch}
+                onChange={e => setExamFilterSearch(e.target.value)}
+                placeholder="Search subject code, name, room..."
+                className="px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-xs font-bold placeholder-slate-400 outline-none focus:border-amber-600 w-full md:w-64 shadow-inner"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-300 rounded-xl shadow-inner">
+          {/* Department Selection Tabs Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1">
+            {/* All Departments Option */}
+            <button
+              type="button"
+              onClick={() => setExamFilterDeptId('ALL')}
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-center ${
+                examFilterDeptId === 'ALL'
+                  ? 'bg-amber-600 border-amber-600 text-white shadow-md shadow-amber-600/20 ring-2 ring-amber-400/50'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-800'
+              }`}
+            >
+              <Building2 className="w-4 h-4 mb-1 opacity-80" />
+              <span className="text-xs font-black">All Branches</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 ${
+                examFilterDeptId === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {totalCategoryExamsCount} Exams
+              </span>
+            </button>
+
+            {/* Individual Department Cards */}
+            {departments.map(dept => {
+              const count = getDeptExamsCount(dept.id, dept.code);
+              const isSelected = examFilterDeptId === dept.id;
+              return (
+                <button
+                  key={dept.id}
+                  type="button"
+                  onClick={() => setExamFilterDeptId(dept.id)}
+                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-center ${
+                    isSelected
+                      ? 'bg-amber-600 border-amber-600 text-white shadow-md shadow-amber-600/20 ring-2 ring-amber-400/50'
+                      : 'bg-slate-50 hover:bg-slate-100 border-slate-300 text-slate-800'
+                  }`}
+                >
+                  <span className="text-xs font-black uppercase font-mono">{dept.code}</span>
+                  <span className="text-[10px] font-semibold truncate max-w-full opacity-85">
+                    {dept.code === 'CSD' ? 'Data Science' : dept.name.split(' ')[0]}
+                  </span>
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full mt-1 ${
+                    isSelected ? 'bg-white/20 text-white' : (count > 0 ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-slate-200 text-slate-500')
+                  }`}>
+                    {count} {count === 1 ? 'Exam' : 'Exams'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* View Mode & Year Filter Sub-Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-3 border border-slate-300 rounded-xl shadow-sm">
+          {/* Year Filter Buttons */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-wrap">
+            <span className="text-xs font-bold text-slate-400 flex items-center gap-1 mr-1">
+              <Calendar className="w-3.5 h-3.5 text-amber-600" /> Year:
+            </span>
+            <button
+              type="button"
+              onClick={() => setExamFilterYear('ALL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                examFilterYear === 'ALL'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              All Years
+            </button>
+            {[1, 2, 3, 4].map(y => (
+              <button
+                key={y}
+                type="button"
+                onClick={() => setExamFilterYear(String(y))}
+                className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                  examFilterYear === String(y)
+                    ? 'bg-amber-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {y === 1 ? '1st Year (I/IV)' : y === 2 ? '2nd Year (II/IV)' : y === 3 ? '3rd Year (III/IV)' : '4th Year (IV/IV)'}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode Buttons */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-300 rounded-xl shadow-inner flex-wrap">
+            <button
+              type="button"
+              onClick={() => setExamViewMode('daywise')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                examViewMode === 'daywise' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Day-Wise Schedule
+            </button>
             <button
               type="button"
               onClick={() => setExamViewMode('table')}
@@ -558,16 +888,17 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
               }`}
             >
               <Table className="w-3.5 h-3.5" />
-              Datewise Table
+              Timetable Table
             </button>
             <button
               type="button"
-              onClick={() => setExamViewMode('grid')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
-                examViewMode === 'grid' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
+              onClick={() => setExamViewMode('circular')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                examViewMode === 'circular' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:text-slate-900'
               }`}
             >
-              Cards Grid
+              <FileText className="w-3.5 h-3.5" />
+              Official Circular
             </button>
             <button
               type="button"
@@ -581,15 +912,79 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
           </div>
         </div>
 
+        {/* Active Department Spotlight Banner (When a specific department is chosen) */}
+        {(() => {
+          const activeDept = departments.find(d => d.id === examFilterDeptId);
+          if (!activeDept) return null;
+          const activeDeptCount = getDeptExamsCount(activeDept.id, activeDept.code);
+          return (
+            <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border-2 border-amber-500/30 p-5 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-600 to-orange-600 text-white flex items-center justify-center font-black text-xl shadow-md shadow-amber-600/30 shrink-0">
+                  {activeDept.code}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase text-amber-700 tracking-wider">
+                      Exclusive Department Schedule
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-xs font-bold text-slate-500">
+                      {examTabCategory === 'MID' ? (examTabType === 'MID_2' ? 'Mid-II Examination' : 'Mid-I Examination') : 'Semester-End Examination'}
+                    </span>
+                  </div>
+                  <h2 className="text-lg md:text-xl font-black text-slate-900">
+                    DEPARTMENT OF {getDeptOfficialTitle(activeDept.code, activeDept.name)}
+                  </h2>
+                  <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                    Showing {activeDeptCount} Scheduled Sessions • 2 Sessions Daily (Morning: 09:30-11:30 AM & Afternoon: 01:00-03:00 PM)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setExamFilterDeptId('ALL')}
+                  className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs font-extrabold transition-all shadow-xs"
+                >
+                  View All Branches
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportExamsCSV}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs font-extrabold transition-all shadow-xs flex items-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  Export {activeDept.code} CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold transition-all shadow-md shadow-amber-600/20 flex items-center gap-1.5"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print {activeDept.code}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Exam Content Views */}
         {(() => {
           const filtered = exams.filter(ex => {
             if (examTabCategory === 'MID' && !ex.exam_type?.includes('MID')) return false;
             if (examTabCategory === 'SEM_END' && ex.exam_type !== 'SEM_END') return false;
             if (examTabCategory === 'MID' && ex.exam_type !== examTabType) return false;
+            if (ex.semester && ex.semester !== examFilterSemester) return false;
 
-            if (examFilterDeptId !== 'ALL' && ex.subject?.department_id !== examFilterDeptId && ex.subject?.department?.id !== examFilterDeptId) {
-              return false;
+
+            if (examFilterDeptId !== 'ALL') {
+              const targetDept = departments.find(d => d.id === examFilterDeptId);
+              if (targetDept && !isExamMatchDept(ex, targetDept.id, targetDept.code)) {
+                return false;
+              }
             }
             if (examFilterYear !== 'ALL' && ex.academic_year !== parseInt(examFilterYear)) {
               return false;
@@ -620,6 +1015,388 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
                   >
                     Generate Exam Timetable Now
                   </button>
+                )}
+              </div>
+            );
+          }
+
+          if (examViewMode === 'daywise') {
+            let targetDepts = departments;
+            if (examFilterDeptId !== 'ALL') {
+              targetDepts = departments.filter(d => d.id === examFilterDeptId);
+            }
+
+            let targetYears = [1, 2, 3, 4];
+            if (examFilterYear !== 'ALL') {
+              targetYears = [parseInt(examFilterYear)];
+            }
+
+            const daywiseGroups: Array<{
+              deptId: string;
+              deptCode: string;
+              deptName: string;
+              deptOfficialTitle: string;
+              academicYear: number;
+              romanYear: string;
+              days: Array<{
+                dayNumber: number;
+                dateStr: string;
+                weekday: string;
+                sessions: ExamTimetableEntry[];
+              }>;
+            }> = [];
+
+            targetDepts.forEach(dept => {
+              targetYears.forEach(yr => {
+                const deptExams = exams.filter(ex => {
+                  if (examTabCategory === 'MID' && !ex.exam_type?.includes('MID')) return false;
+                  if (examTabCategory === 'SEM_END' && ex.exam_type !== 'SEM_END') return false;
+                  if (examTabType && ex.exam_type !== examTabType) return false;
+                  if (ex.semester && ex.semester !== examFilterSemester) return false;
+
+                  const matchDept = isExamMatchDept(ex, dept.id, dept.code);
+                  if (!matchDept) return false;
+
+                  const exYr = ex.academic_year || 1;
+                  if (exYr !== yr) return false;
+
+                  return true;
+                });
+
+
+                if (deptExams.length === 0) return;
+
+                // Group by unique date
+                const dateMap = new Map<string, ExamTimetableEntry[]>();
+                deptExams.forEach(ex => {
+                  const dKey = ex.exam_date ? ex.exam_date.slice(0, 10) : 'TBA';
+                  if (!dateMap.has(dKey)) dateMap.set(dKey, []);
+                  dateMap.get(dKey)!.push(ex);
+                });
+
+                const sortedDates = Array.from(dateMap.keys()).sort();
+
+                const days = sortedDates.map((dKey, idx) => {
+                  const allSessions = dateMap.get(dKey)!;
+                  
+                  // Deduplicate by (slot, subject_id) so each scheduled subject slot appears cleanly
+                  const uniqueSlotMap = new Map<string, ExamTimetableEntry>();
+                  allSessions.forEach(s => {
+                    const k = `${s.time_slot}_${s.subject_id || s.subject?.code}`;
+                    if (!uniqueSlotMap.has(k)) {
+                      uniqueSlotMap.set(k, s);
+                    }
+                  });
+
+                  const sessions = Array.from(uniqueSlotMap.values()).sort((a, b) => (a.time_slot || 1) - (b.time_slot || 1));
+
+                  let dateFormatted = dKey;
+                  let weekday = '';
+                  if (dKey !== 'TBA') {
+                    const d = new Date(dKey);
+                    if (!isNaN(d.getTime())) {
+                      const dd = String(d.getDate()).padStart(2, '0');
+                      const mm = String(d.getMonth() + 1).padStart(2, '0');
+                      const yyyy = d.getFullYear();
+                      dateFormatted = `${dd}-${mm}-${yyyy}`;
+                      weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+                    }
+                  }
+
+                  return {
+                    dayNumber: idx + 1,
+                    dateStr: dateFormatted,
+                    weekday,
+                    sessions
+                  };
+                });
+
+                daywiseGroups.push({
+                  deptId: dept.id,
+                  deptCode: dept.code,
+                  deptName: dept.name,
+                  deptOfficialTitle: getDeptOfficialTitle(dept.code, dept.name),
+                  academicYear: yr,
+                  romanYear: getRomanYear(yr),
+                  days
+                });
+              });
+            });
+
+            return (
+              <div className="flex flex-col gap-6 w-full">
+                {/* Combined Overview Banner when All Depts Active */}
+                {examFilterDeptId === 'ALL' && (
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between gap-3 text-xs text-amber-900 font-bold flex-wrap shadow-xs">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>Showing all {daywiseGroups.length} department batches combined. Click any branch tab above to view its timetable separately.</span>
+                    </div>
+                    <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-200/80 text-amber-950">
+                      {daywiseGroups.reduce((acc, g) => acc + g.days.reduce((a, d) => a + d.sessions.length, 0), 0)} Total Exam Sessions
+                    </span>
+                  </div>
+                )}
+
+                {/* Day-Wise Batches Render */}
+                {daywiseGroups.length === 0 ? (
+                  <div className="bg-white border border-slate-300 rounded-2xl p-12 text-center text-slate-500 shadow-sm">
+                    <CalendarDays className="w-12 h-12 text-amber-600/50 mx-auto mb-3" />
+                    <h4 className="text-base font-bold text-slate-900 mb-1">No Schedule Entries Found</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Please generate or select a department with scheduled exam sessions.
+                    </p>
+                  </div>
+                ) : (
+                  daywiseGroups.map(group => (
+                    <div
+                      key={`${group.deptCode}_${group.academicYear}`}
+                      className="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm flex flex-col gap-5"
+                    >
+                      {/* Department & Year Banner */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-amber-600 text-white flex items-center justify-center font-black text-sm shadow-sm">
+                            {group.deptCode}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black uppercase text-amber-600 tracking-wider">
+                                {group.romanYear}/IV B.Tech
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              <span className="text-xs font-bold text-slate-500">
+                                {examTabCategory === 'MID' ? (examTabType === 'MID_2' ? 'Mid-II Exam' : 'Mid-I Exam') : 'Semester-End Exam'}
+                              </span>
+                            </div>
+                            <h3 className="text-base font-black text-slate-900">
+                              DEPARTMENT OF {group.deptOfficialTitle}
+                            </h3>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-700">
+                            {group.days.reduce((acc, d) => acc + d.sessions.length, 0)} Total Subjects
+                          </span>
+                          <span className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs font-extrabold text-amber-800">
+                            {group.days.length} Days Timeline
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Day-Wise Sequence Flow */}
+                      <div className="space-y-4">
+                        {group.days.map(day => (
+                          <div
+                            key={day.dayNumber}
+                            className="bg-slate-50/80 border border-slate-200 rounded-xl p-4 transition-all hover:border-amber-400"
+                          >
+                            {/* Day Header */}
+                            <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2.5 mb-3 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2.5 py-1 rounded-md bg-amber-600 text-white text-xs font-black shadow-xs">
+                                  Day {day.dayNumber}
+                                </span>
+                                <span className="text-xs sm:text-sm font-black text-slate-900">
+                                  {day.dateStr}
+                                </span>
+                                {day.weekday && (
+                                  <span className="text-xs font-semibold text-slate-500">
+                                    ({day.weekday})
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-600">
+                                {day.sessions.length} {day.sessions.length === 1 ? 'Session' : 'Sessions'}
+                              </span>
+                            </div>
+
+                            {/* Session Cards (Morning & Afternoon) */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {day.sessions.map((sess, sIdx) => {
+                                const isMorning = sess.time_slot === 1;
+                                const slotTime = examTabCategory === 'SEM_END'
+                                  ? (isMorning ? '09:30 AM - 12:30 PM' : '01:30 PM - 04:30 PM')
+                                  : (isMorning ? '09:30 AM - 11:30 AM' : (sess.time_slot === 3 ? '02:15 PM - 03:15 PM' : '01:00 PM - 03:00 PM'));
+
+                                return (
+                                  <div
+                                    key={sess.id || sIdx}
+                                    className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between"
+                                  >
+                                    <div>
+                                      {/* Slot and Time badge */}
+                                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wide ${
+                                          isMorning
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                            : 'bg-orange-50 text-orange-700 border border-orange-200'
+                                        }`}>
+                                          {isMorning ? 'Morning Slot 1' : `Afternoon Slot ${sess.time_slot}`}
+                                        </span>
+                                        <span className="text-xs font-extrabold text-slate-700">
+                                          {slotTime}
+                                        </span>
+                                      </div>
+
+                                      {/* Subject Code & Name */}
+                                      <div className="mt-1">
+                                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-[10px] font-bold">
+                                          {sess.subject?.code || 'CODE'}
+                                        </span>
+                                        <h4 className="text-xs sm:text-sm font-black text-slate-900 mt-1 uppercase leading-snug">
+                                          {sess.subject?.name}
+                                        </h4>
+                                      </div>
+                                    </div>
+
+                                    {/* Hall & Invigilator */}
+                                    <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-600 gap-2 flex-wrap">
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-slate-400 font-medium">Hall:</span>
+                                        <span className="font-extrabold text-slate-900">
+                                          Room {sess.classroom?.room_number || 'TBA'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-slate-400 font-medium">Invigilator:</span>
+                                        <span className="font-bold text-slate-800">
+                                          {sess.invigilator?.user?.full_name || 'Assigned'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          }
+
+          if (examViewMode === 'circular') {
+            const examShort = examTabCategory === 'MID' ? (examTabType === 'MID_2' ? 'Mid-II' : 'Mid-I') : 'Sem-End';
+            const examFull = examTabCategory === 'MID' ? (examTabType === 'MID_2' ? 'MID-II Examination' : 'MID-I Examination') : 'Semester-End Examination';
+
+            return (
+              <div className="flex flex-col items-center justify-center w-full">
+                {/* Navigation Header Bar */}
+                <div className="w-full max-w-4xl flex flex-col gap-3 bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl mb-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-amber-600" />
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">
+                          Official Examination Circulars Preview
+                        </h4>
+                        <p className="text-[11px] text-slate-600 font-semibold">
+                          Showing {printCircularGroups.length} Department-Wise • Year-Wise • Day-Wise Official Timetables
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold shadow-sm transition-all"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Print Circular Sheet / PDF
+                    </button>
+                  </div>
+
+                  {/* Quick Department Filter Chips */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-none flex-wrap">
+                    <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 mr-1">
+                      <Building2 className="w-3.5 h-3.5 text-amber-600" /> Dept:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExamFilterDeptId('ALL')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all ${
+                        examFilterDeptId === 'ALL'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      All Depts ({departments.length})
+                    </button>
+                    {departments.map(d => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setExamFilterDeptId(d.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all ${
+                          examFilterDeptId === d.id
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {d.code}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Quick Year Filter Chips */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pt-1 scrollbar-none flex-wrap">
+                    <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 mr-1">
+                      <CalendarDays className="w-3.5 h-3.5 text-amber-600" /> Year:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExamFilterYear('ALL')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all ${
+                        examFilterYear === 'ALL'
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      All Years
+                    </button>
+                    {[1, 2, 3, 4].map(y => (
+                      <button
+                        key={y}
+                        type="button"
+                        onClick={() => setExamFilterYear(String(y))}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all ${
+                          examFilterYear === String(y)
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {y === 1 ? '1st Year (I/IV)' : y === 2 ? '2nd Year (II/IV)' : y === 3 ? '3rd Year (III/IV)' : '4th Year (IV/IV)'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Render Circulars Dept-Wise, Year-Wise, Day-Wise Without Signatures Below */}
+                {printCircularGroups.length === 0 ? (
+                  <div className="w-full max-w-4xl bg-white border border-slate-300 p-8 text-center text-slate-500 rounded-2xl my-4">
+                    No examination sessions found for the selected department and year. Please click "Generate Timetable".
+                  </div>
+                ) : (
+                  printCircularGroups.map(group => (
+                    <OfficialCircularSheet
+                      key={`${group.deptCode}_${group.academicYear}`}
+                      group={group}
+                      circularDate="21/01/2026"
+                      academicYearSpan={calExamDates?.academic_year || '2026-27'}
+                      semesterNumber={examFilterSemester === 2 ? 'II' : 'I'}
+                      submissionDate="23-01-2026"
+                      coordinatorsText="Mrs. G.Y. Gayathri, Ms. B. Renuka Sai"
+                      hodNameText="Prof. S. Adi Narayana"
+                      noteText=""
+                      examShortName={examShort}
+                      examFullName={examFull}
+                      showSignatures={false}
+                    />
+                  ))
                 )}
               </div>
             );
@@ -1299,16 +2076,47 @@ export const ExamTimetableManagerView: React.FC<ExamTimetableManagerViewProps> =
         </div>
       )}
 
-      {isPrintModalOpen && (
-        <PrintableExamTimetableTemplate
-          category={examTabCategory}
-          examType={examTabType}
-          exams={exams}
-          departments={departments}
-          activeDeptId={examFilterDeptId}
-          onClose={() => setIsPrintModalOpen(false)}
-        />
-      )}
+        {isPrintModalOpen && (
+          <PrintableExamTimetableTemplate
+            category={examTabCategory}
+            examType={examTabType}
+            exams={exams}
+            departments={departments}
+            activeDeptId={examFilterDeptId}
+            activeYear={examFilterYear}
+            activeSemester={examFilterSemester}
+            academicYearSpan={calExamDates?.academic_year || '2026-27'}
+            onClose={() => setIsPrintModalOpen(false)}
+          />
+        )}
+      </div>
+
+      {/* Official Aligned Timetable Document (Visible ONLY when printing) */}
+      <div className="hidden print:block w-full">
+        {printCircularGroups.length === 0 ? (
+          <div className="p-12 text-center text-black font-serif text-sm">
+            No examination schedule entries available for print. Please click Generate Timetable first.
+          </div>
+        ) : (
+          printCircularGroups.map(group => (
+            <OfficialCircularSheet
+              key={`print_sheet_${group.deptCode}_${group.academicYear}`}
+              group={group}
+              circularDate={new Date().toLocaleDateString('en-GB')}
+              academicYearSpan={calExamDates?.academic_year || '2026-27'}
+              semesterNumber={examFilterSemester === 2 ? 'II' : 'I'}
+              submissionDate="23-01-2026"
+              coordinatorsText="Mrs. G.Y. Gayathri, Ms. B. Renuka Sai"
+              hodNameText="Prof. S. Adi Narayana"
+              noteText=""
+              examShortName={examTabCategory === 'MID' ? (examTabType === 'MID_2' ? 'Mid-II' : 'Mid-I') : 'Sem-End'}
+              examFullName={examTabCategory === 'MID' ? (examTabType === 'MID_2' ? 'MID-II Examination' : 'MID-I Examination') : 'Semester-End Examination'}
+              showSignatures={false}
+            />
+          ))
+        )}
+      </div>
+
     </div>
   );
 };

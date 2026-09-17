@@ -305,3 +305,40 @@ table tbody tr {
 table tbody tr:hover {
   background-color: #f8fafc !important;
 }
+
+/* =========================================================
+   OFFICIAL TIMETABLE PRINT STYLING
+   ========================================================= */
+@media print {
+  @page {
+    size: portrait;
+    margin: 10mm 12mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Times New Roman', Times, Georgia, serif !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  nav,
+  header,
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+  .break-after-page,
+  .print\:break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

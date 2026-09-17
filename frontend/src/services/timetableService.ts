@@ -136,7 +136,7 @@ export const timetableService = {
     return res.data;
   },
 
-  async getExamCalendarDates(): Promise<{
+  async getExamCalendarDates(semester: number = 1): Promise<{
     academic_year: string | null;
     semester: string | null;
     mid1_start_date: string | null;
@@ -149,10 +149,10 @@ export const timetableService = {
     }>;
   }> {
     try {
-      const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`);
+      const res = await axios.get(`${API_URL}/timetable/exam-calendar-dates`, { params: { semester } });
       return res.data;
     } catch (err) {
-      const res = await axios.get(`${API_URL}/timetable/exams/calendar-dates`);
+      const res = await axios.get(`${API_URL}/timetable/exams/calendar-dates`, { params: { semester } });
       return res.data;
     }
   },
@@ -161,6 +161,7 @@ export const timetableService = {
     category?: string;
     exam_type?: string;
     academic_year?: number;
+    semester?: number;
     department_id?: string;
   }): Promise<ExamTimetableEntry[]> {
     const res = await axios.get(`${API_URL}/timetable/exams`, { params: filters });
@@ -173,15 +174,17 @@ export const timetableService = {
     start_date?: string;
     semester?: number;
     department_ids?: string[];
+    academic_year?: number;
   }): Promise<ExamTimetableEntry[]> {
     const res = await axios.post(`${API_URL}/timetable/generate-exams`, data);
     return res.data;
   },
 
-  async clearExamSchedule(filters?: { exam_type?: string; department_id?: string; purge_all?: boolean }): Promise<any> {
+  async clearExamSchedule(filters?: { exam_type?: string; semester?: number; department_id?: string; purge_all?: boolean }): Promise<any> {
     const res = await axios.delete(`${API_URL}/timetable/exams-clear`, { params: filters });
     return res.data;
   },
+
 
   async createExamEntry(data: {
     exam_type?: string;
